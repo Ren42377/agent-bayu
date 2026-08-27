@@ -43,9 +43,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
+import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
@@ -123,7 +125,13 @@ fun AssistantPanel(
                         }
                     }
                 )
-                PanelHeader(isResponding = isResponding, onDismiss = onDismiss)
+                PanelHeader(
+                    isResponding = isResponding,
+                    routeLabel = messages.lastOrNull { message ->
+                        message.author == MessageAuthor.AGENT
+                    }?.route?.label,
+                    onDismiss = onDismiss
+                )
                 if (messages.isEmpty()) {
                     PanelGreeting(
                         suggestions = suggestions,
@@ -190,7 +198,7 @@ private fun DragHandle(onDrag: (Float) -> Unit, onDragStopped: () -> Unit) {
 }
 
 @Composable
-private fun PanelHeader(isResponding: Boolean, onDismiss: () -> Unit) {
+private fun PanelHeader(isResponding: Boolean, routeLabel: String?, onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -218,11 +226,17 @@ private fun PanelHeader(isResponding: Boolean, onDismiss: () -> Unit) {
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = stringResource(
-                    if (isResponding) R.string.chat_thinking else R.string.overlay_subtitle
-                ),
+                text = if (!isResponding && routeLabel != null) {
+                    routeLabel
+                } else {
+                    stringResource(
+                        if (isResponding) R.string.chat_thinking else R.string.overlay_subtitle
+                    )
+                },
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
         }
         IconButton(onClick = onDismiss) {

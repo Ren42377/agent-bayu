@@ -1,5 +1,7 @@
 package dev.agentbayu.app.domain
 
+import dev.agentbayu.app.ai.RouteDecision
+import dev.agentbayu.app.ai.TokenUsage
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,13 +15,65 @@ class ConversationRepository {
 
     val messages: StateFlow<List<ChatMessage>> = state.asStateFlow()
 
-    fun append(author: MessageAuthor, text: String): ChatMessage {
-        val message = ChatMessage(id = nextId.getAndIncrement(), author = author, text = text)
+    fun append(author: MessageAuthor, text: String, streaming: Boolean = false): ChatMessage {
+        val message = ChatMessage(
+            id = nextId.getAndIncrement(),
+            author = author,
+            text = text,
+            streaming = streaming
+        )
         state.update { current -> current + message }
         return message
     }
 
+    fun appendDelta(id: Long, text: String) {
+        if (text.isEmpty()) return
+        mutate(id) { message -> message.copy(text = message.text + text) }
+    }
+
+    fun replaceText(id: Long, text: String) {
+        mutate(id) { message -> message.copy(text = text) }
+    }
+
+    fun attachRoute(id: Long, decision: RouteDecision) {
+        mutate(id) { message -> message.copy(route = decision) }
+    }
+
+    fun complete(id: Long, decision: RouteDecision?, usage: TokenUsage?) {
+        mutate(id) { message ->
+            message.copy(
+                route = decision ?: message.route,
+                usage = usage ?: message.usage,
+                streaming = false
+            )
+        }
+    }
+
+    fun finishStreaming(id: Long) {
+        mutate(id) { message -> if (message.streaming) message.copy(streaming = false) else message }
+    }
+
+    fun restore(messages: List<ChatMessage>) {
+        if (messages.isEmpty()) return
+        val highestId = messages.maxOf { it.id }
+        nextId.set(highestId + 1L)
+        state.value = messages.map { message ->
+            if (message.streaming) message.copy(streaming = false) else message
+        }
+    }
+
     fun clear() {
         state.value = emptyList()
+    }
+
+    private fun mutate(id: Long, block: (ChatMessage) -> ChatMessage) {
+        state.update { current ->
+            val index = current.indexOfFirst { it.id == id }
+            if (index < 0) {
+                current
+            } else {
+                current.toMutableList().apply { set(index, block(get(index))) }
+            }
+        }
     }
 }

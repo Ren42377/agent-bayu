@@ -17,11 +17,15 @@ fun MessageList(
     messages: List<ChatMessage>,
     isResponding: Boolean,
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(0.dp)
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    onShowRoute: ((ChatMessage) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
-    val itemCount = messages.size + if (isResponding) 1 else 0
-    LaunchedEffect(itemCount) {
+    val visible = messages.filterNot { message -> message.streaming && message.text.isEmpty() }
+    val showTyping = isResponding && visible.size < messages.size
+    val itemCount = visible.size + if (showTyping) 1 else 0
+    val lastLength = visible.lastOrNull()?.text?.length ?: 0
+    LaunchedEffect(itemCount, lastLength) {
         if (itemCount > 0) {
             listState.animateScrollToItem(itemCount - 1)
         }
@@ -32,10 +36,10 @@ fun MessageList(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        items(items = messages, key = { message -> message.id }) { message ->
-            MessageBubble(message = message)
+        items(items = visible, key = { message -> message.id }) { message ->
+            MessageBubble(message = message, onShowRoute = onShowRoute)
         }
-        if (isResponding) {
+        if (showTyping) {
             item(key = TYPING_KEY) {
                 TypingIndicator(modifier = Modifier.padding(start = 8.dp, top = 2.dp))
             }

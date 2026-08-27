@@ -1,9 +1,11 @@
 package dev.agentbayu.app.ui.chat
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,13 +14,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
+import dev.agentbayu.app.ui.ai.RouteDetailSheet
 import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
@@ -29,12 +37,16 @@ fun ChatScreen(
     input: String,
     isResponding: Boolean,
     suggestions: List<String>,
+    routeHint: String,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onSuggestionClick: (String) -> Unit,
     onMicClick: () -> Unit,
+    onOpenRouting: () -> Unit,
+    onStop: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var routeMessage by remember { mutableStateOf<ChatMessage?>(null) }
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {
             if (messages.isEmpty()) {
@@ -44,7 +56,8 @@ fun ChatScreen(
                     messages = messages,
                     isResponding = isResponding,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp)
+                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
+                    onShowRoute = { message -> routeMessage = message }
                 )
             }
         }
@@ -55,6 +68,12 @@ fun ChatScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
         )
+        RouteBar(
+            hint = routeHint,
+            isResponding = isResponding,
+            onOpenRouting = onOpenRouting,
+            onStop = onStop
+        )
         PromptBar(
             value = input,
             onValueChange = onInputChange,
@@ -62,6 +81,55 @@ fun ChatScreen(
             onMicClick = onMicClick,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         )
+    }
+    routeMessage?.let { message ->
+        val decision = message.route
+        if (decision == null) {
+            routeMessage = null
+        } else {
+            RouteDetailSheet(
+                decision = decision,
+                usage = message.usage,
+                onDismiss = { routeMessage = null }
+            )
+        }
+    }
+}
+
+@Composable
+private fun RouteBar(
+    hint: String,
+    isResponding: Boolean,
+    onOpenRouting: () -> Unit,
+    onStop: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = hint,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onOpenRouting)
+                .padding(vertical = 6.dp)
+        )
+        if (isResponding) {
+            Text(
+                text = stringResource(R.string.chat_stop),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .clickable(onClick = onStop)
+                    .padding(start = 12.dp, top = 6.dp, bottom = 6.dp)
+            )
+        }
     }
 }
 

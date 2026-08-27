@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.settings
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -15,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
@@ -25,6 +28,9 @@ fun SettingsScreen(
     useScreenContext: Boolean,
     onScreenContextChange: (Boolean) -> Unit,
     onClearConversation: () -> Unit,
+    onOpenProviders: () -> Unit,
+    onOpenRouting: () -> Unit,
+    onOpenUsage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -34,6 +40,23 @@ fun SettingsScreen(
             .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        SectionTitle(text = stringResource(R.string.settings_ai))
+        NavigationRow(
+            title = stringResource(R.string.settings_providers_title),
+            body = stringResource(R.string.settings_providers_body),
+            onClick = onOpenProviders
+        )
+        NavigationRow(
+            title = stringResource(R.string.settings_routing_title),
+            body = stringResource(R.string.settings_routing_body),
+            onClick = onOpenRouting
+        )
+        NavigationRow(
+            title = stringResource(R.string.settings_usage_title),
+            body = stringResource(R.string.settings_usage_body),
+            onClick = onOpenUsage
+        )
+
         SectionTitle(text = stringResource(R.string.settings_privacy))
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -67,12 +90,6 @@ fun SettingsScreen(
             Text(text = stringResource(R.string.settings_clear_action))
         }
 
-        SectionTitle(text = stringResource(R.string.settings_integrations))
-        IntegrationRow(name = stringResource(R.string.integration_google_tasks))
-        IntegrationRow(name = stringResource(R.string.integration_google_calendar))
-        IntegrationRow(name = stringResource(R.string.integration_whatsapp))
-        IntegrationRow(name = stringResource(R.string.integration_instagram))
-
         SectionTitle(text = stringResource(R.string.settings_about))
         Text(
             text = stringResource(R.string.settings_about_body),
@@ -98,20 +115,26 @@ private fun SectionTitle(text: String) {
 }
 
 @Composable
-private fun IntegrationRow(name: String) {
+private fun NavigationRow(title: String, body: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = name,
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = stringResource(R.string.settings_integration_pending),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = body,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Icon(
+            painter = painterResource(R.drawable.ic_chevron),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }

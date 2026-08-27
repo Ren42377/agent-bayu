@@ -12,7 +12,13 @@ import dev.agentbayu.app.BuildConfig
 import dev.agentbayu.app.R
 
 @Composable
-fun SettingsRoute(onMessage: (String) -> Unit, modifier: Modifier = Modifier) {
+fun SettingsRoute(
+    onMessage: (String) -> Unit,
+    onOpenProviders: () -> Unit,
+    onOpenRouting: () -> Unit,
+    onOpenUsage: () -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val chat = remember(context) { AppGraph.chat(context) }
     val settings = remember(context) { AppGraph.settings(context) }
@@ -26,6 +32,9 @@ fun SettingsRoute(onMessage: (String) -> Unit, modifier: Modifier = Modifier) {
             chat.clear()
             onMessage(clearedMessage)
         },
+        onOpenProviders = onOpenProviders,
+        onOpenRouting = onOpenRouting,
+        onOpenUsage = onOpenUsage,
         modifier = modifier
     )
 }

@@ -1,0 +1,36 @@
+package dev.agentbayu.app.ai.adapter
+
+import dev.agentbayu.app.ai.Candidate
+import kotlinx.coroutines.flow.Flow
+
+enum class ChatRole {
+    SYSTEM,
+    USER,
+    ASSISTANT
+}
+
+data class ChatTurn(
+    val role: ChatRole,
+    val content: String
+)
+
+data class ChatRequest(
+    val systemPrompt: String? = null,
+    val turns: List<ChatTurn> = emptyList(),
+    val maxOutputTokens: Int? = null,
+    val temperature: Double? = null
+)
+
+interface ChatAdapter {
+    fun stream(candidate: Candidate, apiKey: String?, request: ChatRequest): Flow<WireEvent>
+}
+
+object WireParams {
+    const val MAX_TOKENS = "max_tokens"
+    const val TEMPERATURE = "temperature"
+    const val STREAM_OPTIONS = "stream_options"
+
+    fun supports(candidate: Candidate, param: String): Boolean =
+        !candidate.provider.unsupportedParams.contains(param) &&
+            !candidate.model.unsupportedParams.contains(param)
+}

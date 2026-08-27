@@ -1,0 +1,250 @@
+{
+  "version": 1,
+  "providers": [
+    {
+      "id": "groq",
+      "label": "Groq",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "free",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://console.groq.com/keys",
+      "models": [
+        { "id": "llama-3.3-70b-versatile", "label": "Llama 3.3 70B", "contextLength": 131072, "maxOutputTokens": 32768, "inputPricePerMillion": 0.59, "outputPricePerMillion": 0.79, "free": true },
+        { "id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B", "contextLength": 131072, "maxOutputTokens": 32768, "inputPricePerMillion": 0.15, "outputPricePerMillion": 0.75, "free": true },
+        { "id": "openai/gpt-oss-20b", "label": "GPT-OSS 20B", "contextLength": 131072, "maxOutputTokens": 32768, "inputPricePerMillion": 0.1, "outputPricePerMillion": 0.5, "free": true },
+        { "id": "meta-llama/llama-4-scout-17b-16e-instruct", "label": "Llama 4 Scout", "contextLength": 131072, "maxOutputTokens": 8192, "inputPricePerMillion": 0.11, "outputPricePerMillion": 0.34, "free": true }
+      ]
+    },
+    {
+      "id": "cerebras",
+      "label": "Cerebras",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.cerebras.ai/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "free",
+      "modelsPath": "/models",
+      "supportsStreamUsage": false,
+      "keyUrl": "https://cloud.cerebras.ai",
+      "models": [
+        { "id": "llama-3.3-70b", "label": "Llama 3.3 70B", "contextLength": 65536, "maxOutputTokens": 16384, "inputPricePerMillion": 0.85, "outputPricePerMillion": 1.2, "free": true },
+        { "id": "gpt-oss-120b", "label": "GPT-OSS 120B", "contextLength": 65536, "maxOutputTokens": 16384, "inputPricePerMillion": 0.25, "outputPricePerMillion": 0.69, "free": true },
+        { "id": "qwen-3-32b", "label": "Qwen3 32B", "contextLength": 65536, "maxOutputTokens": 16384, "inputPricePerMillion": 0.4, "outputPricePerMillion": 0.8, "free": true }
+      ]
+    },
+    {
+      "id": "google-gemini",
+      "label": "Google Gemini",
+      "wireFormat": "gemini",
+      "baseUrl": "https://generativelanguage.googleapis.com",
+      "authType": "apikey",
+      "authHeader": "x-goog-api-key",
+      "tier": "free",
+      "modelsPath": "/v1beta/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://aistudio.google.com/apikey",
+      "models": [
+        { "id": "gemini-2.5-flash", "label": "Gemini 2.5 Flash", "contextLength": 1048576, "maxOutputTokens": 65536, "inputPricePerMillion": 0.3, "outputPricePerMillion": 2.5, "free": true },
+        { "id": "gemini-2.5-flash-lite", "label": "Gemini 2.5 Flash Lite", "contextLength": 1048576, "maxOutputTokens": 65536, "inputPricePerMillion": 0.1, "outputPricePerMillion": 0.4, "free": true },
+        { "id": "gemini-2.5-pro", "label": "Gemini 2.5 Pro", "contextLength": 1048576, "maxOutputTokens": 65536, "inputPricePerMillion": 1.25, "outputPricePerMillion": 10.0, "free": false }
+      ]
+    },
+    {
+      "id": "anthropic",
+      "label": "Anthropic Claude",
+      "wireFormat": "anthropic",
+      "baseUrl": "https://api.anthropic.com",
+      "authType": "apikey",
+      "authHeader": "x-api-key",
+      "tier": "api_key",
+      "modelsPath": "/v1/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://console.anthropic.com/settings/keys",
+      "models": [
+        { "id": "claude-sonnet-5", "label": "Claude Sonnet 5", "contextLength": 200000, "maxOutputTokens": 64000, "inputPricePerMillion": 3.0, "outputPricePerMillion": 15.0, "free": false },
+        { "id": "claude-haiku-4-5-20251001", "label": "Claude Haiku 4.5", "contextLength": 200000, "maxOutputTokens": 64000, "inputPricePerMillion": 1.0, "outputPricePerMillion": 5.0, "free": false },
+        { "id": "claude-opus-5", "label": "Claude Opus 5", "contextLength": 200000, "maxOutputTokens": 64000, "free": false }
+      ]
+    },
+    {
+      "id": "openrouter",
+      "label": "OpenRouter",
+      "wireFormat": "openai",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "cheap",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://openrouter.ai/keys",
+      "models": [
+        { "id": "meta-llama/llama-3.3-70b-instruct:free", "label": "Llama 3.3 70B (free)", "contextLength": 65536, "maxOutputTokens": 8192, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "deepseek/deepseek-chat-v3.1:free", "label": "DeepSeek V3.1 (free)", "contextLength": 65536, "maxOutputTokens": 8192, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "openai/gpt-4.1-mini", "label": "GPT-4.1 mini", "contextLength": 1047576, "maxOutputTokens": 32768, "inputPricePerMillion": 0.4, "outputPricePerMillion": 1.6, "free": false }
+      ]
+    },
+    {
+      "id": "deepseek",
+      "label": "DeepSeek",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "cheap",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://platform.deepseek.com/api_keys",
+      "models": [
+        { "id": "deepseek-chat", "label": "DeepSeek Chat", "contextLength": 65536, "maxOutputTokens": 8192, "inputPricePerMillion": 0.27, "outputPricePerMillion": 1.1, "free": false },
+        { "id": "deepseek-reasoner", "label": "DeepSeek Reasoner", "contextLength": 65536, "maxOutputTokens": 65536, "inputPricePerMillion": 0.55, "outputPricePerMillion": 2.19, "free": false }
+      ]
+    },
+    {
+      "id": "mistral",
+      "label": "Mistral",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.mistral.ai/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "cheap",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://console.mistral.ai/api-keys",
+      "models": [
+        { "id": "mistral-small-latest", "label": "Mistral Small", "contextLength": 131072, "maxOutputTokens": 16384, "inputPricePerMillion": 0.2, "outputPricePerMillion": 0.6, "free": true },
+        { "id": "mistral-large-latest", "label": "Mistral Large", "contextLength": 131072, "maxOutputTokens": 16384, "inputPricePerMillion": 2.0, "outputPricePerMillion": 6.0, "free": false }
+      ]
+    },
+    {
+      "id": "zai",
+      "label": "Z.AI GLM",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.z.ai/api/paas/v4",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "cheap",
+      "modelsPath": "/models",
+      "supportsStreamUsage": false,
+      "keyUrl": "https://z.ai/manage-apikey/apikey-list",
+      "models": [
+        { "id": "glm-4.6", "label": "GLM 4.6", "contextLength": 204800, "maxOutputTokens": 32768, "inputPricePerMillion": 0.6, "outputPricePerMillion": 2.2, "free": false },
+        { "id": "glm-4.5-air", "label": "GLM 4.5 Air", "contextLength": 131072, "maxOutputTokens": 32768, "inputPricePerMillion": 0.2, "outputPricePerMillion": 1.1, "free": false }
+      ]
+    },
+    {
+      "id": "siliconflow",
+      "label": "SiliconFlow",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.siliconflow.com/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "free",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://cloud.siliconflow.com/account/ak",
+      "models": [
+        { "id": "Qwen/Qwen3-8B", "label": "Qwen3 8B", "contextLength": 131072, "maxOutputTokens": 16384, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "deepseek-ai/DeepSeek-V3", "label": "DeepSeek V3", "contextLength": 65536, "maxOutputTokens": 8192, "free": false }
+      ]
+    },
+    {
+      "id": "nvidia-nim",
+      "label": "NVIDIA NIM",
+      "wireFormat": "openai",
+      "baseUrl": "https://integrate.api.nvidia.com/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "free",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://build.nvidia.com",
+      "models": [
+        { "id": "meta/llama-3.3-70b-instruct", "label": "Llama 3.3 70B", "contextLength": 131072, "maxOutputTokens": 8192, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "openai/gpt-oss-120b", "label": "GPT-OSS 120B", "contextLength": 131072, "maxOutputTokens": 16384, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true }
+      ]
+    },
+    {
+      "id": "together",
+      "label": "Together AI",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.together.xyz/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "cheap",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://api.together.ai/settings/api-keys",
+      "models": [
+        { "id": "meta-llama/Llama-3.3-70B-Instruct-Turbo", "label": "Llama 3.3 70B Turbo", "contextLength": 131072, "maxOutputTokens": 8192, "inputPricePerMillion": 0.88, "outputPricePerMillion": 0.88, "free": false }
+      ]
+    },
+    {
+      "id": "fireworks",
+      "label": "Fireworks AI",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.fireworks.ai/inference/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "cheap",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://fireworks.ai/account/api-keys",
+      "models": [
+        { "id": "accounts/fireworks/models/llama-v3p3-70b-instruct", "label": "Llama 3.3 70B", "contextLength": 131072, "maxOutputTokens": 8192, "inputPricePerMillion": 0.9, "outputPricePerMillion": 0.9, "free": false }
+      ]
+    },
+    {
+      "id": "xai",
+      "label": "xAI Grok",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.x.ai/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "api_key",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://console.x.ai",
+      "models": [
+        { "id": "grok-4", "label": "Grok 4", "contextLength": 262144, "maxOutputTokens": 32768, "free": false },
+        { "id": "grok-3-mini", "label": "Grok 3 mini", "contextLength": 131072, "maxOutputTokens": 16384, "inputPricePerMillion": 0.3, "outputPricePerMillion": 0.5, "free": false }
+      ]
+    },
+    {
+      "id": "openai",
+      "label": "OpenAI",
+      "wireFormat": "openai",
+      "baseUrl": "https://api.openai.com/v1",
+      "authType": "apikey",
+      "authHeader": "bearer",
+      "tier": "api_key",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "keyUrl": "https://platform.openai.com/api-keys",
+      "models": [
+        { "id": "gpt-5-mini", "label": "GPT-5 mini", "contextLength": 400000, "maxOutputTokens": 128000, "inputPricePerMillion": 0.25, "outputPricePerMillion": 2.0, "unsupportedParams": ["max_tokens", "temperature"], "free": false },
+        { "id": "gpt-5", "label": "GPT-5", "contextLength": 400000, "maxOutputTokens": 128000, "inputPricePerMillion": 1.25, "outputPricePerMillion": 10.0, "unsupportedParams": ["max_tokens", "temperature"], "free": false },
+        { "id": "gpt-4.1-mini", "label": "GPT-4.1 mini", "contextLength": 1047576, "maxOutputTokens": 32768, "inputPricePerMillion": 0.4, "outputPricePerMillion": 1.6, "free": false }
+      ]
+    },
+    {
+      "id": "custom-openai",
+      "label": "Endpoint OpenAI-compatible",
+      "wireFormat": "openai",
+      "baseUrl": "http://127.0.0.1:20128/v1",
+      "authType": "optional",
+      "authHeader": "bearer",
+      "tier": "subscription",
+      "modelsPath": "/models",
+      "supportsStreamUsage": true,
+      "editableBaseUrl": true,
+      "allowCustomModel": true,
+      "models": [
+        { "id": "auto", "label": "auto", "contextLength": 131072, "maxOutputTokens": 32768, "free": false }
+      ]
+    }
+  ]
+}

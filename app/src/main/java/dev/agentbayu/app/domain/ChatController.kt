@@ -1,7 +1,9 @@
 package dev.agentbayu.app.domain
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,6 +18,9 @@ class ChatController(
 
     private val respondingState = MutableStateFlow(false)
 
+    @Volatile
+    private var activeJob: Job? = null
+
     val messages: StateFlow<List<ChatMessage>> = repository.messages
     val isResponding: StateFlow<Boolean> = respondingState.asStateFlow()
 
@@ -24,21 +29,51 @@ class ChatController(
         if (prompt.isEmpty() || respondingState.value) {
             return
         }
+        val history = repository.messages.value
         repository.append(MessageAuthor.USER, prompt)
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
         respondingState.value = true
-        scope.launch {
-            val reply = try {
-                engine.reply(prompt, screenContext)
+        activeJob = scope.launch {
+            var streamed = false
+            try {
+                engine.reply(
+                    AgentRequest(prompt = prompt, screenContext = screenContext, history = history)
+                ).collect { event ->
+                    when (event) {
+                        is AgentEvent.Delta -> {
+                            streamed = true
+                            repository.appendDelta(placeholder.id, event.text)
+                        }
+
+                        is AgentEvent.Route -> repository.attachRoute(placeholder.id, event.decision)
+
+                        is AgentEvent.Completed ->
+                            repository.complete(placeholder.id, event.decision, event.usage)
+
+                        is AgentEvent.Failed ->
+                            if (!streamed) repository.replaceText(placeholder.id, event.message)
+                    }
+                }
+            } catch (cancellation: CancellationException) {
+                throw cancellation
             } catch (error: Exception) {
-                Log.e(TAG, "Agent reply failed", error)
-                errorReply
+                Log.e(TAG, "Agent reply failed: " + error.javaClass.simpleName)
+                if (!streamed) repository.replaceText(placeholder.id, errorReply)
+            } finally {
+                repository.finishStreaming(placeholder.id)
+                respondingState.value = false
+                activeJob = null
             }
-            repository.append(MessageAuthor.AGENT, reply)
-            respondingState.value = false
         }
     }
 
+    fun cancel() {
+        activeJob?.cancel()
+        activeJob = null
+    }
+
     fun clear() {
+        cancel()
         repository.clear()
     }
 
