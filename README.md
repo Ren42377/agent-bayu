@@ -23,4 +23,19 @@ Panel muncul di atas aplikasi yang sedang aktif tanpa izin overlay karena memaka
 
 ## Build lokal
 
-Build otomatis berjalan di GitHub Actions dengan Gradle 8.11.1, cache dependency, dan cleanup artefak APK lama. Ambil APK debug melalui event `workflow_dispatch`.
+Build otomatis berjalan di GitHub Actions dengan Gradle 8.11.1, cache dependency, dan cleanup artefak APK lama.
+
+## Ambil APK debug
+
+Setiap push (dan setiap `workflow_dispatch`) yang lolos lint dan test akan memperbarui rilis `debug`
+dengan APK terbaru. Unduh dari halaman Releases repo, atau lewat terminal:
+
+```
+gh release download debug --pattern agent-bayu-debug.apk
+adb install --user 0 agent-bayu-debug.apk
+rm agent-bayu-debug.apk
+```
+
+Rilis `debug` selalu berisi satu APK dari commit terakhir yang berhasil dibangun. APK juga diunggah
+sebagai artefak workflow, tetapi artefak bisa gagal saat kuota penyimpanan Actions penuh, jadi rilis
+adalah jalur unduh utama.
