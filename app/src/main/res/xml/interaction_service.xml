@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<voice-interaction-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:recognitionService="dev.agentbayu.app.assistant.BayuRecognitionService"
+    android:sessionService="dev.agentbayu.app.assistant.BayuVoiceInteractionSessionService"
+    android:settingsActivity="dev.agentbayu.app.MainActivity"
+    android:supportsAssist="true"
+    android:supportsLaunchVoiceAssistFromKeyguard="false"
+    android:supportsLocalInteraction="false" />

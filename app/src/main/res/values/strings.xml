@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Agent Bayu</string>
+
+    <string name="tab_chat">Chat</string>
+    <string name="tab_setup">Persiapan</string>
+    <string name="tab_settings">Pengaturan</string>
+
+    <string name="chat_empty_title">Halo, saya Bayu.</string>
+    <string name="chat_empty_subtitle">Tanya apa saja, atau mulai dari salah satu saran di bawah.</string>
+    <string name="chat_input_hint">Tanya Agent Bayu</string>
+    <string name="chat_send">Kirim</string>
+    <string name="chat_mic">Bicara</string>
+    <string name="chat_thinking">Bayu sedang menyiapkan jawaban</string>
+
+    <string name="suggestion_summarize">Ringkas layar ini</string>
+    <string name="suggestion_tasks">Buat daftar tugas hari ini</string>
+    <string name="suggestion_reminder">Ingatkan saya nanti sore</string>
+    <string name="suggestion_reply">Bantu tulis balasan singkat</string>
+
+    <string name="overlay_close">Tutup panel</string>
+    <string name="overlay_open_app">Lanjut di aplikasi</string>
+    <string name="overlay_handle">Geser ke bawah untuk menutup</string>
+    <string name="overlay_title">Agent Bayu</string>
+    <string name="overlay_subtitle">Siap membantu</string>
+
+    <string name="setup_title">Siapkan Agent Bayu</string>
+    <string name="setup_subtitle">Tiga langkah supaya Bayu bisa dipanggil dari mana saja.</string>
+
+    <string name="setup_assistant_title">Jadikan asisten digital</string>
+    <string name="setup_assistant_body">Pilih Agent Bayu pada daftar aplikasi asisten digital di Pengaturan sistem.</string>
+    <string name="setup_assistant_action">Buka Pengaturan</string>
+    <string name="setup_assistant_hint">Setelah aktif, panggil Bayu dengan menggeser dari sudut bawah layar, atau menahan tombol home pada navigasi tiga tombol.</string>
+
+    <string name="setup_mic_title">Izin mikrofon</string>
+    <string name="setup_mic_body">Opsional. Dibutuhkan nanti saat perintah suara diaktifkan.</string>
+    <string name="setup_mic_action">Izinkan</string>
+
+    <string name="setup_context_title">Gunakan konteks layar</string>
+    <string name="setup_context_body">Opsional. Bayu boleh membaca teks layar yang aktif saat panel dibuka. Data hanya disimpan di memori.</string>
+
+    <string name="setup_test_title">Uji panel mengambang</string>
+    <string name="setup_test_body">Tampilkan panel Bayu di atas aplikasi lain tanpa memakai gesture.</string>
+    <string name="setup_test_action">Tampilkan panel</string>
+    <string name="setup_test_unavailable">Agent Bayu belum menjadi asisten digital di perangkat ini.</string>
+    <string name="setup_settings_unavailable">Halaman pengaturan asisten tidak tersedia di perangkat ini.</string>
+
+    <string name="status_ready">Sudah aktif</string>
+    <string name="status_pending">Belum aktif</string>
+
+    <string name="settings_privacy">Privasi</string>
+    <string name="settings_integrations">Integrasi</string>
+    <string name="settings_about">Tentang</string>
+    <string name="settings_integration_pending">Belum aktif</string>
+    <string name="settings_version">Versi %1$s</string>
+    <string name="settings_about_body">Asisten pribadi yang berjalan di perangkat kamu. Backend AI dan integrasi layanan menyusul.</string>
+    <string name="settings_conversation">Percakapan</string>
+    <string name="settings_clear_title">Hapus riwayat percakapan</string>
+    <string name="settings_clear_body">Riwayat hanya disimpan di memori dan hilang saat aplikasi ditutup.</string>
+    <string name="settings_clear_action">Hapus</string>
+    <string name="settings_cleared">Riwayat percakapan dihapus.</string>
+
+    <string name="integration_google_tasks">Google Tasks</string>
+    <string name="integration_google_calendar">Google Calendar</string>
+    <string name="integration_whatsapp">WhatsApp</string>
+    <string name="integration_instagram">Instagram</string>
+
+    <string name="agent_stub_reply">Saya sudah mencatat: %1$s. Backend AI belum tersambung, jadi ini balasan sementara.</string>
+    <string name="agent_stub_reply_context">Saya sudah mencatat: %1$s. Dari layar yang aktif saya membaca: %2$s. Backend AI belum tersambung, jadi ini balasan sementara.</string>
+    <string name="agent_error_reply">Maaf, ada gangguan saat menyiapkan jawaban. Coba lagi sebentar.</string>
+
+    <string name="mic_pending_message">Perintah suara belum aktif. Izin mikrofon disiapkan lebih dulu.</string>
+    <string name="mic_granted_message">Izin mikrofon sudah diberikan.</string>
+    <string name="mic_denied_message">Izin mikrofon ditolak. Bisa diaktifkan lagi dari Pengaturan sistem.</string>
+
+    <string name="cd_status_ready">Langkah selesai</string>
+    <string name="cd_status_pending">Langkah belum selesai</string>
+</resources>
