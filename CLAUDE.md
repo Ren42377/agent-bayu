@@ -22,5 +22,5 @@
 - Build the application using GitHub Actions. A push to the repository runs the Android CI workflow.
 - The local project environment does not currently have Gradle build support. Do not assume that Gradle is installed locally.
 - Prefer triggering the `workflow_dispatch` event from GitHub Actions when a debug APK is needed.
-- GitHub Actions uses Gradle dependency caching and parallel checks. Debug APK artifacts are retained temporarily and old Agent Bayu artifacts are cleaned up automatically.
+- GitHub Actions uses Gradle dependency caching. The debug APK is uploaded as a plain `.apk` artifact, previous APK artifacts are deleted at the start of every run, and lint plus unit tests run after the APK is published so a failing check never blocks the download.
 - Do not download Android SDK, Gradle distributions, or build artifacts locally unless required for a specific test. Remove temporary downloads after use.
