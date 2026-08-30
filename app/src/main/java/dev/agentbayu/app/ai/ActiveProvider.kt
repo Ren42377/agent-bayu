@@ -48,11 +48,8 @@ class ActiveProvider(
 }
 
 fun resolveActiveConnection(connections: List<Connection>, activeConnectionId: String?): Connection? {
-    val enabled = connections.filter { it.enabled }
-    if (enabled.isEmpty()) return null
-    val selected = enabled.firstOrNull { it.id == activeConnectionId }
+    if (connections.isEmpty()) return null
+    val selected = connections.firstOrNull { it.id == activeConnectionId }
     if (selected != null) return selected
-    return enabled.minWithOrNull(
-        compareBy({ it.priority }, { it.createdAtMillis }, { it.id })
-    )
+    return connections.minWithOrNull(compareBy({ it.createdAtMillis }, { it.id }))
 }

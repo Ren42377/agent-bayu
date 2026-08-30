@@ -31,69 +31,51 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `bundled keyless providers speak an openai wire format and carry free models`() {
-        val expected = listOf("kilocode", "opencode", "uncloseai", "aihorde")
-
-        assertEquals(expected, catalog.providers.take(expected.size).map { it.id })
-        expected.forEach { id ->
-            val provider = catalog.find(id)!!
-            assertEquals(id, AuthKind.NONE, provider.authKind)
-            assertEquals(id, WireFormat.OPENAI, provider.wireFormat)
-            assertEquals(id, ProviderTier.FREE, provider.tier)
-            assertFalse(id, provider.requiresKey)
-            assertTrue(id, provider.acceptsKey)
-            assertTrue(id, provider.models.isNotEmpty())
-            assertNotNull(id, provider.modelsPath)
-            assertTrue(id, provider.baseUrl.startsWith("https://"))
-        }
+    fun `bundled catalog holds opencode and one openai compatible entry`() {
+        assertEquals(listOf("opencode", "openai-compatible"), catalog.providers.map { it.id })
+        assertEquals("opencode", ProviderCatalog.DEFAULT_PROVIDER_ID)
     }
 
     @Test
-    fun `custom endpoint provider stays keyless with an editable base url`() {
-        val provider = catalog.find("custom-openai")!!
+    fun `opencode stays keyless and filters models down to the free ones`() {
+        val provider = catalog.find("opencode")!!
 
         assertEquals(AuthKind.NONE, provider.authKind)
+        assertEquals(WireFormat.OPENAI, provider.wireFormat)
+        assertEquals(ProviderTier.FREE, provider.tier)
+        assertEquals(RiskLevel.FRAGILE, provider.risk)
         assertFalse(provider.requiresKey)
         assertTrue(provider.acceptsKey)
-        assertTrue(provider.editableBaseUrl)
-        assertTrue(provider.allowCustomModel)
-    }
-
-    @Test
-    fun `kilocode only offers free models and is marked fragile`() {
-        val provider = catalog.find("kilocode")!!
-
-        assertEquals(RiskLevel.FRAGILE, provider.risk)
+        assertNull(provider.anonymousKey)
+        assertEquals("/models", provider.modelsPath)
+        assertEquals("-free", provider.modelIdFilter)
         assertTrue(provider.supportsStreamUsage)
+        assertTrue(provider.allowCustomModel)
+        assertTrue(provider.baseUrl.startsWith("https://"))
+        assertTrue(provider.models.isNotEmpty())
         provider.models.forEach { model ->
-            assertTrue(model.id, model.id.endsWith(":free"))
+            assertTrue(model.id, model.id.endsWith("-free"))
             assertTrue(model.id, model.free)
             assertEquals(model.id, 0.0, model.costUsd(1_000, 1_000)!!, 0.0)
         }
     }
 
     @Test
-    fun `opencode only offers free models`() {
-        val provider = catalog.find("opencode")!!
+    fun `openai compatible entry is the only door that takes a key`() {
+        val keyed = catalog.providers.single { it.authKind == AuthKind.API_KEY }
 
-        assertEquals(RiskLevel.FRAGILE, provider.risk)
-        provider.models.forEach { model -> assertTrue(model.id, model.id.endsWith("-free")) }
-    }
-
-    @Test
-    fun `aihorde carries an anonymous key and an output floor`() {
-        val provider = catalog.find("aihorde")!!
-
-        assertEquals("0000000000", provider.anonymousKey)
-        assertEquals(16, provider.minOutputTokens)
-        val model = provider.models.single()
-        assertFalse(model.hasKnownPrice)
-        assertNull(model.costUsd(1_000, 1_000))
+        assertEquals("openai-compatible", keyed.id)
+        assertEquals(ProviderTier.API_KEY, keyed.tier)
+        assertTrue(keyed.requiresKey)
+        assertTrue(keyed.editableBaseUrl)
+        assertTrue(keyed.allowCustomModel)
+        assertNull(keyed.modelIdFilter)
+        assertTrue(keyed.models.isEmpty())
     }
 
     @Test
     fun `anonymous key stands in when no key is stored`() {
-        val provider = catalog.find("aihorde")!!
+        val provider = testProvider(id = "anon", anonymousKey = "0000000000")
         val connection = testConnection(providerId = provider.id)
 
         assertEquals("0000000000", FakeKeys().secretFor(connection, provider))
@@ -105,7 +87,7 @@ class ProviderCatalogTest {
 
     @Test
     fun `output floor only lifts an explicit request`() {
-        val provider = catalog.find("aihorde")!!
+        val provider = testProvider(minOutputTokens = 16)
 
         assertNull(provider.clampOutputTokens(null))
         assertEquals(16, provider.clampOutputTokens(8))
@@ -115,7 +97,7 @@ class ProviderCatalogTest {
 
     @Test
     fun `providers without a floor pass the request through`() {
-        val provider = catalog.find("kilocode")!!
+        val provider = catalog.find("opencode")!!
 
         assertNull(provider.clampOutputTokens(null))
         assertEquals(8, provider.clampOutputTokens(8))
@@ -145,12 +127,12 @@ class ProviderCatalogTest {
     @Test
     fun `unknown provider and model resolve to null`() {
         assertNull(catalog.find("nope"))
-        assertNull(catalog.model("kilocode", "nope"))
+        assertNull(catalog.model("opencode", "nope"))
     }
 
     @Test
     fun `model fallback keeps the requested id with default limits`() {
-        val provider = catalog.find("kilocode")!!
+        val provider = catalog.find("opencode")!!
 
         val model = provider.modelOrFallback("mystery/model")
 

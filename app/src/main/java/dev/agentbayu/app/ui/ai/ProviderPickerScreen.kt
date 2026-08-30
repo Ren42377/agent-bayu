@@ -29,6 +29,7 @@ data class ProviderOption(
     val label: String,
     val providerLabel: String,
     val model: String,
+    val models: List<String>,
     val authKind: AuthKind,
     val isActive: Boolean,
     val ready: Boolean
@@ -38,6 +39,7 @@ data class ProviderOption(
 fun ProviderPickerDialog(
     options: List<ProviderOption>,
     onSelect: (String) -> Unit,
+    onSelectModel: (String, String) -> Unit,
     onManage: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -72,6 +74,15 @@ fun ProviderPickerDialog(
                             onDismiss()
                         }
                     )
+                    if (option.isActive) {
+                        ModelList(
+                            option = option,
+                            onSelectModel = { modelId ->
+                                onSelectModel(option.connectionId, modelId)
+                                onDismiss()
+                            }
+                        )
+                    }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = onManage) {
@@ -134,6 +145,44 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
                 contentDescription = stringResource(R.string.providers_active),
                 tint = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+@Composable
+private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
+    if (option.models.isEmpty()) return
+    Text(
+        text = stringResource(R.string.picker_model_title),
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary
+    )
+    option.models.forEach { modelId ->
+        val selected = modelId == option.model
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { onSelectModel(modelId) }
+                .padding(vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = modelId,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                modifier = Modifier.weight(1f)
+            )
+            if (selected) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_check),
+                    contentDescription = stringResource(R.string.picker_model_selected),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

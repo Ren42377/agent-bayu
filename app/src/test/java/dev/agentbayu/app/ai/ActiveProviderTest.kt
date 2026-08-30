@@ -22,17 +22,6 @@ class ActiveProviderTest {
     }
 
     @Test
-    fun `reports no connection when every connection is disabled`() {
-        val source = FakeConnectionSource(listOf(testConnection(enabled = false)), "conn-1")
-        val provider = ActiveProvider(source, catalog(testProvider()), FakeKeys(mapOf("conn-1" to "key")))
-
-        assertEquals(
-            ActiveResolution.Unavailable(ActiveProviderProblem.NO_CONNECTION),
-            provider.resolve()
-        )
-    }
-
-    @Test
     fun `reports unknown provider when the catalog has no entry`() {
         val source = FakeConnectionSource(listOf(testConnection(providerId = "ghost")), "conn-1")
         val provider = ActiveProvider(source, catalog(testProvider()), FakeKeys())
@@ -56,14 +45,14 @@ class ActiveProviderTest {
 
     @Test
     fun `resolves a keyless provider without any credential`() {
-        val entry = testProvider(id = "kilocode", authKind = AuthKind.NONE, optionalKey = true)
-        val source = FakeConnectionSource(listOf(testConnection(providerId = "kilocode")), "conn-1")
+        val entry = testProvider(id = "opencode", authKind = AuthKind.NONE, optionalKey = true)
+        val source = FakeConnectionSource(listOf(testConnection(providerId = "opencode")), "conn-1")
 
         val resolution = ActiveProvider(source, catalog(entry), FakeKeys()).resolve()
 
         assertTrue(resolution is ActiveResolution.Ready)
         val candidate = (resolution as ActiveResolution.Ready).candidate
-        assertEquals("kilocode", candidate.provider.id)
+        assertEquals("opencode", candidate.provider.id)
         assertEquals("model-a", candidate.model.id)
     }
 
@@ -91,37 +80,27 @@ class ActiveProviderTest {
     }
 
     @Test
-    fun `active id wins over priority`() {
+    fun `active id wins over creation order`() {
         val connections = listOf(
-            testConnection(id = "conn-low", priority = 10),
-            testConnection(id = "conn-high", priority = 900)
+            testConnection(id = "conn-old", createdAtMillis = 1L),
+            testConnection(id = "conn-new", createdAtMillis = 9L)
         )
 
-        assertEquals("conn-high", resolveActiveConnection(connections, "conn-high")?.id)
+        assertEquals("conn-new", resolveActiveConnection(connections, "conn-new")?.id)
     }
 
     @Test
-    fun `falls back to the lowest priority when the active id is unknown`() {
+    fun `falls back to the oldest connection when the active id is unknown`() {
         val connections = listOf(
-            testConnection(id = "conn-b", priority = 900),
-            testConnection(id = "conn-a", priority = 10)
+            testConnection(id = "conn-b", createdAtMillis = 900L),
+            testConnection(id = "conn-a", createdAtMillis = 10L)
         )
 
         assertEquals("conn-a", resolveActiveConnection(connections, "missing")?.id)
     }
 
     @Test
-    fun `falls back past a disabled active connection`() {
-        val connections = listOf(
-            testConnection(id = "conn-off", enabled = false),
-            testConnection(id = "conn-on")
-        )
-
-        assertEquals("conn-on", resolveActiveConnection(connections, "conn-off")?.id)
-    }
-
-    @Test
-    fun `breaks priority ties by creation time then id`() {
+    fun `breaks creation time ties by id`() {
         val connections = listOf(
             testConnection(id = "conn-z", createdAtMillis = 5L),
             testConnection(id = "conn-a", createdAtMillis = 9L),
@@ -132,7 +111,7 @@ class ActiveProviderTest {
     }
 
     @Test
-    fun `resolves to null when there is nothing enabled`() {
+    fun `resolves to null when there is no connection at all`() {
         assertNull(resolveActiveConnection(emptyList(), "conn-1"))
     }
 }

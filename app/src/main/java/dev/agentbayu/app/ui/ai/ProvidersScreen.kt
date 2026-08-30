@@ -16,7 +16,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,8 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
@@ -52,7 +49,6 @@ fun ProvidersScreen(
     onBack: () -> Unit,
     onAdd: () -> Unit,
     onEdit: (String) -> Unit,
-    onToggle: (String, Boolean) -> Unit,
     onActivate: (String) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
@@ -90,7 +86,6 @@ fun ProvidersScreen(
                         ConnectionCard(
                             row = row,
                             onEdit = onEdit,
-                            onToggle = onToggle,
                             onActivate = onActivate,
                             onDelete = onDelete
                         )
@@ -115,7 +110,6 @@ fun ProvidersScreen(
 private fun ConnectionCard(
     row: ProviderRowState,
     onEdit: (String) -> Unit,
-    onToggle: (String, Boolean) -> Unit,
     onActivate: (String) -> Unit,
     onDelete: (String) -> Unit
 ) {
@@ -132,29 +126,19 @@ private fun ConnectionCard(
                 .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = connection.label,
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Text(
-                        text = stringResource(
-                            R.string.providers_subtitle,
-                            row.providerLabel,
-                            connection.model
-                        ),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                val toggleDescription = stringResource(R.string.providers_toggle)
-                Switch(
-                    checked = connection.enabled,
-                    onCheckedChange = { value -> onToggle(connection.id, value) },
-                    modifier = Modifier.semantics { contentDescription = toggleDescription }
-                )
-            }
+            Text(
+                text = connection.label,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = stringResource(
+                    R.string.providers_subtitle,
+                    row.providerLabel,
+                    connection.model
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             Text(
                 text = stringResource(
                     R.string.providers_meta,
@@ -201,10 +185,7 @@ private fun ActiveRow(row: ProviderRowState, onActivate: (String) -> Unit) {
         )
         return
     }
-    TextButton(
-        onClick = { onActivate(row.connection.id) },
-        enabled = row.connection.enabled
-    ) {
+    TextButton(onClick = { onActivate(row.connection.id) }) {
         Text(text = stringResource(R.string.providers_set_active))
     }
 }
@@ -228,9 +209,6 @@ private fun StatusLines(row: ProviderRowState) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-    if (!connection.enabled) {
-        StatusNote(text = stringResource(R.string.providers_disabled))
     }
     riskNotice(row.risk)?.let { notice ->
         StatusNote(text = stringResource(notice))

@@ -44,10 +44,11 @@ class ConnectionStore(
         persist(updated, activeState.value)
     }
 
-    fun setEnabled(connectionId: String, enabled: Boolean) {
+    fun setModel(connectionId: String, model: String) {
         val target = find(connectionId) ?: return
-        if (target.enabled == enabled) return
-        upsert(target.copy(enabled = enabled))
+        val trimmed = model.trim()
+        if (trimmed.isEmpty() || target.model == trimmed) return
+        upsert(target.copy(model = trimmed))
     }
 
     fun setActive(connectionId: String) {

@@ -97,23 +97,40 @@ class ConnectionTester(
                         )
                     )
                 }
-                ModelFetchResult.Success(parseModels(body))
+                ModelFetchResult.Success(parseModels(body, candidate.provider.modelIdFilter))
             }
         } catch (error: IOException) {
             ModelFetchResult.Failure(FailureClassifier.classifyError(error))
         }
     }
 
-    private fun parseModels(body: String): List<String> {
+    suspend fun probeModels(
+        connection: Connection,
+        apiKey: String? = null,
+        modelIds: List<String>
+    ): Map<String, ConnectionTestResult> {
+        val results = LinkedHashMap<String, ConnectionTestResult>(modelIds.size)
+        modelIds.forEach { modelId ->
+            results[modelId] = test(connection.copy(model = modelId), apiKey)
+        }
+        return results
+    }
+
+    private fun parseModels(body: String, token: String?): List<String> {
         val root = parseJsonObject(body) ?: return emptyList()
         val fromData = root.arrayField("data")?.mapNotNull { (it as? JsonObject)?.stringField("id") }
-        if (!fromData.isNullOrEmpty()) return fromData.sorted()
+        if (!fromData.isNullOrEmpty()) return fromData.matching(token).sorted()
         val fromModels = root.arrayField("models")?.mapNotNull { entry ->
             val node = entry as? JsonObject ?: return@mapNotNull null
             val name = node.stringField("name") ?: node.stringField("id")
             name?.removePrefix(GEMINI_MODEL_PREFIX)
         }
-        return fromModels?.sorted().orEmpty()
+        return fromModels?.matching(token)?.sorted().orEmpty()
+    }
+
+    private fun List<String>.matching(token: String?): List<String> {
+        if (token.isNullOrBlank()) return this
+        return filter { id -> id.contains(token) }
     }
 
     private fun candidateOf(connection: Connection): Candidate? {

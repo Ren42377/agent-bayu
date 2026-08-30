@@ -46,6 +46,7 @@ fun ChatScreen(
     onSuggestionClick: (String) -> Unit,
     onMicClick: () -> Unit,
     onSelectProvider: (String) -> Unit,
+    onSelectModel: (String, String) -> Unit,
     onManageProviders: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier
@@ -103,6 +104,7 @@ fun ChatScreen(
         ProviderPickerDialog(
             options = providerOptions,
             onSelect = onSelectProvider,
+            onSelectModel = onSelectModel,
             onManage = {
                 pickerVisible = false
                 onManageProviders()

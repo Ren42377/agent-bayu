@@ -22,7 +22,7 @@ class ProviderCatalog(val providers: List<ProviderEntry>) {
     )
 
     companion object {
-        const val DEFAULT_PROVIDER_ID = "kilocode"
+        const val DEFAULT_PROVIDER_ID = "opencode"
 
         private val json = Json {
             ignoreUnknownKeys = true

@@ -45,9 +45,11 @@ fun ChatRoute(
                 label = connection.label,
                 providerLabel = provider?.label ?: connection.providerId,
                 model = connection.model,
+                models = (provider?.models?.map { it.id }.orEmpty() + connection.discoveredModels)
+                    .distinct(),
                 authKind = provider?.authKind ?: AuthKind.API_KEY,
                 isActive = connection.id == active?.id,
-                ready = connection.enabled && provider != null && hasKey
+                ready = provider != null && hasKey
             )
         }
     }
@@ -72,6 +74,7 @@ fun ChatRoute(
         onSuggestionClick = { text -> chat.send(text) },
         onMicClick = { onMessage(micMessage) },
         onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
+        onSelectModel = { connectionId, model -> connectionStore.setModel(connectionId, model) },
         onManageProviders = onOpenProviders,
         onStop = chat::cancel,
         modifier = modifier

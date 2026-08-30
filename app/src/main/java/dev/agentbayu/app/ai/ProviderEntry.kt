@@ -17,6 +17,7 @@ data class ProviderEntry(
     val authHeader: AuthHeader = AuthHeader.BEARER,
     val authPrefix: String? = null,
     val modelsPath: String? = null,
+    val modelIdFilter: String? = null,
     val supportsStreamUsage: Boolean = false,
     val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
     val keyUrl: String? = null,

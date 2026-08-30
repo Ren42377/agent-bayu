@@ -20,14 +20,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -47,12 +45,12 @@ data class ConnectionEditState(
     val keyHint: String?,
     val model: String,
     val modelOptions: List<String>,
+    val modelProbes: Map<String, String>,
     val baseUrl: String,
-    val priority: String,
-    val enabled: Boolean,
     val isNew: Boolean,
     val testing: Boolean = false,
-    val refreshing: Boolean = false
+    val refreshing: Boolean = false,
+    val probing: Boolean = false
 ) {
     val modelEntry: ModelEntry?
         get() = provider?.model(model)
@@ -64,9 +62,8 @@ data class ConnectionEditActions(
     val onKeyChange: (String) -> Unit,
     val onModelChange: (String) -> Unit,
     val onBaseUrlChange: (String) -> Unit,
-    val onPriorityChange: (String) -> Unit,
-    val onEnabledChange: (Boolean) -> Unit,
     val onRefreshModels: () -> Unit,
+    val onProbeModels: () -> Unit,
     val onTest: () -> Unit,
     val onSave: () -> Unit,
     val onOpenKeyUrl: (String) -> Unit,
@@ -235,52 +232,66 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
         }
     }
     if (provider.modelsPath != null) {
-        OutlinedButton(onClick = actions.onRefreshModels, enabled = !state.refreshing) {
-            if (state.refreshing) {
-                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                Spacer(modifier = Modifier.width(8.dp))
-            } else {
-                Icon(
-                    painter = painterResource(R.drawable.ic_refresh),
-                    contentDescription = null
-                )
-                Spacer(modifier = Modifier.width(8.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = actions.onRefreshModels, enabled = !state.refreshing) {
+                if (state.refreshing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_refresh),
+                        contentDescription = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(text = stringResource(R.string.connection_refresh_models))
             }
-            Text(text = stringResource(R.string.connection_refresh_models))
+            OutlinedButton(
+                onClick = actions.onProbeModels,
+                enabled = !state.probing && state.modelOptions.isNotEmpty()
+            ) {
+                if (state.probing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                Text(text = stringResource(R.string.connection_probe_models))
+            }
         }
+    }
+    ModelProbeList(state = state)
+}
+
+@Composable
+private fun ModelProbeList(state: ConnectionEditState) {
+    if (state.modelProbes.isEmpty()) return
+    Text(
+        text = stringResource(R.string.connection_probe_result_title),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    state.modelOptions.forEach { modelId ->
+        val status = state.modelProbes[modelId] ?: return@forEach
+        Text(
+            text = stringResource(R.string.connection_probe_result_line, modelId, status),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
 @Composable
 private fun AdvancedSection(state: ConnectionEditState, actions: ConnectionEditActions) {
     val provider = state.provider ?: return
+    if (!provider.editableBaseUrl) return
     SectionLabel(text = stringResource(R.string.connection_advanced_section))
-    if (provider.editableBaseUrl) {
-        OutlinedTextField(
-            value = state.baseUrl,
-            onValueChange = actions.onBaseUrlChange,
-            label = { Text(text = stringResource(R.string.connection_base_url_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth()
-        )
-    }
     OutlinedTextField(
-        value = state.priority,
-        onValueChange = actions.onPriorityChange,
-        label = { Text(text = stringResource(R.string.connection_priority_hint)) },
+        value = state.baseUrl,
+        onValueChange = actions.onBaseUrlChange,
+        label = { Text(text = stringResource(R.string.connection_base_url_hint)) },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
         modifier = Modifier.fillMaxWidth()
     )
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(
-            text = stringResource(R.string.connection_enabled),
-            style = MaterialTheme.typography.bodyLarge,
-            modifier = Modifier.weight(1f)
-        )
-        Switch(checked = state.enabled, onCheckedChange = actions.onEnabledChange)
-    }
 }
 
 @Composable

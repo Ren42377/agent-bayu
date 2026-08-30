@@ -107,19 +107,16 @@
     <string name="risk_tos_gray">Cara masuk ini di luar aplikasi resmi penyedia, jadi ada risiko akunmu dibatasi.</string>
     <string name="risk_fragile">Penyedia gratis ini bisa membatasi atau berhenti melayani kapan saja.</string>
 
-    <string name="provider_hint_kilocode">Gratis tanpa kredensial. Hanya model berakhiran :free, dan tiap model punya batas harian.</string>
-    <string name="provider_hint_aihorde">Gratis lewat GPU relawan, jadi jawabannya paling lambat. Jumlah token tidak dilaporkan penyedia.</string>
-    <string name="provider_hint_opencode">Gratis tanpa kredensial. Hanya model berakhiran -free, dan sering kena batas permintaan.</string>
-    <string name="provider_hint_uncloseai">Gratis tanpa kredensial dengan satu model. Paling cepat di antara penyedia gratis.</string>
+    <string name="provider_hint_opencode">Gratis tanpa kredensial. Hanya model berakhiran -free, dan model gratisnya bisa mati lalu hidup lagi dalam hitungan jam.</string>
+    <string name="provider_hint_openai_compatible">Isi kunci API dan arahkan base URL ke endpoint OpenAI-compatible mana pun.</string>
 
     <string name="providers_title">Provider AI</string>
     <string name="providers_empty_title">Belum ada koneksi</string>
-    <string name="providers_empty_body">Tambah minimal satu koneksi supaya Bayu bisa menjawab. Penyedia tanpa kredensial seperti Kilo Code atau UncloseAI paling cepat untuk mulai.</string>
+    <string name="providers_empty_body">Tambah minimal satu koneksi supaya Bayu bisa menjawab. OpenCode Zen paling cepat untuk mulai karena tidak butuh kredensial.</string>
     <string name="providers_add">Tambah koneksi</string>
     <string name="providers_health_ready">Siap</string>
     <string name="providers_health_needs_key">Kunci belum diisi</string>
     <string name="providers_health_attention">Perlu perhatian</string>
-    <string name="providers_disabled">Nonaktif</string>
     <string name="providers_key_hint">Kunci %1$s</string>
     <string name="providers_no_key">Kunci belum diisi</string>
     <string name="providers_no_credential_needed">Tidak butuh kredensial</string>
@@ -127,7 +124,6 @@
     <string name="providers_set_active">Jadikan aktif</string>
     <string name="providers_delete">Hapus koneksi</string>
     <string name="providers_deleted">Koneksi dihapus.</string>
-    <string name="providers_toggle">Aktifkan koneksi</string>
     <string name="providers_meta">%1$s, %2$s</string>
     <string name="providers_subtitle">%1$s, model %2$s</string>
     <string name="providers_detail">Catatan: %1$s</string>
@@ -136,6 +132,8 @@
     <string name="picker_empty">Belum ada koneksi. Tambah dulu di layar Provider AI.</string>
     <string name="picker_subtitle">%1$s, model %2$s</string>
     <string name="picker_not_ready">Belum siap dipakai</string>
+    <string name="picker_model_title">Model koneksi aktif</string>
+    <string name="picker_model_selected">Model terpilih</string>
     <string name="picker_manage">Atur penyedia</string>
     <string name="picker_close">Tutup</string>
     <string name="connection_new_title">Koneksi baru</string>
@@ -154,9 +152,12 @@
     <string name="connection_auth_kind">Cara masuk: %1$s</string>
     <string name="connection_base_url_hint">Base URL</string>
     <string name="connection_custom_model_hint">Nama model</string>
-    <string name="connection_priority_hint">Prioritas</string>
-    <string name="connection_enabled">Pakai koneksi ini</string>
-    <string name="connection_refresh_models">Segarkan daftar model</string>
+    <string name="connection_refresh_models">Segarkan model</string>
+    <string name="connection_probe_models">Cek model</string>
+    <string name="connection_probe_result_title">Hasil cek model</string>
+    <string name="connection_probe_result_line">%1$s: %2$s</string>
+    <string name="connection_probe_alive">hidup, %1$d ms</string>
+    <string name="connection_probe_dead">mati, %1$s</string>
     <string name="connection_models_refreshed">%1$d model terbaca dari provider.</string>
     <string name="connection_models_failed">Gagal membaca daftar model: %1$s</string>
     <string name="connection_test">Uji koneksi</string>

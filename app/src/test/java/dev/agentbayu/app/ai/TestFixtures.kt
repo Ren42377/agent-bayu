@@ -63,6 +63,7 @@ fun testProvider(
     models: List<ModelEntry> = listOf(ModelEntry(id = "model-a")),
     supportsStreamUsage: Boolean = false,
     modelsPath: String? = null,
+    modelIdFilter: String? = null,
     timeoutMillis: Long = ProviderEntry.DEFAULT_TIMEOUT_MILLIS,
     unsupportedParams: List<String> = emptyList(),
     extraHeaders: Map<String, String> = emptyMap()
@@ -81,6 +82,7 @@ fun testProvider(
     authPrefix = authPrefix,
     supportsStreamUsage = supportsStreamUsage,
     modelsPath = modelsPath,
+    modelIdFilter = modelIdFilter,
     timeoutMillis = timeoutMillis,
     unsupportedParams = unsupportedParams,
     extraHeaders = extraHeaders,
@@ -92,8 +94,6 @@ fun testConnection(
     providerId: String = "groq",
     label: String = id,
     model: String = "model-a",
-    priority: Int = Connection.DEFAULT_PRIORITY,
-    enabled: Boolean = true,
     baseUrlOverride: String? = null,
     health: ConnectionHealth = ConnectionHealth.READY,
     createdAtMillis: Long = 0L
@@ -102,8 +102,6 @@ fun testConnection(
     providerId = providerId,
     label = label,
     model = model,
-    enabled = enabled,
-    priority = priority,
     baseUrlOverride = baseUrlOverride,
     health = health,
     createdAtMillis = createdAtMillis
@@ -113,7 +111,6 @@ fun testCandidate(
     connectionId: String = "conn-1",
     providerId: String = "groq",
     modelId: String = "model-a",
-    priority: Int = Connection.DEFAULT_PRIORITY,
     tier: ProviderTier = ProviderTier.API_KEY,
     contextLength: Int = ModelEntry.DEFAULT_CONTEXT_LENGTH,
     maxOutputTokens: Int = ModelEntry.DEFAULT_MAX_OUTPUT_TOKENS,
@@ -150,7 +147,6 @@ fun testCandidate(
             providerId = providerId,
             label = connectionId,
             model = modelId,
-            priority = priority,
             baseUrlOverride = baseUrlOverride
         ),
         provider = testProvider(

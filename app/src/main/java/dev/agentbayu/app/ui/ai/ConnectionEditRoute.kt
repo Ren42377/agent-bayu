@@ -47,13 +47,11 @@ fun AiConnectionEditRoute(
     var baseUrl by remember {
         mutableStateOf(existing?.baseUrlOverride ?: provider?.baseUrl.orEmpty())
     }
-    var priority by remember {
-        mutableStateOf((existing?.priority ?: Connection.DEFAULT_PRIORITY).toString())
-    }
-    var enabled by remember { mutableStateOf(existing?.enabled ?: true) }
     var discovered by remember { mutableStateOf(existing?.discoveredModels ?: emptyList()) }
+    var modelProbes by remember { mutableStateOf(emptyMap<String, String>()) }
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
+    var probing by remember { mutableStateOf(false) }
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
     val savedMessage = stringResource(R.string.connection_saved)
@@ -64,14 +62,14 @@ fun AiConnectionEditRoute(
     val testSuccessTemplate = stringResource(R.string.connection_test_success)
     val modelsFailedTemplate = stringResource(R.string.connection_models_failed)
     val modelsRefreshedTemplate = stringResource(R.string.connection_models_refreshed)
+    val probeAliveTemplate = stringResource(R.string.connection_probe_alive)
+    val probeDeadTemplate = stringResource(R.string.connection_probe_dead)
 
     fun draft(): Connection = Connection(
         id = id,
         providerId = provider?.id.orEmpty(),
         label = label.trim().ifEmpty { provider?.label.orEmpty() },
         model = model.trim(),
-        enabled = enabled,
-        priority = priority.toIntOrNull() ?: Connection.DEFAULT_PRIORITY,
         baseUrlOverride = baseUrl.trim()
             .takeIf { it.isNotEmpty() && it != provider?.baseUrl },
         discoveredModels = discovered,
@@ -86,12 +84,12 @@ fun AiConnectionEditRoute(
         keyHint = keyHint,
         model = model,
         modelOptions = modelOptions(provider, discovered),
+        modelProbes = modelProbes,
         baseUrl = baseUrl,
-        priority = priority,
-        enabled = enabled,
         isNew = existing == null,
         testing = testing,
-        refreshing = refreshing
+        refreshing = refreshing,
+        probing = probing
     )
 
     val actions = ConnectionEditActions(
@@ -102,6 +100,7 @@ fun AiConnectionEditRoute(
                 if (baseUrl.isBlank() || baseUrl == previous?.baseUrl) baseUrl = selected.baseUrl
                 model = defaultModel(selected)
                 discovered = emptyList()
+                modelProbes = emptyMap()
                 provider = selected
             }
         },
@@ -109,14 +108,13 @@ fun AiConnectionEditRoute(
         onKeyChange = { value -> apiKey = value },
         onModelChange = { value -> model = value },
         onBaseUrlChange = { value -> baseUrl = value },
-        onPriorityChange = { value -> priority = value.filter { it.isDigit() } },
-        onEnabledChange = { value -> enabled = value },
         onRefreshModels = {
             refreshing = true
             scope.launch {
                 when (val result = tester.fetchModels(draft(), apiKey)) {
                     is ModelFetchResult.Success -> {
                         discovered = result.models
+                        modelProbes = emptyMap()
                         onMessage(modelsRefreshedTemplate.format(result.models.size))
                     }
 
@@ -124,6 +122,27 @@ fun AiConnectionEditRoute(
                         onMessage(modelsFailedTemplate.format(result.failure.message))
                 }
                 refreshing = false
+            }
+        },
+        onProbeModels = {
+            probing = true
+            modelProbes = emptyMap()
+            scope.launch {
+                val results = tester.probeModels(
+                    connection = draft(),
+                    apiKey = apiKey,
+                    modelIds = modelOptions(provider, discovered)
+                )
+                modelProbes = results.mapValues { (_, result) ->
+                    when (result) {
+                        is ConnectionTestResult.Success ->
+                            probeAliveTemplate.format(result.latencyMillis)
+
+                        is ConnectionTestResult.Failure ->
+                            probeDeadTemplate.format(result.failure.message)
+                    }
+                }
+                probing = false
             }
         },
         onTest = {

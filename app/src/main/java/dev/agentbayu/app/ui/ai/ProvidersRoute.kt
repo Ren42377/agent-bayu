@@ -53,7 +53,6 @@ fun AiProvidersRoute(
         onBack = onBack,
         onAdd = { onEdit(null) },
         onEdit = { id -> onEdit(id) },
-        onToggle = { id, enabled -> store.setEnabled(id, enabled) },
         onActivate = { id -> store.setActive(id) },
         onDelete = { id ->
             store.remove(id)
