@@ -7,7 +7,6 @@
 - Do not use emoji.
 - Do not use em dashes.
 - Do not add comments in code.
-- When a task is complete, create a notification through Termux:API when the API is available.
 
 ## Project Context
 
@@ -24,5 +23,4 @@
 - The local project environment does not currently have Gradle build support. Do not assume that Gradle is installed locally.
 - Prefer triggering the `workflow_dispatch` event from GitHub Actions when a debug APK is needed.
 - GitHub Actions uses Gradle dependency caching and parallel checks. Debug APK artifacts are retained temporarily and old Agent Bayu artifacts are cleaned up automatically.
-- If an APK is downloaded temporarily for testing with an attached Android device, install it with `adb install --user 0 <apk-path>` and delete the APK immediately after installation.
 - Do not download Android SDK, Gradle distributions, or build artifacts locally unless required for a specific test. Remove temporary downloads after use.
