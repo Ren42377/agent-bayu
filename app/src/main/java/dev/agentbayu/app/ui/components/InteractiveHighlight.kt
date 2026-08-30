@@ -16,6 +16,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import com.kyant.backdrop.RuntimeShader
 import com.kyant.backdrop.asComposeShader
 import com.kyant.backdrop.isRuntimeShaderSupported
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -24,8 +25,12 @@ internal class InteractiveHighlight(
     private val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset }
 ) {
 
-    private val pressProgressAnimationSpec = spring(0.5f, 300f, 0.001f)
-    private val positionAnimationSpec = spring(0.5f, 300f, Offset.VisibilityThreshold)
+    private val pressProgressAnimationSpec = AgentBayuMotion.pressSpring
+    private val positionAnimationSpec = spring(
+        AgentBayuMotion.PressDampingRatio,
+        AgentBayuMotion.PressStiffness,
+        Offset.VisibilityThreshold
+    )
 
     private val pressProgressAnimation = Animatable(0f, 0.001f)
     private val positionAnimation =

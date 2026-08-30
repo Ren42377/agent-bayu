@@ -20,7 +20,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,18 +27,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import com.kyant.backdrop.backdrops.emptyBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.components.GlassOverlay
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.GlassCardShape
-import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
-import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.liquidGlass
-import dev.agentbayu.app.ui.theme.solidGlassStyle
 
 data class ProviderOption(
     val connectionId: String,
@@ -60,26 +54,14 @@ fun ProviderPickerDialog(
     onManage: () -> Unit,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        CompositionLocalProvider(
-            LocalGlassBackdrop provides emptyBackdrop(),
-            LocalGlassStyle provides solidGlassStyle()
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .liquidGlass(shape = GlassCardShape)
-                    .padding(20.dp)
-            ) {
-                PickerContent(
-                    options = options,
-                    onSelect = onSelect,
-                    onSelectModel = onSelectModel,
-                    onManage = onManage,
-                    onDismiss = onDismiss
-                )
-            }
-        }
+    GlassOverlay(onDismiss = onDismiss) {
+        PickerContent(
+            options = options,
+            onSelect = onSelect,
+            onSelectModel = onSelectModel,
+            onManage = onManage,
+            onDismiss = onDismiss
+        )
     }
 }
 

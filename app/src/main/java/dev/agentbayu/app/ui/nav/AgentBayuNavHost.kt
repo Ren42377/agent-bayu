@@ -1,5 +1,9 @@
 package dev.agentbayu.app.ui.nav
 
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -14,6 +18,7 @@ import dev.agentbayu.app.ui.ai.AiUsageRoute
 import dev.agentbayu.app.ui.chat.ChatRoute
 import dev.agentbayu.app.ui.settings.SettingsRoute
 import dev.agentbayu.app.ui.setup.SetupRoute
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 
 @Composable
 fun AgentBayuNavHost(
@@ -24,7 +29,23 @@ fun AgentBayuNavHost(
     NavHost(
         navController = navController,
         startDestination = AgentBayuDestination.CHAT.route,
-        modifier = modifier
+        modifier = modifier,
+        enterTransition = {
+            slideInHorizontally(AgentBayuMotion.navSlideSpec) { width -> width / SLIDE_DIVISOR } +
+                fadeIn(AgentBayuMotion.navFadeSpec)
+        },
+        exitTransition = {
+            slideOutHorizontally(AgentBayuMotion.navSlideSpec) { width -> -width / SLIDE_DIVISOR } +
+                fadeOut(AgentBayuMotion.navFadeSpec)
+        },
+        popEnterTransition = {
+            slideInHorizontally(AgentBayuMotion.navSlideSpec) { width -> -width / SLIDE_DIVISOR } +
+                fadeIn(AgentBayuMotion.navFadeSpec)
+        },
+        popExitTransition = {
+            slideOutHorizontally(AgentBayuMotion.navSlideSpec) { width -> width / SLIDE_DIVISOR } +
+                fadeOut(AgentBayuMotion.navFadeSpec)
+        }
     ) {
         composable(AgentBayuDestination.CHAT.route) {
             ChatRoute(
@@ -105,3 +126,5 @@ object AiRoutes {
 
     fun deviceCode(connectionId: String): String = "ai/device-code/" + connectionId
 }
+
+private const val SLIDE_DIVISOR = 10

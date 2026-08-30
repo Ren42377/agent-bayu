@@ -20,6 +20,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.oauth.DeviceCodeResult
 import dev.agentbayu.app.ai.oauth.DeviceCodeStartResult
+import dev.agentbayu.app.ui.components.GlassDialog
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -44,10 +45,12 @@ fun AiDeviceCodeRoute(
     val unsupportedMessage = stringResource(R.string.device_unsupported)
     val successMessage = stringResource(R.string.device_success)
     val copiedMessage = stringResource(R.string.device_copied)
+    val linkCopiedMessage = stringResource(R.string.dialog_link_copied)
 
     var attempt by remember { mutableIntStateOf(0) }
     var ui by remember { mutableStateOf<DeviceCodeUiState>(DeviceCodeUiState.Starting) }
     var code by remember { mutableStateOf("") }
+    var blockedLink by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(connectionId, attempt) {
         ui = DeviceCodeUiState.Starting
@@ -104,7 +107,7 @@ fun AiDeviceCodeRoute(
                     try {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
                     } catch (error: ActivityNotFoundException) {
-                        onMessage(url)
+                        blockedLink = url
                     }
                 }
             },
@@ -112,6 +115,21 @@ fun AiDeviceCodeRoute(
             onBack = onBack
         ),
         modifier = modifier
+    )
+
+    val pendingLink = blockedLink
+    GlassDialog(
+        visible = pendingLink != null,
+        title = stringResource(R.string.dialog_link_title),
+        body = stringResource(R.string.dialog_link_body, pendingLink.orEmpty()),
+        confirmLabel = stringResource(R.string.dialog_link_copy),
+        onConfirm = {
+            pendingLink?.let { clipboard.setText(AnnotatedString(it)) }
+            blockedLink = null
+            onMessage(linkCopiedMessage)
+        },
+        dismissLabel = stringResource(R.string.dialog_close),
+        onDismiss = { blockedLink = null }
     )
 }
 

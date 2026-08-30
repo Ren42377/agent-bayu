@@ -84,6 +84,20 @@
     <string name="mic_granted_message">Izin mikrofon sudah diberikan.</string>
     <string name="mic_denied_message">Izin mikrofon ditolak. Bisa diaktifkan lagi dari Pengaturan sistem.</string>
 
+    <string name="dialog_later">Nanti</string>
+    <string name="dialog_close">Tutup</string>
+    <string name="dialog_mic_title">Izin mikrofon</string>
+    <string name="dialog_mic_body">Perintah suara butuh izin mikrofon. Izinkan sekarang?</string>
+    <string name="dialog_mic_allow">Izinkan</string>
+    <string name="dialog_mic_denied_title">Izin mikrofon ditolak</string>
+    <string name="dialog_mic_denied_body">Izin bisa dinyalakan lagi dari halaman pengaturan aplikasi.</string>
+    <string name="dialog_open_settings">Buka pengaturan</string>
+    <string name="dialog_link_title">Peramban tidak tersedia</string>
+    <string name="dialog_link_body">Tidak ada aplikasi yang bisa membuka tautan ini. Salin lalu buka manual.\n\n%1$s</string>
+    <string name="dialog_link_copy">Salin tautan</string>
+    <string name="dialog_link_copied">Tautan disalin.</string>
+    <string name="dialog_settings_unavailable">Halaman pengaturan aplikasi tidak tersedia di perangkat ini.</string>
+
     <string name="cd_status_ready">Langkah selesai</string>
     <string name="cd_status_pending">Langkah belum selesai</string>
 

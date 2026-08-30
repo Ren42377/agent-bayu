@@ -1,7 +1,6 @@
 package dev.agentbayu.app.ui.ai
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,22 +15,15 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import com.kyant.backdrop.backdrops.emptyBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import dev.agentbayu.app.ui.components.GlassButton
-import dev.agentbayu.app.ui.theme.GlassCardShape
-import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
-import dev.agentbayu.app.ui.theme.LocalGlassStyle
-import dev.agentbayu.app.ui.theme.liquidGlass
-import dev.agentbayu.app.ui.theme.solidGlassStyle
+import dev.agentbayu.app.ui.components.GlassOverlay
 
 @Composable
 fun ReplyDetailSheet(
@@ -39,64 +31,52 @@ fun ReplyDetailSheet(
     usage: TokenUsage?,
     onDismiss: () -> Unit
 ) {
-    Dialog(onDismissRequest = onDismiss) {
-        CompositionLocalProvider(
-            LocalGlassBackdrop provides emptyBackdrop(),
-            LocalGlassStyle provides solidGlassStyle()
+    GlassOverlay(onDismiss = onDismiss) {
+        Column(
+            modifier = Modifier
+                .heightIn(max = MAX_SHEET_HEIGHT)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .liquidGlass(shape = GlassCardShape)
-                    .padding(20.dp)
+            Text(
+                text = stringResource(R.string.route_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            DetailRow(
+                label = stringResource(R.string.route_provider),
+                value = detail.providerLabel
+            )
+            DetailRow(label = stringResource(R.string.route_model), value = detail.model)
+            DetailRow(
+                label = stringResource(R.string.route_connection),
+                value = detail.connectionLabel
+            )
+            DetailRow(
+                label = stringResource(R.string.route_auth),
+                value = authKindLabel(detail.authKind)
+            )
+            DetailRow(
+                label = stringResource(R.string.route_first_token),
+                value = stringResource(R.string.route_millis, detail.firstTokenMillis)
+            )
+            DetailRow(
+                label = stringResource(R.string.route_total_time),
+                value = stringResource(R.string.route_millis, detail.totalMillis)
+            )
+            UsageRows(usage = usage)
+            Spacer(modifier = Modifier.height(6.dp))
+            GlassButton(
+                onClick = onDismiss,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 10.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = MAX_SHEET_HEIGHT)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.route_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    DetailRow(
-                        label = stringResource(R.string.route_provider),
-                        value = detail.providerLabel
-                    )
-                    DetailRow(label = stringResource(R.string.route_model), value = detail.model)
-                    DetailRow(
-                        label = stringResource(R.string.route_connection),
-                        value = detail.connectionLabel
-                    )
-                    DetailRow(
-                        label = stringResource(R.string.route_auth),
-                        value = authKindLabel(detail.authKind)
-                    )
-                    DetailRow(
-                        label = stringResource(R.string.route_first_token),
-                        value = stringResource(R.string.route_millis, detail.firstTokenMillis)
-                    )
-                    DetailRow(
-                        label = stringResource(R.string.route_total_time),
-                        value = stringResource(R.string.route_millis, detail.totalMillis)
-                    )
-                    UsageRows(usage = usage)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    GlassButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = PaddingValues(vertical = 10.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.route_close),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+                Text(
+                    text = stringResource(R.string.route_close),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

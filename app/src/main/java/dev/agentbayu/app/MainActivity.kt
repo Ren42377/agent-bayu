@@ -30,6 +30,9 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.ui.components.AmbientBackground
+import dev.agentbayu.app.ui.components.GlassOverlayController
+import dev.agentbayu.app.ui.components.GlassOverlayHost
+import dev.agentbayu.app.ui.components.LocalGlassOverlay
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AgentBayuNavHost
@@ -64,6 +67,7 @@ private fun AgentBayuApp() {
     val ambientBackdrop = rememberLayerBackdrop()
     val contentBackdrop = rememberLayerBackdrop()
     val chromeBackdrop = rememberCombinedBackdrop(ambientBackdrop, contentBackdrop)
+    val overlayController = remember { GlassOverlayController() }
 
     LaunchedEffect(pendingMessage) {
         pendingMessage?.let { message ->
@@ -76,43 +80,51 @@ private fun AgentBayuApp() {
         modifier = Modifier.fillMaxSize(),
         canvasModifier = Modifier.layerBackdrop(ambientBackdrop)
     ) {
-        Scaffold(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding(),
-            containerColor = Color.Transparent,
-            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-            bottomBar = {
-                CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
-                    AgentBayuBottomBar(
-                        currentRoute = currentRoute.orEmpty(),
-                        onSelect = { destination -> navigateTo(navController, destination) },
-                        windowInsets = if (keyboardVisible) {
-                            WindowInsets(0, 0, 0, 0)
-                        } else {
-                            NavigationBarDefaults.windowInsets
-                        }
-                    )
+        CompositionLocalProvider(LocalGlassOverlay provides overlayController) {
+            Scaffold(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .imePadding(),
+                containerColor = Color.Transparent,
+                snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+                bottomBar = {
+                    CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
+                        AgentBayuBottomBar(
+                            currentRoute = currentRoute.orEmpty(),
+                            onSelect = { destination -> navigateTo(navController, destination) },
+                            windowInsets = if (keyboardVisible) {
+                                WindowInsets(0, 0, 0, 0)
+                            } else {
+                                NavigationBarDefaults.windowInsets
+                            }
+                        )
+                    }
                 }
-            }
-        ) { innerPadding ->
-            CompositionLocalProvider(
-                LocalGlassBackdrop provides ambientBackdrop,
-                LocalScreenInsets provides innerPadding
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .layerBackdrop(contentBackdrop)
+            ) { innerPadding ->
+                CompositionLocalProvider(
+                    LocalGlassBackdrop provides ambientBackdrop,
+                    LocalScreenInsets provides innerPadding
                 ) {
-                    AgentBayuNavHost(
-                        navController = navController,
-                        onMessage = { message -> messages.value = message },
-                        modifier = Modifier.fillMaxSize()
-                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .layerBackdrop(contentBackdrop)
+                    ) {
+                        AgentBayuNavHost(
+                            navController = navController,
+                            onMessage = { message -> messages.value = message },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
+
+        GlassOverlayHost(
+            controller = overlayController,
+            backdrop = chromeBackdrop,
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 

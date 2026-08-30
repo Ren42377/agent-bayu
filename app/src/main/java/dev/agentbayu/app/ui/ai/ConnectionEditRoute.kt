@@ -10,8 +10,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.Connection
@@ -20,6 +22,7 @@ import dev.agentbayu.app.ai.ConnectionTestResult
 import dev.agentbayu.app.ai.Credential
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderEntry
+import dev.agentbayu.app.ui.components.GlassDialog
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,6 +39,7 @@ fun AiConnectionEditRoute(
     val credentials = remember(context) { AppGraph.credentials(context) }
     val tester = remember(context) { AppGraph.connectionTester(context) }
     val scope = rememberCoroutineScope()
+    val clipboard = LocalClipboardManager.current
     val providers = remember(catalog) { catalog.sortedByTier() }
     val existing = remember(connectionId) { connectionId?.let { store.find(it) } }
     val id = remember(connectionId) { existing?.id ?: store.newId() }
@@ -54,6 +58,7 @@ fun AiConnectionEditRoute(
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var probing by remember { mutableStateOf(false) }
+    var blockedLink by remember { mutableStateOf<String?>(null) }
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
     val loggedIn = remember(id) { credentials.credential(id) is Credential.OAuthTokens }
@@ -67,6 +72,7 @@ fun AiConnectionEditRoute(
     val modelsRefreshedTemplate = stringResource(R.string.connection_models_refreshed)
     val probeAliveTemplate = stringResource(R.string.connection_probe_alive)
     val probeDeadTemplate = stringResource(R.string.connection_probe_dead)
+    val linkCopiedMessage = stringResource(R.string.dialog_link_copied)
 
     fun draft(): Connection = Connection(
         id = id,
@@ -207,13 +213,28 @@ fun AiConnectionEditRoute(
             try {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
             } catch (error: ActivityNotFoundException) {
-                onMessage(url)
+                blockedLink = url
             }
         },
         onBack = onBack
     )
 
     ConnectionEditScreen(state = state, actions = actions, modifier = modifier)
+
+    val pendingLink = blockedLink
+    GlassDialog(
+        visible = pendingLink != null,
+        title = stringResource(R.string.dialog_link_title),
+        body = stringResource(R.string.dialog_link_body, pendingLink.orEmpty()),
+        confirmLabel = stringResource(R.string.dialog_link_copy),
+        onConfirm = {
+            pendingLink?.let { clipboard.setText(AnnotatedString(it)) }
+            blockedLink = null
+            onMessage(linkCopiedMessage)
+        },
+        dismissLabel = stringResource(R.string.dialog_close),
+        onDismiss = { blockedLink = null }
+    )
 }
 
 private fun defaultModel(provider: ProviderEntry?): String =
