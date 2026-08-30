@@ -14,13 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -34,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassCard
+import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleIndigoLight
@@ -259,15 +257,9 @@ private fun ToggleSettingRow(
             )
         }
         Spacer(modifier = Modifier.width(8.dp))
-        Switch(
+        GlassToggle(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = MaterialTheme.colorScheme.primary,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+            onCheckedChange = onCheckedChange
         )
     }
 }

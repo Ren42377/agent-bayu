@@ -8,12 +8,16 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
+import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.emptyBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.colorControls
@@ -92,12 +96,17 @@ fun glassSheenBrush(sheenAlpha: Float): Brush {
 fun Modifier.liquidGlass(
     shape: Shape = GlassCardShape,
     style: GlassStyle = LocalGlassStyle.current,
-    backdrop: Backdrop = LocalGlassBackdrop.current
+    backdrop: Backdrop = LocalGlassBackdrop.current,
+    tint: Color = Color.Unspecified,
+    layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
+    exportedBackdrop: LayerBackdrop? = null
 ): Modifier {
     val sheenBrush = glassSheenBrush(style.sheenAlpha)
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
+        layerBlock = layerBlock,
+        exportedBackdrop = exportedBackdrop,
         effects = {
             colorControls(brightness = style.brightness, saturation = style.saturation)
             if (style.vibrant) {
@@ -124,6 +133,10 @@ fun Modifier.liquidGlass(
         },
         onDrawSurface = {
             drawRect(color = style.fill)
+            if (tint.isSpecified) {
+                drawRect(color = tint, blendMode = BlendMode.Hue)
+                drawRect(color = tint.copy(alpha = 0.75f))
+            }
             drawRect(brush = sheenBrush)
         }
     )
