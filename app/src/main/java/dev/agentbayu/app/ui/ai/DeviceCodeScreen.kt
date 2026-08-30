@@ -27,6 +27,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
 
 sealed interface DeviceCodeUiState {
@@ -57,12 +58,22 @@ fun DeviceCodeScreen(
     actions: DeviceCodeActions,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    val insets = LocalScreenInsets.current
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(top = insets.calculateTopPadding())
+    ) {
         AiScreenHeader(title = stringResource(R.string.device_title), onBack = actions.onBack)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 8.dp,
+                    bottom = 8.dp + insets.calculateBottomPadding()
+                ),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(

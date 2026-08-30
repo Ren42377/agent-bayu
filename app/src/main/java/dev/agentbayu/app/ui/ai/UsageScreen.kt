@@ -26,6 +26,7 @@ import dev.agentbayu.app.ai.UsageStats
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
 
 data class UsageRowState(
@@ -44,7 +45,12 @@ fun UsageScreen(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier.fillMaxSize()) {
+    val insets = LocalScreenInsets.current
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(top = insets.calculateTopPadding())
+    ) {
         AiScreenHeader(title = stringResource(R.string.usage_title), onBack = onBack)
         Column(
             modifier = Modifier
@@ -102,7 +108,12 @@ fun UsageScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = 12.dp,
+                    bottom = 12.dp + insets.calculateBottomPadding()
+                )
         ) {
             Box(
                 modifier = Modifier

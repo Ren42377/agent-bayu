@@ -38,6 +38,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ModelEntry
@@ -45,6 +46,7 @@ import dev.agentbayu.app.ai.ProviderEntry
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
 
 data class ConnectionEditState(
@@ -93,7 +95,12 @@ fun ConnectionEditScreen(
     } else {
         stringResource(R.string.connection_edit_title)
     }
-    Column(modifier = modifier.fillMaxSize()) {
+    val insets = LocalScreenInsets.current
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(top = insets.calculateTopPadding())
+    ) {
         AiScreenHeader(title = title, onBack = actions.onBack)
         Column(
             modifier = Modifier
@@ -126,7 +133,11 @@ fun ConnectionEditScreen(
             ModelSection(state = state, actions = actions)
             AdvancedSection(state = state, actions = actions)
         }
-        ActionBar(state = state, actions = actions)
+        ActionBar(
+            state = state,
+            actions = actions,
+            bottomInset = insets.calculateBottomPadding()
+        )
     }
 }
 
@@ -434,11 +445,20 @@ private fun AdvancedSection(state: ConnectionEditState, actions: ConnectionEditA
 }
 
 @Composable
-private fun ActionBar(state: ConnectionEditState, actions: ConnectionEditActions) {
+private fun ActionBar(
+    state: ConnectionEditState,
+    actions: ConnectionEditActions,
+    bottomInset: Dp
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = 12.dp,
+                bottom = 12.dp + bottomInset
+            ),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(

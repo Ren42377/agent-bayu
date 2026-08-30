@@ -16,6 +16,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.StatusCard
+import dev.agentbayu.app.ui.theme.LocalScreenInsets
 
 @Composable
 fun SetupScreen(
@@ -28,11 +29,18 @@ fun SetupScreen(
     onTestPanel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val insets = LocalScreenInsets.current
     Column(
         modifier = modifier
             .fillMaxSize()
+            .padding(top = insets.calculateTopPadding())
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(
+                start = 16.dp,
+                end = 16.dp,
+                top = 16.dp,
+                bottom = 16.dp + insets.calculateBottomPadding()
+            ),
         verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)) {

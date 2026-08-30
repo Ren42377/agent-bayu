@@ -22,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,11 +30,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.ui.ai.ProviderOption
@@ -43,6 +49,8 @@ import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
 import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
+import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
 
 @Composable
@@ -65,53 +73,89 @@ fun ChatScreen(
 ) {
     var detailMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var pickerVisible by remember { mutableStateOf(false) }
+    var headerHeight by remember { mutableStateOf(0.dp) }
+    var footerHeight by remember { mutableStateOf(0.dp) }
+    val density = LocalDensity.current
+    val insets = LocalScreenInsets.current
+    val messagesBackdrop = rememberLayerBackdrop()
+    val overlayBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, messagesBackdrop)
 
-    Column(modifier = modifier.fillMaxSize()) {
-        ProviderCapsule(
-            hint = providerHint,
-            isResponding = isResponding,
-            onOpenPicker = { pickerVisible = true },
-            onStop = onStop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 6.dp)
-        )
-
-        Box(modifier = Modifier.weight(1f)) {
-            if (messages.isEmpty()) {
-                EmptyState(
-                    suggestions = suggestions,
-                    onSuggestionClick = onSuggestionClick,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
+    Box(modifier = modifier.fillMaxSize()) {
+        if (messages.isEmpty()) {
+            EmptyState(
+                suggestions = suggestions,
+                onSuggestionClick = onSuggestionClick,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .padding(top = headerHeight, bottom = footerHeight)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .layerBackdrop(messagesBackdrop)
+            ) {
                 MessageList(
                     messages = messages,
                     isResponding = isResponding,
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                    contentPadding = PaddingValues(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = headerHeight + 12.dp,
+                        bottom = footerHeight + 12.dp
+                    ),
                     onShowDetail = { message -> detailMessage = message }
                 )
             }
         }
 
-        if (messages.isNotEmpty()) {
-            SuggestionChips(
-                suggestions = emptyList(),
-                onSelect = onSuggestionClick,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-        }
+        val headerModifier = Modifier
+            .align(Alignment.TopCenter)
+            .fillMaxWidth()
+            .onSizeChanged { size ->
+                headerHeight = with(density) { size.height.toDp() }
+            }
+            .padding(top = insets.calculateTopPadding())
+            .padding(horizontal = 16.dp, vertical = 6.dp)
 
-        PromptBar(
-            value = input,
-            onValueChange = onInputChange,
-            onSend = onSend,
-            onMicClick = onMicClick,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-        )
+        val footerModifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .onSizeChanged { size ->
+                footerHeight = with(density) { size.height.toDp() }
+            }
+            .padding(bottom = insets.calculateBottomPadding())
+
+        CompositionLocalProvider(LocalGlassBackdrop provides overlayBackdrop) {
+            ProviderCapsule(
+                hint = providerHint,
+                isResponding = isResponding,
+                onOpenPicker = { pickerVisible = true },
+                onStop = onStop,
+                modifier = headerModifier
+            )
+
+            Column(modifier = footerModifier) {
+                if (messages.isNotEmpty()) {
+                    SuggestionChips(
+                        suggestions = emptyList(),
+                        onSelect = onSuggestionClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+
+                PromptBar(
+                    value = input,
+                    onValueChange = onInputChange,
+                    onSend = onSend,
+                    onMicClick = onMicClick,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                )
+            }
+        }
     }
 
     detailMessage?.let { message ->
