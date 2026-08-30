@@ -45,6 +45,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.emptyBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
@@ -52,6 +53,7 @@ import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
 import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.solidGlassStyle
 
 @Composable
 fun AssistantPanel(
@@ -102,7 +104,11 @@ fun AssistantPanel(
                     alpha = progress
                     translationY = (1f - progress) * size.height + dragOffset.value
                 }
-                .liquidGlass(shape = PanelShape)
+                .liquidGlass(
+                    shape = PanelShape,
+                    style = solidGlassStyle(),
+                    backdrop = emptyBackdrop()
+                )
                 .pointerInput(Unit) { detectTapGestures { } }
         ) {
             Column(

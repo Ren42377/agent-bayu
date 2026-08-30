@@ -18,6 +18,7 @@ import dev.agentbayu.app.ui.theme.AppleTealDark
 @Composable
 fun AmbientBackground(
     modifier: Modifier = Modifier,
+    canvasModifier: Modifier = Modifier,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable BoxScope.() -> Unit
 ) {
@@ -39,7 +40,7 @@ fun AmbientBackground(
             AppleTealDark.copy(alpha = 0.05f)
         }
 
-        Canvas(modifier = Modifier.fillMaxSize()) {
+        Canvas(modifier = canvasModifier.fillMaxSize()) {
             drawRect(color = baseColor)
 
             drawCircle(

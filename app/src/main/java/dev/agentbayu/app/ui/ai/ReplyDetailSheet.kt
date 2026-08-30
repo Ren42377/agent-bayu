@@ -23,12 +23,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import com.kyant.backdrop.backdrops.emptyBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.solidGlassStyle
 
 @Composable
 fun ReplyDetailSheet(
@@ -40,7 +42,11 @@ fun ReplyDetailSheet(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .liquidGlass(shape = GlassCardShape)
+                .liquidGlass(
+                    shape = GlassCardShape,
+                    style = solidGlassStyle(),
+                    backdrop = emptyBackdrop()
+                )
                 .padding(20.dp)
         ) {
             Column(

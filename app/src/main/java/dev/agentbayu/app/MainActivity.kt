@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
@@ -14,6 +15,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -25,11 +27,15 @@ import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.ui.components.AmbientBackground
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AgentBayuNavHost
 import dev.agentbayu.app.ui.theme.AgentBayuTheme
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
@@ -55,6 +61,9 @@ private fun AgentBayuApp() {
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val ambientBackdrop = rememberLayerBackdrop()
+    val contentBackdrop = rememberLayerBackdrop()
+    val chromeBackdrop = rememberCombinedBackdrop(ambientBackdrop, contentBackdrop)
 
     LaunchedEffect(pendingMessage) {
         pendingMessage?.let { message ->
@@ -63,7 +72,10 @@ private fun AgentBayuApp() {
         }
     }
 
-    AmbientBackground(modifier = Modifier.fillMaxSize()) {
+    AmbientBackground(
+        modifier = Modifier.fillMaxSize(),
+        canvasModifier = Modifier.layerBackdrop(ambientBackdrop)
+    ) {
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
@@ -71,24 +83,34 @@ private fun AgentBayuApp() {
             containerColor = Color.Transparent,
             snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
             bottomBar = {
-                AgentBayuBottomBar(
-                    currentRoute = currentRoute.orEmpty(),
-                    onSelect = { destination -> navigateTo(navController, destination) },
-                    windowInsets = if (keyboardVisible) {
-                        WindowInsets(0, 0, 0, 0)
-                    } else {
-                        NavigationBarDefaults.windowInsets
-                    }
-                )
+                CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
+                    AgentBayuBottomBar(
+                        currentRoute = currentRoute.orEmpty(),
+                        onSelect = { destination -> navigateTo(navController, destination) },
+                        windowInsets = if (keyboardVisible) {
+                            WindowInsets(0, 0, 0, 0)
+                        } else {
+                            NavigationBarDefaults.windowInsets
+                        }
+                    )
+                }
             }
         ) { innerPadding ->
-            AgentBayuNavHost(
-                navController = navController,
-                onMessage = { message -> messages.value = message },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            )
+            CompositionLocalProvider(LocalGlassBackdrop provides ambientBackdrop) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .layerBackdrop(contentBackdrop)
+                ) {
+                    AgentBayuNavHost(
+                        navController = navController,
+                        onMessage = { message -> messages.value = message },
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
+                    )
+                }
+            }
         }
     }
 }
