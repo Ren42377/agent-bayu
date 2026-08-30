@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
@@ -18,9 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -31,8 +27,6 @@ import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.theme.AgentBubbleShape
 import dev.agentbayu.app.ui.theme.AppleBlueDark
 import dev.agentbayu.app.ui.theme.AppleBlueLight
-import dev.agentbayu.app.ui.theme.AppleIndigoDark
-import dev.agentbayu.app.ui.theme.AppleIndigoLight
 import dev.agentbayu.app.ui.theme.UserBubbleShape
 import dev.agentbayu.app.ui.theme.liquidGlass
 
@@ -45,11 +39,7 @@ fun MessageBubble(
     val fromUser = message.author == MessageAuthor.USER
     val isDark = isSystemInDarkTheme()
 
-    val userGradient = if (isDark) {
-        Brush.linearGradient(listOf(AppleBlueDark, AppleIndigoDark))
-    } else {
-        Brush.linearGradient(listOf(AppleBlueLight, AppleIndigoLight))
-    }
+    val userTint = if (isDark) AppleBlueDark else AppleBlueLight
 
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -59,14 +49,7 @@ fun MessageBubble(
             Box(
                 modifier = Modifier
                     .widthIn(max = 300.dp)
-                    .shadow(
-                        elevation = 3.dp,
-                        shape = UserBubbleShape,
-                        ambientColor = Color.Black.copy(alpha = 0.15f),
-                        spotColor = Color.Black.copy(alpha = 0.25f)
-                    )
-                    .clip(UserBubbleShape)
-                    .background(userGradient)
+                    .liquidGlass(shape = UserBubbleShape, tint = userTint)
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(

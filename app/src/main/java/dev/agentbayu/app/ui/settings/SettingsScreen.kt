@@ -1,10 +1,10 @@
 package dev.agentbayu.app.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
@@ -30,14 +29,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.GlassBadge
-import dev.agentbayu.app.ui.components.GlassCard
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleIndigoLight
-import dev.agentbayu.app.ui.theme.ApplePurpleLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -127,17 +124,15 @@ fun SettingsScreen(
                     )
                 }
                 Spacer(modifier = Modifier.width(8.dp))
-                Box(
-                    modifier = Modifier
-                        .clip(CapsuleShape)
-                        .background(MaterialTheme.colorScheme.errorContainer)
-                        .clickable(onClick = onClearConversation)
-                        .padding(horizontal = 14.dp, vertical = 6.dp)
+                GlassButton(
+                    onClick = onClearConversation,
+                    tint = MaterialTheme.colorScheme.error,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
                 ) {
                     Text(
                         text = stringResource(R.string.settings_clear_action),
                         style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onErrorContainer
+                        color = Color.White
                     )
                 }
             }

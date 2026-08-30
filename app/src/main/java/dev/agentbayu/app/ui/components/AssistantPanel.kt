@@ -2,7 +2,6 @@ package dev.agentbayu.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -29,6 +28,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +50,8 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
+import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -87,86 +89,90 @@ fun AssistantPanel(
             dragOffset.value = 0f
         }
     }
-    Box(modifier = modifier.fillMaxSize()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer { alpha = progress }
-                .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
-                .pointerInput(Unit) { detectTapGestures { onDismiss() } }
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .onSizeChanged { size -> panelHeight.value = size.height }
-                .graphicsLayer {
-                    alpha = progress
-                    translationY = (1f - progress) * size.height + dragOffset.value
-                }
-                .liquidGlass(
-                    shape = PanelShape,
-                    style = solidGlassStyle(),
-                    backdrop = emptyBackdrop()
-                )
-                .pointerInput(Unit) { detectTapGestures { } }
-        ) {
-            Column(
+    CompositionLocalProvider(
+        LocalGlassBackdrop provides emptyBackdrop(),
+        LocalGlassStyle provides solidGlassStyle()
+    ) {
+        Box(modifier = modifier.fillMaxSize()) {
+            Box(
                 modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = progress }
+                    .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
+                    .pointerInput(Unit) { detectTapGestures { onDismiss() } }
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
-            ) {
-                DragHandle(
-                    onDrag = { amount ->
-                        dragOffset.value = (dragOffset.value + amount).coerceAtLeast(0f)
-                    },
-                    onDragStopped = {
-                        val threshold = panelHeight.value * AgentBayuMotion.PanelDismissFraction
-                        if (dragOffset.value > threshold) {
-                            onDismiss()
-                        } else {
-                            dragOffset.value = 0f
-                        }
+                    .onSizeChanged { size -> panelHeight.value = size.height }
+                    .graphicsLayer {
+                        alpha = progress
+                        translationY = (1f - progress) * size.height + dragOffset.value
                     }
-                )
-                PanelHeader(
-                    isResponding = isResponding,
-                    detailLabel = messages.lastOrNull { message ->
-                        message.author == MessageAuthor.AGENT
-                    }?.detail?.label,
-                    onDismiss = onDismiss
-                )
-                if (messages.isEmpty()) {
-                    PanelGreeting(
-                        suggestions = suggestions,
-                        onSuggestionClick = onSuggestionClick
-                    )
-                } else {
-                    MessageList(
-                        messages = messages,
-                        isResponding = isResponding,
-                        modifier = Modifier.heightIn(max = 320.dp),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
-                    )
-                }
-                PromptBar(
-                    value = input,
-                    onValueChange = onInputChange,
-                    onSend = onSend,
-                    onMicClick = onMicClick,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                )
-                TextButton(
-                    onClick = onOpenApp,
-                    modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
+                    .liquidGlass(shape = PanelShape)
+                    .pointerInput(Unit) { detectTapGestures { } }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(
+                            WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                        )
                 ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_open_in_app),
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
+                    DragHandle(
+                        onDrag = { amount ->
+                            dragOffset.value = (dragOffset.value + amount).coerceAtLeast(0f)
+                        },
+                        onDragStopped = {
+                            val threshold =
+                                panelHeight.value * AgentBayuMotion.PanelDismissFraction
+                            if (dragOffset.value > threshold) {
+                                onDismiss()
+                            } else {
+                                dragOffset.value = 0f
+                            }
+                        }
                     )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = stringResource(R.string.overlay_open_app))
+                    PanelHeader(
+                        isResponding = isResponding,
+                        detailLabel = messages.lastOrNull { message ->
+                            message.author == MessageAuthor.AGENT
+                        }?.detail?.label,
+                        onDismiss = onDismiss
+                    )
+                    if (messages.isEmpty()) {
+                        PanelGreeting(
+                            suggestions = suggestions,
+                            onSuggestionClick = onSuggestionClick
+                        )
+                    } else {
+                        MessageList(
+                            messages = messages,
+                            isResponding = isResponding,
+                            modifier = Modifier.heightIn(max = 320.dp),
+                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                        )
+                    }
+                    PromptBar(
+                        value = input,
+                        onValueChange = onInputChange,
+                        onSend = onSend,
+                        onMicClick = onMicClick,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    TextButton(
+                        onClick = onOpenApp,
+                        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_open_in_app),
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = stringResource(R.string.overlay_open_app))
+                    }
                 }
             }
         }
@@ -209,20 +215,13 @@ private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: 
             .padding(start = 20.dp, end = 8.dp, bottom = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_spark),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(20.dp)
-            )
-        }
+        GlassBadge(
+            icon = painterResource(R.drawable.ic_spark),
+            containerColor = MaterialTheme.colorScheme.primary,
+            size = 36.dp,
+            iconSize = 20.dp,
+            shape = CircleShape
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

@@ -5,16 +5,13 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -33,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -43,8 +39,8 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderEntry
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -198,12 +194,10 @@ private fun DeviceLoginFields(state: ConnectionEditState, actions: ConnectionEdi
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
     )
-    Box(
-        modifier = Modifier
-            .clip(CapsuleShape)
-            .background(MaterialTheme.colorScheme.primaryContainer)
-            .clickable(onClick = actions.onLogin)
-            .padding(horizontal = 14.dp, vertical = 8.dp)
+    GlassButton(
+        onClick = actions.onLogin,
+        tint = MaterialTheme.colorScheme.primary,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
     ) {
         Text(
             text = if (state.loggedIn) {
@@ -212,7 +206,7 @@ private fun DeviceLoginFields(state: ConnectionEditState, actions: ConnectionEdi
                 stringResource(R.string.connection_login)
             },
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimaryContainer
+            color = MaterialTheme.colorScheme.onPrimary
         )
     }
 }
@@ -257,17 +251,14 @@ private fun ApiKeyFields(
         )
     }
     provider.keyUrl?.let { url ->
-        Box(
-            modifier = Modifier
-                .clip(CapsuleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer)
-                .clickable { actions.onOpenKeyUrl(url) }
-                .padding(horizontal = 14.dp, vertical = 6.dp)
+        GlassButton(
+            onClick = { actions.onOpenKeyUrl(url) },
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
         ) {
             Text(
                 text = stringResource(R.string.connection_key_source, provider.label),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.primary
             )
         }
     }
@@ -351,53 +342,37 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
         }
         if (provider.modelsPath != null) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Box(
-                    modifier = Modifier
-                        .clip(CapsuleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(enabled = !state.refreshing, onClick = actions.onRefreshModels)
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+                GlassButton(
+                    onClick = actions.onRefreshModels,
+                    enabled = !state.refreshing,
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (state.refreshing) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                        } else {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_refresh),
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = stringResource(R.string.connection_refresh_models),
-                            style = MaterialTheme.typography.labelMedium
+                    if (state.refreshing) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_refresh),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
                         )
                     }
+                    Text(
+                        text = stringResource(R.string.connection_refresh_models),
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
-                Box(
-                    modifier = Modifier
-                        .clip(CapsuleShape)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                        .clickable(
-                            enabled = !state.probing && state.modelOptions.isNotEmpty(),
-                            onClick = actions.onProbeModels
-                        )
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
+                GlassButton(
+                    onClick = actions.onProbeModels,
+                    enabled = !state.probing && state.modelOptions.isNotEmpty(),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        if (state.probing) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                            Spacer(modifier = Modifier.width(6.dp))
-                        }
-                        Text(
-                            text = stringResource(R.string.connection_probe_models),
-                            style = MaterialTheme.typography.labelMedium
-                        )
+                    if (state.probing) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                     }
+                    Text(
+                        text = stringResource(R.string.connection_probe_models),
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
             }
         }
@@ -461,39 +436,30 @@ private fun ActionBar(
             ),
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(CapsuleShape)
-                .background(MaterialTheme.colorScheme.surfaceVariant)
-                .clickable(enabled = !state.testing, onClick = actions.onTest)
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center
+        GlassButton(
+            onClick = actions.onTest,
+            modifier = Modifier.weight(1f),
+            enabled = !state.testing,
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (state.testing) {
-                    CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.connection_test_running),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.connection_test),
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
+            if (state.testing) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                Text(
+                    text = stringResource(R.string.connection_test_running),
+                    style = MaterialTheme.typography.labelLarge
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.connection_test),
+                    style = MaterialTheme.typography.labelLarge
+                )
             }
         }
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .clip(CapsuleShape)
-                .background(MaterialTheme.colorScheme.primary)
-                .clickable(onClick = actions.onSave)
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center
+        GlassButton(
+            onClick = actions.onSave,
+            modifier = Modifier.weight(1f),
+            tint = MaterialTheme.colorScheme.primary,
+            contentPadding = PaddingValues(vertical = 12.dp)
         ) {
             Text(
                 text = stringResource(R.string.connection_save),

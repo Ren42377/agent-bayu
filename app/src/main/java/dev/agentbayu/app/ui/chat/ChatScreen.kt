@@ -4,7 +4,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -45,13 +45,13 @@ import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.ai.ProviderPickerDialog
 import dev.agentbayu.app.ui.ai.ReplyDetailSheet
+import dev.agentbayu.app.ui.components.GlassBadge
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
-import dev.agentbayu.app.ui.theme.liquidGlass
 
 @Composable
 fun ChatScreen(
@@ -198,43 +198,38 @@ private fun ProviderCapsule(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier
-                .liquidGlass(shape = CapsuleShape)
-                .clickable(onClick = onOpenPicker)
-                .padding(horizontal = 14.dp, vertical = 8.dp)
+        GlassButton(
+            onClick = onOpenPicker,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.Center
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (isResponding) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                            }
-                        )
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = hint,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Icon(
-                    painter = painterResource(R.drawable.ic_chevron),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(12.dp)
-                )
-            }
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .clip(CircleShape)
+                    .background(
+                        if (isResponding) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        }
+                    )
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = hint,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(12.dp)
+            )
         }
 
         AnimatedVisibility(
@@ -242,18 +237,16 @@ private fun ProviderCapsule(
             enter = fadeIn(),
             exit = fadeOut()
         ) {
-            Box(
-                modifier = Modifier
-                    .padding(start = 8.dp)
-                    .clip(CapsuleShape)
-                    .background(MaterialTheme.colorScheme.errorContainer)
-                    .clickable(onClick = onStop)
-                    .padding(horizontal = 12.dp, vertical = 6.dp)
+            GlassButton(
+                onClick = onStop,
+                modifier = Modifier.padding(start = 8.dp),
+                tint = MaterialTheme.colorScheme.error,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = stringResource(R.string.chat_stop),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer
+                    color = Color.White
                 )
             }
         }
@@ -273,20 +266,13 @@ private fun EmptyState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(56.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_spark),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(28.dp)
-            )
-        }
+        GlassBadge(
+            icon = painterResource(R.drawable.ic_spark),
+            containerColor = MaterialTheme.colorScheme.primary,
+            size = 56.dp,
+            iconSize = 28.dp,
+            shape = CircleShape
+        )
         Spacer(modifier = Modifier.height(16.dp))
         Text(
             text = stringResource(R.string.chat_empty_title),

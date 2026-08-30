@@ -1,10 +1,9 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,14 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -129,18 +127,30 @@ private fun WaitingCard(state: DeviceCodeUiState.Waiting, actions: DeviceCodeAct
                 modifier = Modifier.fillMaxWidth()
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PillButton(
-                    text = stringResource(R.string.device_copy),
+                GlassButton(
                     onClick = actions.onCopy,
-                    modifier = Modifier.weight(1f)
-                )
-                if (state.hasVerificationUrl) {
-                    PillButton(
-                        text = stringResource(R.string.device_open_browser),
-                        onClick = actions.onOpenBrowser,
-                        primary = true,
-                        modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.device_copy),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
+                }
+                if (state.hasVerificationUrl) {
+                    GlassButton(
+                        onClick = actions.onOpenBrowser,
+                        modifier = Modifier.weight(1f),
+                        tint = MaterialTheme.colorScheme.primary,
+                        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.device_open_browser),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                    }
                 }
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -174,12 +184,18 @@ private fun FailedCard(state: DeviceCodeUiState.Failed, actions: DeviceCodeActio
                 style = MaterialTheme.typography.bodyMedium,
                 color = AppleRedLight
             )
-            PillButton(
-                text = stringResource(R.string.device_retry),
+            GlassButton(
                 onClick = actions.onRetry,
-                primary = true,
-                modifier = Modifier.fillMaxWidth()
-            )
+                modifier = Modifier.fillMaxWidth(),
+                tint = MaterialTheme.colorScheme.primary,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.device_retry),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            }
         }
     }
 }
@@ -204,39 +220,6 @@ private fun GlassBox(content: @Composable () -> Unit) {
             .padding(16.dp)
     ) {
         content()
-    }
-}
-
-@Composable
-private fun PillButton(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    primary: Boolean = false
-) {
-    Box(
-        modifier = modifier
-            .clip(CapsuleShape)
-            .background(
-                if (primary) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                }
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 12.dp, horizontal = 14.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelLarge,
-            color = if (primary) {
-                MaterialTheme.colorScheme.onPrimary
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            }
-        )
     }
 }
 

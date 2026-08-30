@@ -1,10 +1,10 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -32,10 +31,10 @@ import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ProviderTier
 import dev.agentbayu.app.ai.RiskLevel
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassPill
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -135,29 +134,23 @@ fun ProvidersScreen(
                     bottom = 12.dp + insets.calculateBottomPadding()
                 )
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(CapsuleShape)
-                    .background(MaterialTheme.colorScheme.primary)
-                    .clickable(onClick = onAdd)
-                    .padding(vertical = 14.dp),
-                contentAlignment = Alignment.Center
+            GlassButton(
+                onClick = onAdd,
+                modifier = Modifier.fillMaxWidth(),
+                tint = MaterialTheme.colorScheme.primary,
+                contentPadding = PaddingValues(vertical = 14.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_add),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = stringResource(R.string.providers_add),
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
+                Icon(
+                    painter = painterResource(R.drawable.ic_add),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = stringResource(R.string.providers_add),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
             }
         }
     }
@@ -231,12 +224,9 @@ private fun ConnectionCard(
                     modifier = Modifier.weight(1f)
                 )
                 if (!row.isActive) {
-                    Box(
-                        modifier = Modifier
-                            .clip(CapsuleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
-                            .clickable { onActivate(connection.id) }
-                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    GlassButton(
+                        onClick = { onActivate(connection.id) },
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = stringResource(R.string.providers_set_active),

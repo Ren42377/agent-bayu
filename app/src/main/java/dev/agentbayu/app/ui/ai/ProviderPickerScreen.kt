@@ -1,10 +1,10 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -21,9 +20,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -31,11 +32,12 @@ import androidx.compose.ui.window.Dialog
 import com.kyant.backdrop.backdrops.emptyBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
-import dev.agentbayu.app.ui.theme.AppleBlueLight
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
+import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.liquidGlass
 import dev.agentbayu.app.ui.theme.solidGlassStyle
 
@@ -59,102 +61,113 @@ fun ProviderPickerDialog(
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .liquidGlass(
-                    shape = GlassCardShape,
-                    style = solidGlassStyle(),
-                    backdrop = emptyBackdrop()
-                )
-                .padding(20.dp)
+        CompositionLocalProvider(
+            LocalGlassBackdrop provides emptyBackdrop(),
+            LocalGlassStyle provides solidGlassStyle()
         ) {
-            Column(
+            Box(
                 modifier = Modifier
-                    .heightIn(max = MAX_PICKER_HEIGHT)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
+                    .fillMaxWidth()
+                    .liquidGlass(shape = GlassCardShape)
+                    .padding(20.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.picker_title),
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                }
+                PickerContent(
+                    options = options,
+                    onSelect = onSelect,
+                    onSelectModel = onSelectModel,
+                    onManage = onManage,
+                    onDismiss = onDismiss
+                )
+            }
+        }
+    }
+}
 
-                if (options.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.picker_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+@Composable
+private fun PickerContent(
+    options: List<ProviderOption>,
+    onSelect: (String) -> Unit,
+    onSelectModel: (String, String) -> Unit,
+    onManage: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .heightIn(max = MAX_PICKER_HEIGHT)
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.picker_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f)
+            )
+        }
 
-                options.forEach { option ->
-                    OptionRow(
-                        option = option,
-                        onSelect = {
-                            onSelect(option.connectionId)
-                            onDismiss()
-                        }
-                    )
-                    if (option.isActive) {
-                        ModelList(
-                            option = option,
-                            onSelectModel = { modelId ->
-                                onSelectModel(option.connectionId, modelId)
-                                onDismiss()
-                            }
-                        )
+        if (options.isEmpty()) {
+            Text(
+                text = stringResource(R.string.picker_empty),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        options.forEach { option ->
+            OptionRow(
+                option = option,
+                onSelect = {
+                    onSelect(option.connectionId)
+                    onDismiss()
+                }
+            )
+            if (option.isActive) {
+                ModelList(
+                    option = option,
+                    onSelectModel = { modelId ->
+                        onSelectModel(option.connectionId, modelId)
+                        onDismiss()
                     }
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-                    )
-                }
+                )
+            }
+            HorizontalDivider(
+                thickness = 0.5.dp,
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            )
+        }
 
-                Spacer(modifier = Modifier.height(4.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(CapsuleShape)
-                            .background(MaterialTheme.colorScheme.primaryContainer)
-                            .clickable(onClick = onManage)
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.picker_manage),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                    }
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(CapsuleShape)
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable(onClick = onDismiss)
-                            .padding(vertical = 10.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = stringResource(R.string.picker_close),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            GlassButton(
+                onClick = onManage,
+                modifier = Modifier.weight(1f),
+                tint = MaterialTheme.colorScheme.primary,
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.picker_manage),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+            }
+            GlassButton(
+                onClick = onDismiss,
+                modifier = Modifier.weight(1f),
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.picker_close),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -207,14 +220,13 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(24.dp)
-                    .clip(CircleShape)
-                    .background(AppleGreenLight),
+                    .liquidGlass(shape = CircleShape, tint = AppleGreenLight),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_check),
                     contentDescription = stringResource(R.string.providers_active),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = Color.White,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -238,26 +250,17 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
         )
         option.models.forEach { modelId ->
             val selected = modelId == option.model
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(CapsuleShape)
-                    .background(
-                        if (selected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                        }
-                    )
-                    .clickable { onSelectModel(modelId) }
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-                verticalAlignment = Alignment.CenterVertically
+            GlassButton(
+                onClick = { onSelectModel(modelId) },
+                modifier = Modifier.fillMaxWidth(),
+                tint = if (selected) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
             ) {
                 Text(
                     text = modelId,
                     style = MaterialTheme.typography.bodyMedium,
                     color = if (selected) {
-                        MaterialTheme.colorScheme.primary
+                        Color.White
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },
@@ -267,7 +270,7 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                     Icon(
                         painter = painterResource(R.drawable.ic_check),
                         contentDescription = stringResource(R.string.picker_model_selected),
-                        tint = MaterialTheme.colorScheme.primary,
+                        tint = Color.White,
                         modifier = Modifier.size(16.dp)
                     )
                 }
