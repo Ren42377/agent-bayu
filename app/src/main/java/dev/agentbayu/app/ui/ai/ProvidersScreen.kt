@@ -1,26 +1,28 @@
 package dev.agentbayu.app.ui.ai
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -30,6 +32,12 @@ import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ProviderTier
 import dev.agentbayu.app.ai.RiskLevel
+import dev.agentbayu.app.ui.components.GlassPill
+import dev.agentbayu.app.ui.theme.AppleGreenLight
+import dev.agentbayu.app.ui.theme.AppleRedLight
+import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.liquidGlass
 
 data class ProviderRowState(
     val connection: Connection,
@@ -40,6 +48,7 @@ data class ProviderRowState(
     val risk: RiskLevel,
     val keyHint: String?,
     val acceptsKey: Boolean,
+    val hasCredential: Boolean,
     val isActive: Boolean
 )
 
@@ -60,48 +69,85 @@ fun ProvidersScreen(
                 .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             if (rows.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.providers_empty_title),
-                    style = MaterialTheme.typography.titleMedium
-                )
-                Text(
-                    text = stringResource(R.string.providers_empty_body),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            AuthKind.entries.forEach { authKind ->
-                val group = rows.filter { it.authKind == authKind }
-                if (group.isNotEmpty()) {
-                    Text(
-                        text = authKindSectionLabel(authKind),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    group.forEach { row ->
-                        ConnectionCard(
-                            row = row,
-                            onEdit = onEdit,
-                            onActivate = onActivate,
-                            onDelete = onDelete
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .liquidGlass(shape = GlassCardShape)
+                        .padding(20.dp)
+                ) {
+                    Column {
+                        Text(
+                            text = stringResource(R.string.providers_empty_title),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.providers_empty_body),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
             }
+            AuthKind.entries.forEach { authKind ->
+                val group = rows.filter { it.authKind == authKind }
+                if (group.isNotEmpty()) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = authKindSectionLabel(authKind).uppercase(),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+                        group.forEach { row ->
+                            ConnectionCard(
+                                row = row,
+                                onEdit = onEdit,
+                                onActivate = onActivate,
+                                onDelete = onDelete
+                            )
+                        }
+                    }
+                }
+            }
         }
-        Button(
-            onClick = onAdd,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Icon(painter = painterResource(R.drawable.ic_add), contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = stringResource(R.string.providers_add))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(CapsuleShape)
+                    .background(MaterialTheme.colorScheme.primary)
+                    .clickable(onClick = onAdd)
+                    .padding(vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_add),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.providers_add),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
         }
     }
 }
@@ -114,29 +160,42 @@ private fun ConnectionCard(
     onDelete: (String) -> Unit
 ) {
     val connection = row.connection
-    Surface(
-        shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        modifier = Modifier.fillMaxWidth()
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlass(shape = GlassCardShape)
+            .clickable { onEdit(connection.id) }
+            .padding(16.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable { onEdit(connection.id) }
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = connection.label,
-                style = MaterialTheme.typography.titleMedium
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = connection.label,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                if (row.isActive) {
+                    GlassPill(
+                        text = stringResource(R.string.providers_active),
+                        containerColor = AppleGreenLight.copy(alpha = 0.18f),
+                        contentColor = AppleGreenLight
+                    )
+                }
+            }
             Text(
                 text = stringResource(
                     R.string.providers_subtitle,
                     row.providerLabel,
                     connection.model
                 ),
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Text(
@@ -146,48 +205,64 @@ private fun ConnectionCard(
                     authKindLabel(row.authKind)
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
             StatusLines(row = row)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Text(
                     text = credentialSummary(row),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(onClick = { onDelete(connection.id) }) {
+                if (!row.isActive) {
+                    Box(
+                        modifier = Modifier
+                            .clip(CapsuleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.12f))
+                            .clickable { onActivate(connection.id) }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.providers_set_active),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
+                IconButton(
+                    onClick = { onDelete(connection.id) },
+                    modifier = Modifier.size(32.dp)
+                ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_delete),
-                        contentDescription = stringResource(R.string.providers_delete)
+                        contentDescription = stringResource(R.string.providers_delete),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            ActiveRow(row = row, onActivate = onActivate)
         }
     }
 }
 
 @Composable
 private fun credentialSummary(row: ProviderRowState): String {
+    if (row.authKind.isOAuth) {
+        return if (row.hasCredential) {
+            stringResource(R.string.providers_login_saved)
+        } else {
+            stringResource(R.string.providers_login_needed)
+        }
+    }
     if (!row.acceptsKey) return stringResource(R.string.providers_no_credential_needed)
     val hint = row.keyHint ?: return stringResource(R.string.providers_no_key)
     return stringResource(R.string.providers_key_hint, hint)
-}
-
-@Composable
-private fun ActiveRow(row: ProviderRowState, onActivate: (String) -> Unit) {
-    if (row.isActive) {
-        Text(
-            text = stringResource(R.string.providers_active),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
-        return
-    }
-    TextButton(onClick = { onActivate(row.connection.id) }) {
-        Text(text = stringResource(R.string.providers_set_active))
-    }
 }
 
 @Composable
@@ -196,9 +271,9 @@ private fun StatusLines(row: ProviderRowState) {
     val attention = connection.health == ConnectionHealth.NEEDS_ATTENTION
     Text(
         text = healthLabel(connection.health),
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.labelMedium,
         color = if (attention) {
-            MaterialTheme.colorScheme.error
+            AppleRedLight
         } else {
             MaterialTheme.colorScheme.primary
         }
@@ -211,15 +286,10 @@ private fun StatusLines(row: ProviderRowState) {
         )
     }
     riskNotice(row.risk)?.let { notice ->
-        StatusNote(text = stringResource(notice))
+        Text(
+            text = stringResource(notice),
+            style = MaterialTheme.typography.bodySmall,
+            color = AppleRedLight
+        )
     }
-}
-
-@Composable
-private fun StatusNote(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.error
-    )
 }

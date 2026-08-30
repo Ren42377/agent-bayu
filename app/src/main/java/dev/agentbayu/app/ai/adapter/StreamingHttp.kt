@@ -65,6 +65,7 @@ internal object StreamingHttp {
                 val reader = SseReader()
                 var stop = false
                 var failed = false
+                var completed = false
                 while (!stop) {
                     val line = source.readUtf8Line() ?: break
                     for (signal in reader.accept(line)) {
@@ -74,6 +75,10 @@ internal object StreamingHttp {
                                 emit(event)
                                 if (event is WireEvent.Failure) {
                                     failed = true
+                                    stop = true
+                                }
+                                if (event is WireEvent.Done) {
+                                    completed = true
                                     stop = true
                                 }
                             }
@@ -86,11 +91,12 @@ internal object StreamingHttp {
                             for (event in parse(signal.json)) {
                                 emit(event)
                                 if (event is WireEvent.Failure) failed = true
+                                if (event is WireEvent.Done) completed = true
                             }
                         }
                     }
                 }
-                if (!failed) emit(WireEvent.Done)
+                if (!failed && !completed) emit(WireEvent.Done)
             }
         } catch (error: IOException) {
             currentCoroutineContext().ensureActive()

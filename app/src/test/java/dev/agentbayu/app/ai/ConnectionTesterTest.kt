@@ -47,7 +47,7 @@ class ConnectionTesterTest {
     private fun tester(provider: ProviderEntry): ConnectionTester = ConnectionTester(
         client = client,
         catalog = ProviderCatalog(listOf(provider)),
-        keySource = FakeKeys(),
+        credentials = KeySourceCredentials(FakeKeys()),
         adapters = mapOf<WireFormat, ChatAdapter>(
             WireFormat.OPENAI to OpenAiCompatibleAdapter(client)
         )

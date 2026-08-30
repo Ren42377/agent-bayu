@@ -38,8 +38,10 @@ fun riskNotice(risk: RiskLevel): Int? = when (risk) {
 fun providerHint(providerId: String): Int? = when (providerId) {
     PROVIDER_OPENCODE -> R.string.provider_hint_opencode
     PROVIDER_OPENAI_COMPATIBLE -> R.string.provider_hint_openai_compatible
+    PROVIDER_CODEX -> R.string.provider_hint_codex
     else -> null
 }
 
 private const val PROVIDER_OPENCODE = "opencode"
 private const val PROVIDER_OPENAI_COMPATIBLE = "openai-compatible"
+private const val PROVIDER_CODEX = "codex"

@@ -22,7 +22,12 @@ data class ChatRequest(
 )
 
 interface ChatAdapter {
-    fun stream(candidate: Candidate, apiKey: String?, request: ChatRequest): Flow<WireEvent>
+    fun stream(
+        candidate: Candidate,
+        apiKey: String?,
+        request: ChatRequest,
+        authHeaders: Map<String, String> = emptyMap()
+    ): Flow<WireEvent>
 }
 
 object WireParams {

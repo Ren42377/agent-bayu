@@ -80,6 +80,20 @@ class ActiveProviderTest {
     }
 
     @Test
+    fun `an oauth provider needs a stored credential before it is ready`() {
+        val entry = testProvider(id = "codex", authKind = AuthKind.OAUTH_DEVICE)
+        val source = FakeConnectionSource(listOf(testConnection(providerId = "codex")), "conn-1")
+
+        assertEquals(
+            ActiveResolution.Unavailable(ActiveProviderProblem.MISSING_CREDENTIAL),
+            ActiveProvider(source, catalog(entry), FakeKeys()).resolve()
+        )
+
+        val loggedIn = FakeKeys(mapOf("conn-1" to "access-1"))
+        assertTrue(ActiveProvider(source, catalog(entry), loggedIn).resolve() is ActiveResolution.Ready)
+    }
+
+    @Test
     fun `active id wins over creation order`() {
         val connections = listOf(
             testConnection(id = "conn-old", createdAtMillis = 1L),

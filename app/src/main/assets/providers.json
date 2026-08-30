@@ -26,6 +26,36 @@
       ]
     },
     {
+      "id": "codex",
+      "label": "OpenAI Codex",
+      "wireFormat": "openai_responses",
+      "baseUrl": "https://chatgpt.com/backend-api/codex",
+      "authKind": "oauth_device",
+      "authHeader": "bearer",
+      "tier": "subscription",
+      "risk": "tos_gray",
+      "supportsStreamUsage": true,
+      "allowCustomModel": true,
+      "timeoutMillis": 120000,
+      "oauth": {
+        "flow": "device_code",
+        "clientId": "app_EMoamEEZ73f0CkXaXp7hrann",
+        "tokenUrl": "https://auth.openai.com/oauth/token",
+        "userCodeUrl": "https://auth.openai.com/api/accounts/deviceauth/usercode",
+        "pollUrl": "https://auth.openai.com/api/accounts/deviceauth/token",
+        "verificationUrl": "https://auth.openai.com/codex/device",
+        "redirectUri": "https://auth.openai.com/deviceauth/callback",
+        "accountClaim": "https://api.openai.com/auth",
+        "accountField": "chatgpt_account_id",
+        "accountHeader": "chatgpt-account-id"
+      },
+      "models": [
+        { "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol" },
+        { "id": "gpt-5.6-terra", "label": "GPT-5.6 Terra" },
+        { "id": "gpt-5.6-luna", "label": "GPT-5.6 Luna" }
+      ]
+    },
+    {
       "id": "openai-compatible",
       "label": "OpenAI Compatible",
       "wireFormat": "openai",

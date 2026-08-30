@@ -11,12 +11,16 @@ import dev.agentbayu.app.ai.ConnectionTester
 import dev.agentbayu.app.ai.CredentialStore
 import dev.agentbayu.app.ai.ProviderCatalog
 import dev.agentbayu.app.ai.RealClock
+import dev.agentbayu.app.ai.StoredCredentials
 import dev.agentbayu.app.ai.UsageTracker
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.adapter.AnthropicAdapter
 import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.GeminiAdapter
 import dev.agentbayu.app.ai.adapter.OpenAiCompatibleAdapter
+import dev.agentbayu.app.ai.adapter.OpenAiResponsesAdapter
+import dev.agentbayu.app.ai.oauth.CodexDeviceFlow
+import dev.agentbayu.app.ai.oauth.TokenRefresher
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.domain.ContextBuilder
 import dev.agentbayu.app.domain.ConversationRepository
@@ -48,6 +52,7 @@ object AppGraph {
         val catalog: ProviderCatalog,
         val activeProvider: ActiveProvider,
         val tester: ConnectionTester,
+        val deviceFlow: CodexDeviceFlow,
         val usageTracker: UsageTracker
     )
 
@@ -65,6 +70,8 @@ object AppGraph {
     fun activeProvider(context: Context): ActiveProvider = container(context).activeProvider
 
     fun connectionTester(context: Context): ConnectionTester = container(context).tester
+
+    fun deviceFlow(context: Context): CodexDeviceFlow = container(context).deviceFlow
 
     fun usage(context: Context): UsageTracker = container(context).usageTracker
 
@@ -97,6 +104,7 @@ object AppGraph {
             .build()
         val adapters: Map<WireFormat, ChatAdapter> = mapOf(
             WireFormat.OPENAI to OpenAiCompatibleAdapter(client),
+            WireFormat.OPENAI_RESPONSES to OpenAiResponsesAdapter(client),
             WireFormat.ANTHROPIC to AnthropicAdapter(client),
             WireFormat.GEMINI to GeminiAdapter(client)
         )
@@ -105,10 +113,16 @@ object AppGraph {
             catalog = catalog,
             keys = credentialStore
         )
+        val credentials = StoredCredentials(
+            store = credentialStore,
+            refresher = TokenRefresher(client, clock),
+            connections = connectionStore,
+            clock = clock
+        )
         val aiClient = AiClient(
             activeProvider = activeProvider,
             connections = connectionStore,
-            keys = credentialStore,
+            credentials = credentials,
             adapters = adapters,
             usageTracker = usageTracker,
             clock = clock
@@ -136,7 +150,8 @@ object AppGraph {
             credentialStore = credentialStore,
             catalog = catalog,
             activeProvider = activeProvider,
-            tester = ConnectionTester(client, catalog, credentialStore, adapters, clock),
+            tester = ConnectionTester(client, catalog, credentials, adapters, clock),
+            deviceFlow = CodexDeviceFlow(client, clock),
             usageTracker = usageTracker
         )
     }

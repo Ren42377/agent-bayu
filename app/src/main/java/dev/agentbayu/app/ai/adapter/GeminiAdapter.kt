@@ -15,7 +15,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
 
-    override fun stream(candidate: Candidate, apiKey: String?, request: ChatRequest): Flow<WireEvent> {
+    override fun stream(
+        candidate: Candidate,
+        apiKey: String?,
+        request: ChatRequest,
+        authHeaders: Map<String, String>
+    ): Flow<WireEvent> {
         val path = MODELS_PATH + candidate.model.id + STREAM_SUFFIX
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, path))
@@ -23,6 +28,7 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
             .header("Content-Type", "application/json")
             .applyAuth(candidate, apiKey)
             .applyExtraHeaders(candidate)
+            .applyAuthHeaders(authHeaders)
             .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 

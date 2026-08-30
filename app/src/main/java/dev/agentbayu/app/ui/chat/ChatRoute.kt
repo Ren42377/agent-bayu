@@ -39,7 +39,8 @@ fun ChatRoute(
     val options = remember(connections, activeId) {
         connections.map { connection ->
             val provider = catalog.find(connection.providerId)
-            val hasKey = provider?.requiresKey != true || credentials.hasKey(connection.id)
+            val hasCredential = provider?.requiresCredential != true ||
+                credentials.hasKey(connection.id)
             ProviderOption(
                 connectionId = connection.id,
                 label = connection.label,
@@ -49,7 +50,7 @@ fun ChatRoute(
                     .distinct(),
                 authKind = provider?.authKind ?: AuthKind.API_KEY,
                 isActive = connection.id == active?.id,
-                ready = provider != null && hasKey
+                ready = provider != null && hasCredential
             )
         }
     }

@@ -17,6 +17,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ConnectionTestResult
+import dev.agentbayu.app.ai.Credential
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderEntry
 import kotlinx.coroutines.launch
@@ -25,6 +26,7 @@ import kotlinx.coroutines.launch
 fun AiConnectionEditRoute(
     connectionId: String?,
     onBack: () -> Unit,
+    onStartLogin: (String) -> Unit,
     onMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -54,6 +56,7 @@ fun AiConnectionEditRoute(
     var probing by remember { mutableStateOf(false) }
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
+    val loggedIn = remember(id) { credentials.credential(id) is Credential.OAuthTokens }
     val savedMessage = stringResource(R.string.connection_saved)
     val errorKey = stringResource(R.string.connection_error_key)
     val errorModel = stringResource(R.string.connection_error_model)
@@ -76,6 +79,22 @@ fun AiConnectionEditRoute(
         createdAtMillis = existing?.createdAtMillis ?: 0L
     )
 
+    fun persist(selected: ProviderEntry) {
+        if (apiKey.isNotBlank()) credentials.putApiKey(id, apiKey)
+        val hasCredential = credentials.hasKey(id)
+        store.upsert(
+            draft().copy(
+                keyHint = if (selected.authKind.isOAuth) null else credentials.hint(id),
+                health = if (!selected.requiresCredential || hasCredential) {
+                    ConnectionHealth.READY
+                } else {
+                    ConnectionHealth.NEEDS_KEY
+                },
+                healthDetail = null
+            )
+        )
+    }
+
     val state = ConnectionEditState(
         providers = providers,
         provider = provider,
@@ -87,6 +106,7 @@ fun AiConnectionEditRoute(
         modelProbes = modelProbes,
         baseUrl = baseUrl,
         isNew = existing == null,
+        loggedIn = loggedIn,
         testing = testing,
         refreshing = refreshing,
         probing = probing
@@ -166,21 +186,20 @@ fun AiConnectionEditRoute(
                 selected.editableBaseUrl && baseUrl.isBlank() -> onMessage(errorBaseUrl)
                 selected.requiresKey && apiKey.isBlank() && keyHint == null -> onMessage(errorKey)
                 else -> {
-                    if (apiKey.isNotBlank()) credentials.putApiKey(id, apiKey)
-                    val hasKey = credentials.hasKey(id)
-                    store.upsert(
-                        draft().copy(
-                            keyHint = credentials.hint(id),
-                            health = if (!selected.requiresKey || hasKey) {
-                                ConnectionHealth.READY
-                            } else {
-                                ConnectionHealth.NEEDS_KEY
-                            },
-                            healthDetail = null
-                        )
-                    )
+                    persist(selected)
                     onMessage(savedMessage)
                     onBack()
+                }
+            }
+        },
+        onLogin = {
+            val selected = provider
+            when {
+                selected == null -> onMessage(errorModel)
+                model.isBlank() -> onMessage(errorModel)
+                else -> {
+                    persist(selected)
+                    onStartLogin(id)
                 }
             }
         },

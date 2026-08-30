@@ -15,13 +15,19 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
 
-    override fun stream(candidate: Candidate, apiKey: String?, request: ChatRequest): Flow<WireEvent> {
+    override fun stream(
+        candidate: Candidate,
+        apiKey: String?,
+        request: ChatRequest,
+        authHeaders: Map<String, String>
+    ): Flow<WireEvent> {
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, CHAT_PATH))
             .header("Accept", "text/event-stream")
             .header("Content-Type", "application/json")
             .applyAuth(candidate, apiKey)
             .applyExtraHeaders(candidate)
+            .applyAuthHeaders(authHeaders)
             .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 

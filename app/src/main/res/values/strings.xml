@@ -109,6 +109,7 @@
 
     <string name="provider_hint_opencode">Gratis tanpa kredensial. Hanya model berakhiran -free, dan model gratisnya bisa mati lalu hidup lagi dalam hitungan jam.</string>
     <string name="provider_hint_openai_compatible">Isi kunci API dan arahkan base URL ke endpoint OpenAI-compatible mana pun.</string>
+    <string name="provider_hint_codex">Pakai langganan ChatGPT lewat kode perangkat. Model yang tersedia tergantung langgananmu, dan kamu bisa mengisi nama model sendiri.</string>
 
     <string name="providers_title">Provider AI</string>
     <string name="providers_empty_title">Belum ada koneksi</string>
@@ -120,6 +121,8 @@
     <string name="providers_key_hint">Kunci %1$s</string>
     <string name="providers_no_key">Kunci belum diisi</string>
     <string name="providers_no_credential_needed">Tidak butuh kredensial</string>
+    <string name="providers_login_saved">Sudah login</string>
+    <string name="providers_login_needed">Belum login</string>
     <string name="providers_active">Penyedia aktif</string>
     <string name="providers_set_active">Jadikan aktif</string>
     <string name="providers_delete">Hapus koneksi</string>
@@ -172,6 +175,23 @@
     <string name="connection_model_context">Konteks %1$s token</string>
     <string name="connection_model_price">USD %1$s per juta token masuk, USD %2$s keluar</string>
     <string name="connection_model_free">Gratis</string>
+    <string name="connection_login">Login perangkat</string>
+    <string name="connection_login_again">Login ulang</string>
+    <string name="connection_login_saved">Sudah login. Token tersimpan di perangkat ini.</string>
+    <string name="connection_login_needed">Belum login. Tekan Login perangkat, koneksi ini akan disimpan lebih dulu.</string>
+    <string name="device_title">Login kode perangkat</string>
+    <string name="device_starting">Menyiapkan kode</string>
+    <string name="device_instruction">Buka halaman verifikasi di browser, lalu masukkan kode ini.</string>
+    <string name="device_code_label">Kode perangkat</string>
+    <string name="device_copy">Salin kode</string>
+    <string name="device_copied">Kode disalin.</string>
+    <string name="device_open_browser">Buka halaman verifikasi</string>
+    <string name="device_waiting">Menunggu kamu menyetujui di browser</string>
+    <string name="device_remaining">Kode berlaku %1$d menit %2$02d detik lagi</string>
+    <string name="device_success">Login berhasil. Koneksi siap dipakai.</string>
+    <string name="device_failed">Login gagal: %1$s</string>
+    <string name="device_retry">Coba lagi</string>
+    <string name="device_unsupported">Provider ini tidak memakai login kode perangkat.</string>
     <string name="usage_title">Pemakaian</string>
     <string name="usage_empty">Belum ada permintaan yang tercatat.</string>
     <string name="usage_note">Biaya adalah perkiraan dari harga katalog, bukan tagihan resmi.</string>

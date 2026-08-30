@@ -9,6 +9,7 @@ import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.FakeClock
 import dev.agentbayu.app.ai.FakeConnectionSource
 import dev.agentbayu.app.ai.FakeKeys
+import dev.agentbayu.app.ai.KeySourceCredentials
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderCatalog
 import dev.agentbayu.app.ai.RouteFailure
@@ -45,7 +46,8 @@ private class RecordingAdapter : ChatAdapter {
     override fun stream(
         candidate: Candidate,
         apiKey: String?,
-        request: ChatRequest
+        request: ChatRequest,
+        authHeaders: Map<String, String>
     ): Flow<WireEvent> = flow {
         requests += request
         keys += apiKey
@@ -116,7 +118,7 @@ class ProviderAgentEngineTest {
         val client = AiClient(
             activeProvider = ActiveProvider(connections, catalog, keySource),
             connections = connections,
-            keys = keySource,
+            credentials = KeySourceCredentials(keySource),
             adapters = mapOf(WireFormat.OPENAI to adapter),
             usageTracker = UsageTracker(clock),
             clock = clock

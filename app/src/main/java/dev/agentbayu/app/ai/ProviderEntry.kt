@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ai
 
+import dev.agentbayu.app.ai.oauth.OAuthConfig
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -25,13 +26,20 @@ data class ProviderEntry(
     val allowCustomModel: Boolean = false,
     val unsupportedParams: List<String> = emptyList(),
     val extraHeaders: Map<String, String> = emptyMap(),
+    val oauth: OAuthConfig? = null,
     val models: List<ModelEntry> = emptyList()
 ) {
     val requiresKey: Boolean
         get() = authKind == AuthKind.API_KEY
 
+    val requiresCredential: Boolean
+        get() = authKind != AuthKind.NONE
+
     val acceptsKey: Boolean
         get() = requiresKey || optionalKey
+
+    val deviceLogin: OAuthConfig?
+        get() = oauth?.takeIf { authKind.isOAuth && it.isDeviceCode }
 
     fun model(modelId: String): ModelEntry? = models.firstOrNull { it.id == modelId }
 

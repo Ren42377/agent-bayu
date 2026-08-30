@@ -56,5 +56,12 @@ internal fun Request.Builder.applyExtraHeaders(candidate: Candidate): Request.Bu
     return this
 }
 
+internal fun Request.Builder.applyAuthHeaders(headers: Map<String, String>): Request.Builder {
+    headers.forEach { (name, value) ->
+        if (name.isNotBlank() && value.isNotBlank()) header(name, value)
+    }
+    return this
+}
+
 internal fun joinUrl(baseUrl: String, path: String): String =
     baseUrl.trimEnd('/') + "/" + path.trimStart('/')

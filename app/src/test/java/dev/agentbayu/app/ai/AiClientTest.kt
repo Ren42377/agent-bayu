@@ -21,14 +21,17 @@ class AiClientTest {
     private class RecordingAdapter(private val events: List<WireEvent>) : ChatAdapter {
         var lastKey: String? = null
         var lastRequest: ChatRequest? = null
+        var lastHeaders: Map<String, String> = emptyMap()
 
         override fun stream(
             candidate: Candidate,
             apiKey: String?,
-            request: ChatRequest
+            request: ChatRequest,
+            authHeaders: Map<String, String>
         ): Flow<WireEvent> = flow {
             lastKey = apiKey
             lastRequest = request
+            lastHeaders = authHeaders
             events.forEach { emit(it) }
         }
     }
@@ -45,6 +48,7 @@ class AiClientTest {
         candidate: Candidate,
         adapter: ChatAdapter?,
         keys: KeySource = storedKeys,
+        credentials: CredentialProvider = KeySourceCredentials(keys),
         connections: FakeConnectionSource = FakeConnectionSource(
             listOf(candidate.connection),
             candidate.connection.id
@@ -58,7 +62,7 @@ class AiClientTest {
             keys
         ),
         connections = connections,
-        keys = keys,
+        credentials = credentials,
         adapters = adapter?.let { mapOf(candidate.provider.wireFormat to it) } ?: emptyMap(),
         usageTracker = tracker,
         clock = clock
@@ -130,6 +134,22 @@ class AiClientTest {
         clientFor(testCandidate(), adapter).stream(request).toList()
 
         assertEquals("key-1234", adapter.lastKey)
+    }
+
+    @Test
+    fun `passes credential headers to the adapter`() = runTest {
+        val adapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        val credentials = object : CredentialProvider {
+            override suspend fun resolve(candidate: Candidate): WireCredential = WireCredential(
+                token = "token-1",
+                headers = mapOf("chatgpt-account-id" to "account-1")
+            )
+        }
+
+        clientFor(testCandidate(), adapter, credentials = credentials).stream(request).toList()
+
+        assertEquals("token-1", adapter.lastKey)
+        assertEquals(mapOf("chatgpt-account-id" to "account-1"), adapter.lastHeaders)
     }
 
     @Test
@@ -269,7 +289,7 @@ class AiClientTest {
                 FakeKeys()
             ),
             connections = FakeConnectionSource(),
-            keys = FakeKeys(),
+            credentials = KeySourceCredentials(FakeKeys()),
             adapters = emptyMap(),
             usageTracker = UsageTracker(FakeClock()),
             clock = FakeClock()
@@ -292,7 +312,8 @@ class AiClientTest {
             override fun stream(
                 candidate: Candidate,
                 apiKey: String?,
-                request: ChatRequest
+                request: ChatRequest,
+                authHeaders: Map<String, String>
             ): Flow<WireEvent> = flow {
                 clock.advance(40L)
                 emit(WireEvent.Delta("a"))

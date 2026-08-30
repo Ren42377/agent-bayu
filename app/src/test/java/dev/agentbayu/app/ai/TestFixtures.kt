@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ai
 
+import dev.agentbayu.app.ai.oauth.OAuthConfig
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -66,7 +67,8 @@ fun testProvider(
     modelIdFilter: String? = null,
     timeoutMillis: Long = ProviderEntry.DEFAULT_TIMEOUT_MILLIS,
     unsupportedParams: List<String> = emptyList(),
-    extraHeaders: Map<String, String> = emptyMap()
+    extraHeaders: Map<String, String> = emptyMap(),
+    oauth: OAuthConfig? = null
 ): ProviderEntry = ProviderEntry(
     id = id,
     label = label,
@@ -86,6 +88,7 @@ fun testProvider(
     timeoutMillis = timeoutMillis,
     unsupportedParams = unsupportedParams,
     extraHeaders = extraHeaders,
+    oauth = oauth,
     models = models
 )
 
@@ -130,7 +133,8 @@ fun testCandidate(
     timeoutMillis: Long = ProviderEntry.DEFAULT_TIMEOUT_MILLIS,
     providerUnsupportedParams: List<String> = emptyList(),
     modelUnsupportedParams: List<String> = emptyList(),
-    extraHeaders: Map<String, String> = emptyMap()
+    extraHeaders: Map<String, String> = emptyMap(),
+    oauth: OAuthConfig? = null
 ): Candidate {
     val model = ModelEntry(
         id = modelId,
@@ -164,7 +168,8 @@ fun testCandidate(
             supportsStreamUsage = supportsStreamUsage,
             timeoutMillis = timeoutMillis,
             unsupportedParams = providerUnsupportedParams,
-            extraHeaders = extraHeaders
+            extraHeaders = extraHeaders,
+            oauth = oauth
         ),
         model = model
     )

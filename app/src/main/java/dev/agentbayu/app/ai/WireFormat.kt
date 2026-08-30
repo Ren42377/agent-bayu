@@ -8,6 +8,9 @@ enum class WireFormat {
     @SerialName("openai")
     OPENAI,
 
+    @SerialName("openai_responses")
+    OPENAI_RESPONSES,
+
     @SerialName("anthropic")
     ANTHROPIC,
 

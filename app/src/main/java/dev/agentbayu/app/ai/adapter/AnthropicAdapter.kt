@@ -14,7 +14,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
 
-    override fun stream(candidate: Candidate, apiKey: String?, request: ChatRequest): Flow<WireEvent> {
+    override fun stream(
+        candidate: Candidate,
+        apiKey: String?,
+        request: ChatRequest,
+        authHeaders: Map<String, String>
+    ): Flow<WireEvent> {
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, MESSAGES_PATH))
             .header("Accept", "text/event-stream")
@@ -22,6 +27,7 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
             .header(VERSION_HEADER, VERSION_VALUE)
             .applyAuth(candidate, apiKey)
             .applyExtraHeaders(candidate)
+            .applyAuthHeaders(authHeaders)
             .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 

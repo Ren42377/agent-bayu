@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ai
 
+import dev.agentbayu.app.ai.oauth.OAuthFlow
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,8 +32,11 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `bundled catalog holds opencode and one openai compatible entry`() {
-        assertEquals(listOf("opencode", "openai-compatible"), catalog.providers.map { it.id })
+    fun `bundled catalog holds opencode codex and one openai compatible entry`() {
+        assertEquals(
+            listOf("opencode", "codex", "openai-compatible"),
+            catalog.providers.map { it.id }
+        )
         assertEquals("opencode", ProviderCatalog.DEFAULT_PROVIDER_ID)
     }
 
@@ -57,6 +61,39 @@ class ProviderCatalogTest {
             assertTrue(model.id, model.id.endsWith("-free"))
             assertTrue(model.id, model.free)
             assertEquals(model.id, 0.0, model.costUsd(1_000, 1_000)!!, 0.0)
+        }
+    }
+
+    @Test
+    fun `codex logs in with a device code and speaks the responses wire`() {
+        val provider = catalog.find("codex")!!
+
+        assertEquals(AuthKind.OAUTH_DEVICE, provider.authKind)
+        assertEquals(WireFormat.OPENAI_RESPONSES, provider.wireFormat)
+        assertEquals(ProviderTier.SUBSCRIPTION, provider.tier)
+        assertEquals(RiskLevel.TOS_GRAY, provider.risk)
+        assertFalse(provider.requiresKey)
+        assertFalse(provider.acceptsKey)
+        assertTrue(provider.requiresCredential)
+        assertNull(provider.anonymousKey)
+        assertNull(provider.modelsPath)
+        assertTrue(provider.allowCustomModel)
+        assertEquals(120_000L, provider.timeoutMillis)
+        assertTrue(provider.models.isNotEmpty())
+
+        val config = provider.deviceLogin!!
+        assertEquals(OAuthFlow.DEVICE_CODE, config.flow)
+        assertEquals("app_EMoamEEZ73f0CkXaXp7hrann", config.clientId)
+        assertEquals("chatgpt-account-id", config.accountHeader)
+        assertEquals("chatgpt_account_id", config.accountField)
+        listOf(
+            config.tokenUrl,
+            config.userCodeUrl,
+            config.pollUrl,
+            config.verificationUrl,
+            config.redirectUri
+        ).forEach { url ->
+            assertTrue(url.orEmpty(), url.orEmpty().startsWith("https://"))
         }
     }
 

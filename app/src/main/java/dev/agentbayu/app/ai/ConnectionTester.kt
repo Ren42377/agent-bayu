@@ -6,6 +6,7 @@ import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
 import dev.agentbayu.app.ai.adapter.WireEvent
 import dev.agentbayu.app.ai.adapter.applyAuth
+import dev.agentbayu.app.ai.adapter.applyAuthHeaders
 import dev.agentbayu.app.ai.adapter.applyExtraHeaders
 import dev.agentbayu.app.ai.adapter.arrayField
 import dev.agentbayu.app.ai.adapter.joinUrl
@@ -35,7 +36,7 @@ sealed interface ModelFetchResult {
 class ConnectionTester(
     private val client: OkHttpClient,
     private val catalog: ProviderCatalog,
-    private val keySource: KeySource,
+    private val credentials: CredentialProvider,
     private val adapters: Map<WireFormat, ChatAdapter>,
     private val clock: Clock = RealClock
 ) {
@@ -51,8 +52,9 @@ class ConnectionTester(
             maxOutputTokens = candidate.provider.clampOutputTokens(PROBE_MAX_TOKENS),
             temperature = null
         )
+        val credential = credentialFor(candidate, apiKey)
         val startedAt = clock.nowMillis()
-        val event = adapter.stream(candidate, keyFor(candidate, apiKey), request)
+        val event = adapter.stream(candidate, credential.token, request, credential.headers)
             .filter { it is WireEvent.Delta || it is WireEvent.Failure }
             .firstOrNull()
 
@@ -77,12 +79,14 @@ class ConnectionTester(
             ?: return@withContext ModelFetchResult.Failure(unknownProvider())
         val path = candidate.provider.modelsPath
             ?: return@withContext ModelFetchResult.Failure(unknownProvider())
+        val credential = credentialFor(candidate, apiKey)
 
         val request = Request.Builder()
             .url(joinUrl(candidate.baseUrl, path))
             .get()
-            .applyAuth(candidate, keyFor(candidate, apiKey))
+            .applyAuth(candidate, credential.token)
             .applyExtraHeaders(candidate)
+            .applyAuthHeaders(credential.headers)
             .build()
 
         try {
@@ -138,8 +142,11 @@ class ConnectionTester(
         return Candidate(connection, provider, provider.modelOrFallback(connection.model))
     }
 
-    private fun keyFor(candidate: Candidate, apiKey: String?): String? =
-        apiKey?.takeIf { it.isNotBlank() } ?: keySource.secretFor(candidate)
+    private suspend fun credentialFor(candidate: Candidate, apiKey: String?): WireCredential {
+        val pasted = apiKey?.takeIf { it.isNotBlank() }
+        if (pasted != null) return WireCredential(token = pasted)
+        return credentials.resolve(candidate)
+    }
 
     private fun unknownProvider(): RouteFailure =
         RouteFailure(kind = FailureKind.TERMINAL, message = "unsupported provider")

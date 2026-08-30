@@ -34,6 +34,7 @@ fun AiProvidersRoute(
         val active = resolveActiveConnection(connections, activeId)
         connections.map { connection ->
             val provider = catalog.find(connection.providerId)
+            val isOAuth = provider?.authKind?.isOAuth == true
             ProviderRowState(
                 connection = connection,
                 providerId = connection.providerId,
@@ -41,8 +42,9 @@ fun AiProvidersRoute(
                 tier = provider?.tier ?: ProviderTier.API_KEY,
                 authKind = provider?.authKind ?: AuthKind.API_KEY,
                 risk = provider?.risk ?: RiskLevel.NONE,
-                keyHint = credentials.hint(connection.id),
+                keyHint = if (isOAuth) null else credentials.hint(connection.id),
                 acceptsKey = provider?.acceptsKey ?: true,
+                hasCredential = credentials.hasKey(connection.id),
                 isActive = connection.id == active?.id
             )
         }

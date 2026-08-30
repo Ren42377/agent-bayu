@@ -23,7 +23,7 @@ sealed interface ReplyEvent {
 class AiClient(
     private val activeProvider: ActiveProvider,
     private val connections: ConnectionSource,
-    private val keys: KeySource,
+    private val credentials: CredentialProvider,
     private val adapters: Map<WireFormat, ChatAdapter>,
     private val usageTracker: UsageTracker,
     private val clock: Clock = RealClock
@@ -51,6 +51,7 @@ class AiClient(
             maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens)
         )
         val connectionId = candidate.connection.id
+        val credential = credentials.resolve(candidate)
         val startedAt = clock.nowMillis()
         usageTracker.beginRequest(connectionId)
 
@@ -59,7 +60,7 @@ class AiClient(
         var wireUsage: WireEvent.Usage? = null
         var failure: RouteFailure? = null
 
-        adapter.stream(candidate, keys.secretFor(candidate), effective).collect { event ->
+        adapter.stream(candidate, credential.token, effective, credential.headers).collect { event ->
             when (event) {
                 is WireEvent.Delta -> {
                     if (firstTokenMillis == 0L) {

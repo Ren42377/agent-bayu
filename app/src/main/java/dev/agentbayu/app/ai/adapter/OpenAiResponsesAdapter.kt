@@ -1,0 +1,150 @@
+package dev.agentbayu.app.ai.adapter
+
+import dev.agentbayu.app.ai.Candidate
+import dev.agentbayu.app.ai.FailureClassifier
+import java.util.UUID
+import kotlinx.coroutines.flow.Flow
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+
+class OpenAiResponsesAdapter(
+    private val client: OkHttpClient,
+    private val sessionIdFactory: () -> String = { UUID.randomUUID().toString() }
+) : ChatAdapter {
+
+    override fun stream(
+        candidate: Candidate,
+        apiKey: String?,
+        request: ChatRequest,
+        authHeaders: Map<String, String>
+    ): Flow<WireEvent> {
+        val httpRequest = Request.Builder()
+            .url(joinUrl(candidate.baseUrl, RESPONSES_PATH))
+            .header("Accept", "text/event-stream")
+            .header("Content-Type", "application/json")
+            .header(VERSION_HEADER, CLIENT_VERSION)
+            .header(BETA_HEADER, BETA_VALUE)
+            .header(ORIGINATOR_HEADER, ORIGINATOR_VALUE)
+            .header(SESSION_HEADER, sessionIdFactory())
+            .header("User-Agent", USER_AGENT)
+            .applyAuth(candidate, apiKey)
+            .applyExtraHeaders(candidate)
+            .applyAuthHeaders(authHeaders)
+            .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
+            .build()
+
+        return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
+            parseChunk(chunk)
+        }
+    }
+
+    private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
+        put("model", candidate.model.id)
+        put("instructions", instructionsOf(request))
+        putJsonArray("input") {
+            request.turns.filter { it.role != ChatRole.SYSTEM }.forEach { turn ->
+                add(
+                    buildJsonObject {
+                        put("type", "message")
+                        put("role", roleName(turn.role))
+                        putJsonArray("content") {
+                            add(
+                                buildJsonObject {
+                                    put("type", contentType(turn.role))
+                                    put("text", turn.content)
+                                }
+                            )
+                        }
+                    }
+                )
+            }
+        }
+        put("stream", true)
+        put("store", false)
+    }
+
+    private fun instructionsOf(request: ChatRequest): String {
+        val prompt = request.systemPrompt?.takeIf { it.isNotBlank() }
+        val leading = request.turns.filter { it.role == ChatRole.SYSTEM }.map { it.content }
+        val parts = (listOfNotNull(prompt) + leading).filter { it.isNotBlank() }
+        if (parts.isEmpty()) return DEFAULT_INSTRUCTIONS
+        return parts.joinToString("\n\n")
+    }
+
+    private fun roleName(role: ChatRole): String =
+        if (role == ChatRole.ASSISTANT) "assistant" else "user"
+
+    private fun contentType(role: ChatRole): String =
+        if (role == ChatRole.ASSISTANT) OUTPUT_TEXT else INPUT_TEXT
+
+    private fun parseChunk(raw: String): List<WireEvent> {
+        val root = parseJsonObject(raw) ?: return emptyList()
+        val type = root.stringField("type")
+        val error = root.objectField("error")
+            ?: root.objectField("response")?.objectField("error")
+        if (error != null || type == FAILED_TYPE || type == ERROR_TYPE) {
+            val message = error?.stringField("message").orEmpty()
+            return listOf(WireEvent.Failure(FailureClassifier.classifyHttp(statusOf(error), message)))
+        }
+
+        return when (type) {
+            DELTA_TYPE -> {
+                val text = root.stringField("delta")
+                if (text.isNullOrEmpty()) emptyList() else listOf(WireEvent.Delta(text))
+            }
+
+            COMPLETED_TYPE -> {
+                val events = ArrayList<WireEvent>(2)
+                root.objectField("response")?.objectField("usage")?.let { usage ->
+                    val input = usage.intField("input_tokens") ?: 0
+                    val output = usage.intField("output_tokens") ?: 0
+                    if (input > 0 || output > 0) events += WireEvent.Usage(input, output)
+                }
+                events += WireEvent.Done
+                events
+            }
+
+            else -> emptyList()
+        }
+    }
+
+    private fun statusOf(error: JsonObject?): Int {
+        if (error == null) return STREAM_ERROR_STATUS
+        error.intField("code")?.let { return it }
+        val code = error.stringField("code")?.lowercase().orEmpty()
+        return when {
+            code.contains("rate_limit") -> RATE_LIMIT_STATUS
+            code.contains("server") -> STREAM_ERROR_STATUS
+            code.isEmpty() -> STREAM_ERROR_STATUS
+            else -> BAD_REQUEST_STATUS
+        }
+    }
+
+    companion object {
+        const val RESPONSES_PATH = "responses"
+        const val VERSION_HEADER = "Version"
+        const val CLIENT_VERSION = "0.149.0"
+        const val BETA_HEADER = "Openai-Beta"
+        const val BETA_VALUE = "responses=experimental"
+        const val ORIGINATOR_HEADER = "originator"
+        const val ORIGINATOR_VALUE = "codex_cli_rs"
+        const val SESSION_HEADER = "session_id"
+        const val USER_AGENT = "codex-cli/0.149.0 (Android; aarch64) agent-bayu"
+        const val INPUT_TEXT = "input_text"
+        const val OUTPUT_TEXT = "output_text"
+        const val DELTA_TYPE = "response.output_text.delta"
+        const val COMPLETED_TYPE = "response.completed"
+        const val FAILED_TYPE = "response.failed"
+        const val ERROR_TYPE = "error"
+        const val DEFAULT_INSTRUCTIONS = "You are a helpful assistant."
+        const val STREAM_ERROR_STATUS = 500
+        const val RATE_LIMIT_STATUS = 429
+        const val BAD_REQUEST_STATUS = 400
+    }
+}

@@ -33,7 +33,7 @@ class ActiveProvider(
         val provider = catalog.find(connection.providerId) ?: return ActiveResolution.Unavailable(
             ActiveProviderProblem.UNKNOWN_PROVIDER
         )
-        if (provider.requiresKey && keys.secretFor(connection, provider) == null) {
+        if (provider.requiresCredential && keys.secretFor(connection, provider) == null) {
             return ActiveResolution.Unavailable(ActiveProviderProblem.MISSING_CREDENTIAL)
         }
         return ActiveResolution.Ready(

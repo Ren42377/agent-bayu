@@ -8,6 +8,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.agentbayu.app.ui.ai.AiConnectionEditRoute
+import dev.agentbayu.app.ui.ai.AiDeviceCodeRoute
 import dev.agentbayu.app.ui.ai.AiProvidersRoute
 import dev.agentbayu.app.ui.ai.AiUsageRoute
 import dev.agentbayu.app.ui.chat.ChatRoute
@@ -61,6 +62,24 @@ fun AgentBayuNavHost(
             AiConnectionEditRoute(
                 connectionId = argument?.takeIf { it != AiRoutes.NEW_CONNECTION },
                 onBack = { navController.popBackStack() },
+                onStartLogin = { connectionId ->
+                    navController.navigate(AiRoutes.deviceCode(connectionId)) {
+                        popUpTo(AiRoutes.PROVIDERS)
+                    }
+                },
+                onMessage = onMessage
+            )
+        }
+        composable(
+            route = AiRoutes.DEVICE_CODE_PATTERN,
+            arguments = listOf(
+                navArgument(AiRoutes.CONNECTION_ARG) { type = NavType.StringType }
+            )
+        ) { entry ->
+            val argument = entry.arguments?.getString(AiRoutes.CONNECTION_ARG).orEmpty()
+            AiDeviceCodeRoute(
+                connectionId = argument,
+                onBack = { navController.popBackStack() },
                 onMessage = onMessage
             )
         }
@@ -79,7 +98,10 @@ object AiRoutes {
     const val CONNECTION_ARG = "connectionId"
     const val NEW_CONNECTION = "new"
     const val CONNECTION_PATTERN = "ai/connection/{" + CONNECTION_ARG + "}"
+    const val DEVICE_CODE_PATTERN = "ai/device-code/{" + CONNECTION_ARG + "}"
 
     fun connection(connectionId: String?): String =
         "ai/connection/" + (connectionId ?: NEW_CONNECTION)
+
+    fun deviceCode(connectionId: String): String = "ai/device-code/" + connectionId
 }
