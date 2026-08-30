@@ -1,20 +1,18 @@
 package dev.agentbayu.app.ui.ai
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
-import dev.agentbayu.app.ai.Candidate
+import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.ProviderTier
-import kotlinx.coroutines.delay
+import dev.agentbayu.app.ai.RiskLevel
+import dev.agentbayu.app.ai.resolveActiveConnection
 
 @Composable
 fun AiProvidersRoute(
@@ -26,34 +24,26 @@ fun AiProvidersRoute(
     val context = LocalContext.current
     val store = remember(context) { AppGraph.connections(context) }
     val catalog = remember(context) { AppGraph.catalog(context) }
-    val vault = remember(context) { AppGraph.credentials(context) }
-    val router = remember(context) { AppGraph.router(context) }
+    val credentials = remember(context) { AppGraph.credentials(context) }
     val usage = remember(context) { AppGraph.usage(context) }
     val connections by store.connections.collectAsState()
-    var tick by remember { mutableIntStateOf(0) }
+    val activeId by store.activeConnectionId.collectAsState()
     val deletedMessage = stringResource(R.string.providers_deleted)
 
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(TICK_MILLIS)
-            tick += 1
-        }
-    }
-
-    val rows = remember(connections, tick) {
+    val rows = remember(connections, activeId) {
+        val active = resolveActiveConnection(connections, activeId)
         connections.map { connection ->
             val provider = catalog.find(connection.providerId)
-            val health = provider?.let {
-                router.health(Candidate(connection, it, it.modelOrFallback(connection.model)))
-            }
             ProviderRowState(
                 connection = connection,
+                providerId = connection.providerId,
                 providerLabel = provider?.label ?: connection.providerId,
                 tier = provider?.tier ?: ProviderTier.API_KEY,
-                keyHint = vault.hint(connection.id),
-                cooldownRemainingMillis = health?.cooldownRemainingMillis ?: 0L,
-                breakerRemainingMillis = health?.breakerOpenRemainingMillis ?: 0L,
-                modelLockRemainingMillis = health?.modelLockRemainingMillis ?: 0L
+                authKind = provider?.authKind ?: AuthKind.API_KEY,
+                risk = provider?.risk ?: RiskLevel.NONE,
+                keyHint = credentials.hint(connection.id),
+                acceptsKey = provider?.acceptsKey ?: true,
+                isActive = connection.id == active?.id
             )
         }
     }
@@ -64,14 +54,13 @@ fun AiProvidersRoute(
         onAdd = { onEdit(null) },
         onEdit = { id -> onEdit(id) },
         onToggle = { id, enabled -> store.setEnabled(id, enabled) },
+        onActivate = { id -> store.setActive(id) },
         onDelete = { id ->
             store.remove(id)
-            vault.remove(id)
+            credentials.remove(id)
             usage.forget(id)
             onMessage(deletedMessage)
         },
         modifier = modifier
     )
 }
-
-private const val TICK_MILLIS = 1_000L

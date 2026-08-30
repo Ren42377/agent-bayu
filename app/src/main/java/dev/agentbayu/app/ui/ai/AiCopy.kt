@@ -15,12 +15,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
-import dev.agentbayu.app.ai.AutoChannels
-import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ProviderTier
-import dev.agentbayu.app.ai.RoutingConfig
-import dev.agentbayu.app.ai.SkipReason
 import java.util.Locale
 
 @Composable
@@ -74,39 +70,6 @@ fun healthLabel(health: ConnectionHealth): String = stringResource(
     }
 )
 
-@Composable
-fun skipReasonLabel(reason: SkipReason): String = stringResource(
-    when (reason) {
-        SkipReason.BREAKER_OPEN -> R.string.skip_breaker_open
-        SkipReason.COOLDOWN -> R.string.skip_cooldown
-        SkipReason.MODEL_LOCKED -> R.string.skip_model_locked
-        SkipReason.MISSING_KEY -> R.string.skip_missing_key
-        SkipReason.CONTEXT_TOO_SMALL -> R.string.skip_context_too_small
-        SkipReason.FAILED -> R.string.skip_failed
-    }
-)
-
-@Composable
-fun channelLabel(channel: String, combos: List<Pair<String, String>>, connections: List<Connection>): String {
-    val comboId = RoutingConfig.comboIdOf(channel)
-    if (comboId != null) {
-        return combos.firstOrNull { it.first == comboId }?.second ?: comboId
-    }
-    val connectionId = RoutingConfig.connectionIdOf(channel)
-    if (connectionId != null) {
-        return connections.firstOrNull { it.id == connectionId }?.label ?: connectionId
-    }
-    return channel
-}
-
-@Composable
-fun durationLabel(millis: Long): String {
-    if (millis >= MINUTE_MILLIS) {
-        return stringResource(R.string.duration_minutes, ((millis + MINUTE_MILLIS - 1) / MINUTE_MILLIS).toInt())
-    }
-    return stringResource(R.string.duration_seconds, ((millis + 999L) / 1000L).toInt())
-}
-
 fun formatCost(value: Double?): String? {
     if (value == null) return null
     val pattern = if (value > 0.0 && value < SMALL_COST) SMALL_COST_PATTERN else COST_PATTERN
@@ -115,21 +78,6 @@ fun formatCost(value: Double?): String? {
 
 fun formatTokens(value: Int): String = String.format(Locale.US, TOKEN_PATTERN, value)
 
-fun autoChannelBody(channel: String): Int = when (channel) {
-    AutoChannels.FAST -> R.string.routing_channel_fast_body
-    AutoChannels.CHEAP -> R.string.routing_channel_cheap_body
-    AutoChannels.FREE -> R.string.routing_channel_free_body
-    else -> R.string.routing_channel_auto_body
-}
-
-fun autoChannelTitle(channel: String): Int = when (channel) {
-    AutoChannels.FAST -> R.string.routing_channel_fast
-    AutoChannels.CHEAP -> R.string.routing_channel_cheap
-    AutoChannels.FREE -> R.string.routing_channel_free
-    else -> R.string.routing_channel_auto
-}
-
-private const val MINUTE_MILLIS = 60_000L
 private const val SMALL_COST = 0.01
 private const val SMALL_COST_PATTERN = "%.5f"
 private const val COST_PATTERN = "%.4f"

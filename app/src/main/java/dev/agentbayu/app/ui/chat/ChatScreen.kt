@@ -26,7 +26,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
-import dev.agentbayu.app.ui.ai.RouteDetailSheet
+import dev.agentbayu.app.ui.ai.ProviderOption
+import dev.agentbayu.app.ui.ai.ProviderPickerDialog
+import dev.agentbayu.app.ui.ai.ReplyDetailSheet
 import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
@@ -37,16 +39,19 @@ fun ChatScreen(
     input: String,
     isResponding: Boolean,
     suggestions: List<String>,
-    routeHint: String,
+    providerHint: String,
+    providerOptions: List<ProviderOption>,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onSuggestionClick: (String) -> Unit,
     onMicClick: () -> Unit,
-    onOpenRouting: () -> Unit,
+    onSelectProvider: (String) -> Unit,
+    onManageProviders: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var routeMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var detailMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var pickerVisible by remember { mutableStateOf(false) }
     Column(modifier = modifier.fillMaxSize()) {
         Box(modifier = Modifier.weight(1f)) {
             if (messages.isEmpty()) {
@@ -57,7 +62,7 @@ fun ChatScreen(
                     isResponding = isResponding,
                     modifier = Modifier.fillMaxSize(),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 16.dp),
-                    onShowRoute = { message -> routeMessage = message }
+                    onShowDetail = { message -> detailMessage = message }
                 )
             }
         }
@@ -68,10 +73,10 @@ fun ChatScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 12.dp)
         )
-        RouteBar(
-            hint = routeHint,
+        ProviderBar(
+            hint = providerHint,
             isResponding = isResponding,
-            onOpenRouting = onOpenRouting,
+            onOpenPicker = { pickerVisible = true },
             onStop = onStop
         )
         PromptBar(
@@ -82,25 +87,36 @@ fun ChatScreen(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
         )
     }
-    routeMessage?.let { message ->
-        val decision = message.route
-        if (decision == null) {
-            routeMessage = null
+    detailMessage?.let { message ->
+        val detail = message.detail
+        if (detail == null) {
+            detailMessage = null
         } else {
-            RouteDetailSheet(
-                decision = decision,
+            ReplyDetailSheet(
+                detail = detail,
                 usage = message.usage,
-                onDismiss = { routeMessage = null }
+                onDismiss = { detailMessage = null }
             )
         }
+    }
+    if (pickerVisible) {
+        ProviderPickerDialog(
+            options = providerOptions,
+            onSelect = onSelectProvider,
+            onManage = {
+                pickerVisible = false
+                onManageProviders()
+            },
+            onDismiss = { pickerVisible = false }
+        )
     }
 }
 
 @Composable
-private fun RouteBar(
+private fun ProviderBar(
     hint: String,
     isResponding: Boolean,
-    onOpenRouting: () -> Unit,
+    onOpenPicker: () -> Unit,
     onStop: () -> Unit
 ) {
     Row(
@@ -117,7 +133,7 @@ private fun RouteBar(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier
                 .weight(1f)
-                .clickable(onClick = onOpenRouting)
+                .clickable(onClick = onOpenPicker)
                 .padding(vertical = 6.dp)
         )
         if (isResponding) {

@@ -9,7 +9,11 @@ data class ProviderEntry(
     val wireFormat: WireFormat,
     val baseUrl: String,
     val tier: ProviderTier,
-    val authType: AuthType = AuthType.API_KEY,
+    val authKind: AuthKind = AuthKind.API_KEY,
+    val optionalKey: Boolean = false,
+    val anonymousKey: String? = null,
+    val minOutputTokens: Int? = null,
+    val risk: RiskLevel = RiskLevel.NONE,
     val authHeader: AuthHeader = AuthHeader.BEARER,
     val authPrefix: String? = null,
     val modelsPath: String? = null,
@@ -23,11 +27,20 @@ data class ProviderEntry(
     val models: List<ModelEntry> = emptyList()
 ) {
     val requiresKey: Boolean
-        get() = authType == AuthType.API_KEY
+        get() = authKind == AuthKind.API_KEY
+
+    val acceptsKey: Boolean
+        get() = requiresKey || optionalKey
 
     fun model(modelId: String): ModelEntry? = models.firstOrNull { it.id == modelId }
 
     fun modelOrFallback(modelId: String): ModelEntry = model(modelId) ?: ModelEntry(id = modelId)
+
+    fun clampOutputTokens(requested: Int?): Int? {
+        val floor = minOutputTokens ?: return requested
+        val value = requested ?: return null
+        return if (value < floor) floor else value
+    }
 
     companion object {
         const val DEFAULT_TIMEOUT_MILLIS = 30_000L

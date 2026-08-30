@@ -15,7 +15,6 @@ import dev.agentbayu.app.R
 fun SettingsRoute(
     onMessage: (String) -> Unit,
     onOpenProviders: () -> Unit,
-    onOpenRouting: () -> Unit,
     onOpenUsage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -33,7 +32,6 @@ fun SettingsRoute(
             onMessage(clearedMessage)
         },
         onOpenProviders = onOpenProviders,
-        onOpenRouting = onOpenRouting,
         onOpenUsage = onOpenUsage,
         modifier = modifier
     )

@@ -12,40 +12,58 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
-import dev.agentbayu.app.ui.ai.channelLabel
+import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.resolveActiveConnection
+import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.components.defaultSuggestions
 
 @Composable
 fun ChatRoute(
     onMessage: (String) -> Unit,
-    onOpenRouting: () -> Unit,
+    onOpenProviders: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val chat = remember(context) { AppGraph.chat(context) }
-    val router = remember(context) { AppGraph.router(context) }
-    val routingStore = remember(context) { AppGraph.routingConfig(context) }
+    val catalog = remember(context) { AppGraph.catalog(context) }
+    val credentials = remember(context) { AppGraph.credentials(context) }
     val connectionStore = remember(context) { AppGraph.connections(context) }
     val messages by chat.messages.collectAsState()
     val isResponding by chat.isResponding.collectAsState()
-    val config by routingStore.config.collectAsState()
     val connections by connectionStore.connections.collectAsState()
+    val activeId by connectionStore.activeConnectionId.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
     val micMessage = stringResource(R.string.mic_pending_message)
-    val comboPairs = config.availableCombos().map { combo -> combo.id to combo.label }
-    val channelText = channelLabel(config.channel, comboPairs, connections)
-    val preview = remember(config, connections) { router.preview(config.channel) }
-    val routeHint = if (preview.isEmpty()) {
-        stringResource(R.string.chat_route_empty)
-    } else {
-        stringResource(R.string.chat_route_hint, channelText, preview.first().candidate.model.id)
+
+    val active = remember(connections, activeId) { resolveActiveConnection(connections, activeId) }
+    val options = remember(connections, activeId) {
+        connections.map { connection ->
+            val provider = catalog.find(connection.providerId)
+            val hasKey = provider?.requiresKey != true || credentials.hasKey(connection.id)
+            ProviderOption(
+                connectionId = connection.id,
+                label = connection.label,
+                providerLabel = provider?.label ?: connection.providerId,
+                model = connection.model,
+                authKind = provider?.authKind ?: AuthKind.API_KEY,
+                isActive = connection.id == active?.id,
+                ready = connection.enabled && provider != null && hasKey
+            )
+        }
     }
+    val providerHint = if (active == null) {
+        stringResource(R.string.chat_provider_empty)
+    } else {
+        stringResource(R.string.chat_provider_hint, active.label, active.model)
+    }
+
     ChatScreen(
         messages = messages,
         input = input,
         isResponding = isResponding,
         suggestions = defaultSuggestions(),
-        routeHint = routeHint,
+        providerHint = providerHint,
+        providerOptions = options,
         onInputChange = { value -> input = value },
         onSend = {
             chat.send(input)
@@ -53,7 +71,8 @@ fun ChatRoute(
         },
         onSuggestionClick = { text -> chat.send(text) },
         onMicClick = { onMessage(micMessage) },
-        onOpenRouting = onOpenRouting,
+        onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
+        onManageProviders = onOpenProviders,
         onStop = chat::cancel,
         modifier = modifier
     )

@@ -1,5 +1,8 @@
 package dev.agentbayu.app.ai
 
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+
 class FakeClock(private var now: Long = 0L) : Clock {
     override fun nowMillis(): Long = now
 
@@ -12,13 +15,49 @@ class FakeClock(private var now: Long = 0L) : Clock {
     }
 }
 
+class FakeConnectionSource(
+    connections: List<Connection> = emptyList(),
+    activeConnectionId: String? = null
+) : ConnectionSource {
+
+    private val state = MutableStateFlow(connections)
+    private val active = MutableStateFlow(activeConnectionId)
+
+    val healthCalls = ArrayList<Pair<String, ConnectionHealth>>()
+
+    override val connections: StateFlow<List<Connection>> = state
+    override val activeConnectionId: StateFlow<String?> = active
+
+    override fun markHealth(connectionId: String, health: ConnectionHealth, detail: String?) {
+        healthCalls += connectionId to health
+    }
+
+    fun setConnections(value: List<Connection>) {
+        state.value = value
+    }
+
+    fun setActive(connectionId: String?) {
+        active.value = connectionId
+    }
+}
+
+class FakeKeys(private val keys: Map<String, String> = emptyMap()) : KeySource {
+    override fun key(connectionId: String): String? = keys[connectionId]?.takeIf { it.isNotBlank() }
+
+    override fun hasKey(connectionId: String): Boolean = key(connectionId) != null
+}
+
 fun testProvider(
     id: String = "groq",
     label: String = id,
     wireFormat: WireFormat = WireFormat.OPENAI,
     baseUrl: String = "https://api.example.test/v1",
     tier: ProviderTier = ProviderTier.API_KEY,
-    authType: AuthType = AuthType.API_KEY,
+    authKind: AuthKind = AuthKind.API_KEY,
+    optionalKey: Boolean = false,
+    anonymousKey: String? = null,
+    minOutputTokens: Int? = null,
+    risk: RiskLevel = RiskLevel.NONE,
     authHeader: AuthHeader = AuthHeader.BEARER,
     authPrefix: String? = null,
     models: List<ModelEntry> = listOf(ModelEntry(id = "model-a")),
@@ -33,7 +72,11 @@ fun testProvider(
     wireFormat = wireFormat,
     baseUrl = baseUrl,
     tier = tier,
-    authType = authType,
+    authKind = authKind,
+    optionalKey = optionalKey,
+    anonymousKey = anonymousKey,
+    minOutputTokens = minOutputTokens,
+    risk = risk,
     authHeader = authHeader,
     authPrefix = authPrefix,
     supportsStreamUsage = supportsStreamUsage,
@@ -50,9 +93,10 @@ fun testConnection(
     label: String = id,
     model: String = "model-a",
     priority: Int = Connection.DEFAULT_PRIORITY,
-    weight: Int = Connection.DEFAULT_WEIGHT,
     enabled: Boolean = true,
-    baseUrlOverride: String? = null
+    baseUrlOverride: String? = null,
+    health: ConnectionHealth = ConnectionHealth.READY,
+    createdAtMillis: Long = 0L
 ): Connection = Connection(
     id = id,
     providerId = providerId,
@@ -60,8 +104,9 @@ fun testConnection(
     model = model,
     enabled = enabled,
     priority = priority,
-    weight = weight,
-    baseUrlOverride = baseUrlOverride
+    baseUrlOverride = baseUrlOverride,
+    health = health,
+    createdAtMillis = createdAtMillis
 )
 
 fun testCandidate(
@@ -69,7 +114,6 @@ fun testCandidate(
     providerId: String = "groq",
     modelId: String = "model-a",
     priority: Int = Connection.DEFAULT_PRIORITY,
-    weight: Int = Connection.DEFAULT_WEIGHT,
     tier: ProviderTier = ProviderTier.API_KEY,
     contextLength: Int = ModelEntry.DEFAULT_CONTEXT_LENGTH,
     maxOutputTokens: Int = ModelEntry.DEFAULT_MAX_OUTPUT_TOKENS,
@@ -78,7 +122,10 @@ fun testCandidate(
     free: Boolean = false,
     baseUrl: String = "https://api.example.test/v1",
     baseUrlOverride: String? = null,
-    authType: AuthType = AuthType.API_KEY,
+    authKind: AuthKind = AuthKind.API_KEY,
+    optionalKey: Boolean = false,
+    anonymousKey: String? = null,
+    minOutputTokens: Int? = null,
     authHeader: AuthHeader = AuthHeader.BEARER,
     authPrefix: String? = null,
     wireFormat: WireFormat = WireFormat.OPENAI,
@@ -104,7 +151,6 @@ fun testCandidate(
             label = connectionId,
             model = modelId,
             priority = priority,
-            weight = weight,
             baseUrlOverride = baseUrlOverride
         ),
         provider = testProvider(
@@ -112,7 +158,10 @@ fun testCandidate(
             wireFormat = wireFormat,
             baseUrl = baseUrl,
             tier = tier,
-            authType = authType,
+            authKind = authKind,
+            optionalKey = optionalKey,
+            anonymousKey = anonymousKey,
+            minOutputTokens = minOutputTokens,
             authHeader = authHeader,
             authPrefix = authPrefix,
             models = listOf(model),

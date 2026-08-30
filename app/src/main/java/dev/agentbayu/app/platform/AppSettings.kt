@@ -20,8 +20,15 @@ class AppSettings(context: Context) {
         preferences.edit().putBoolean(KEY_SCREEN_CONTEXT, enabled).apply()
     }
 
+    fun defaultConnectionSeeded(): Boolean = preferences.getBoolean(KEY_DEFAULT_SEEDED, false)
+
+    fun markDefaultConnectionSeeded() {
+        preferences.edit().putBoolean(KEY_DEFAULT_SEEDED, true).apply()
+    }
+
     private companion object {
         const val FILE_NAME = "agent_bayu_settings"
         const val KEY_SCREEN_CONTEXT = "use_screen_context"
+        const val KEY_DEFAULT_SEEDED = "default_connection_seeded"
     }
 }

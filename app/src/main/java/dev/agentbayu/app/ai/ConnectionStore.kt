@@ -12,9 +12,13 @@ class ConnectionStore(
 ) : ConnectionSource {
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
-    private val state = MutableStateFlow(load())
+    private val restored = load()
+    private val state = MutableStateFlow(restored.connections)
+    private val activeState = MutableStateFlow(restored.activeConnectionId)
 
     override val connections: StateFlow<List<Connection>> = state.asStateFlow()
+
+    override val activeConnectionId: StateFlow<String?> = activeState.asStateFlow()
 
     fun find(connectionId: String): Connection? = state.value.firstOrNull { it.id == connectionId }
 
@@ -29,20 +33,28 @@ class ConnectionStore(
             current + connection.copy(createdAtMillis = clock.nowMillis())
         }
         state.value = updated
-        persist(updated)
+        persist(updated, activeState.value)
     }
 
     fun remove(connectionId: String) {
         val updated = state.value.filterNot { it.id == connectionId }
         if (updated.size == state.value.size) return
         state.value = updated
-        persist(updated)
+        if (activeState.value == connectionId) activeState.value = null
+        persist(updated, activeState.value)
     }
 
     fun setEnabled(connectionId: String, enabled: Boolean) {
         val target = find(connectionId) ?: return
         if (target.enabled == enabled) return
         upsert(target.copy(enabled = enabled))
+    }
+
+    fun setActive(connectionId: String) {
+        if (activeState.value == connectionId) return
+        if (find(connectionId) == null) return
+        activeState.value = connectionId
+        persist(state.value, connectionId)
     }
 
     override fun markHealth(connectionId: String, health: ConnectionHealth, detail: String?) {
@@ -53,26 +65,30 @@ class ConnectionStore(
 
     fun clear() {
         state.value = emptyList()
+        activeState.value = null
         storage.delete(FILE_NAME)
     }
 
-    private fun load(): List<Connection> {
-        val raw = storage.read(FILE_NAME) ?: return emptyList()
+    private fun load(): ConnectionFile {
+        val raw = storage.read(FILE_NAME) ?: return ConnectionFile()
         return try {
-            json.decodeFromString(ConnectionFile.serializer(), raw).connections
+            json.decodeFromString(ConnectionFile.serializer(), raw)
         } catch (error: IllegalArgumentException) {
-            emptyList()
+            ConnectionFile()
         }
     }
 
-    private fun persist(connections: List<Connection>) {
+    private fun persist(connections: List<Connection>, activeConnectionId: String?) {
         if (connections.isEmpty()) {
             storage.delete(FILE_NAME)
             return
         }
         storage.write(
             FILE_NAME,
-            json.encodeToString(ConnectionFile.serializer(), ConnectionFile(connections = connections))
+            json.encodeToString(
+                ConnectionFile.serializer(),
+                ConnectionFile(connections = connections, activeConnectionId = activeConnectionId)
+            )
         )
     }
 

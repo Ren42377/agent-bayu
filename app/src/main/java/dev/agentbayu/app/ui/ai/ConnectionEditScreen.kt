@@ -49,7 +49,6 @@ data class ConnectionEditState(
     val modelOptions: List<String>,
     val baseUrl: String,
     val priority: String,
-    val weight: String,
     val enabled: Boolean,
     val isNew: Boolean,
     val testing: Boolean = false,
@@ -66,7 +65,6 @@ data class ConnectionEditActions(
     val onModelChange: (String) -> Unit,
     val onBaseUrlChange: (String) -> Unit,
     val onPriorityChange: (String) -> Unit,
-    val onWeightChange: (String) -> Unit,
     val onEnabledChange: (Boolean) -> Unit,
     val onRefreshModels: () -> Unit,
     val onTest: () -> Unit,
@@ -121,9 +119,18 @@ fun ConnectionEditScreen(
 private fun CredentialSection(state: ConnectionEditState, actions: ConnectionEditActions) {
     val provider = state.provider ?: return
     SectionLabel(text = stringResource(R.string.connection_credential_section))
-    if (!provider.requiresKey) {
+    ProviderNotes(provider = provider)
+    if (!provider.acceptsKey) {
         Text(
             text = stringResource(R.string.connection_key_none),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        return
+    }
+    if (!provider.requiresKey) {
+        Text(
+            text = stringResource(R.string.connection_key_optional),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -153,6 +160,32 @@ private fun CredentialSection(state: ConnectionEditState, actions: ConnectionEdi
         OutlinedButton(onClick = { actions.onOpenKeyUrl(url) }) {
             Text(text = stringResource(R.string.connection_key_source, provider.label))
         }
+    }
+}
+
+@Composable
+private fun ProviderNotes(provider: ProviderEntry) {
+    Text(
+        text = stringResource(
+            R.string.connection_auth_kind,
+            authKindLabel(provider.authKind)
+        ),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+    providerHint(provider.id)?.let { hint ->
+        Text(
+            text = stringResource(hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+    riskNotice(provider.risk)?.let { notice ->
+        Text(
+            text = stringResource(notice),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error
+        )
     }
 }
 
@@ -232,24 +265,14 @@ private fun AdvancedSection(state: ConnectionEditState, actions: ConnectionEditA
             modifier = Modifier.fillMaxWidth()
         )
     }
-    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        OutlinedTextField(
-            value = state.priority,
-            onValueChange = actions.onPriorityChange,
-            label = { Text(text = stringResource(R.string.connection_priority_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f)
-        )
-        OutlinedTextField(
-            value = state.weight,
-            onValueChange = actions.onWeightChange,
-            label = { Text(text = stringResource(R.string.connection_weight_hint)) },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.weight(1f)
-        )
-    }
+    OutlinedTextField(
+        value = state.priority,
+        onValueChange = actions.onPriorityChange,
+        label = { Text(text = stringResource(R.string.connection_priority_hint)) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+        modifier = Modifier.fillMaxWidth()
+    )
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = stringResource(R.string.connection_enabled),

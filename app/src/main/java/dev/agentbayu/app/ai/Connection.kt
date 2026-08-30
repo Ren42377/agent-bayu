@@ -17,7 +17,6 @@ data class Connection(
     val model: String,
     val enabled: Boolean = true,
     val priority: Int = DEFAULT_PRIORITY,
-    val weight: Int = DEFAULT_WEIGHT,
     val baseUrlOverride: String? = null,
     val discoveredModels: List<String> = emptyList(),
     val health: ConnectionHealth = ConnectionHealth.READY,
@@ -27,12 +26,12 @@ data class Connection(
 ) {
     companion object {
         const val DEFAULT_PRIORITY = 100
-        const val DEFAULT_WEIGHT = 1
     }
 }
 
 @Serializable
 data class ConnectionFile(
     val version: Int = 1,
-    val connections: List<Connection> = emptyList()
+    val connections: List<Connection> = emptyList(),
+    val activeConnectionId: String? = null
 )

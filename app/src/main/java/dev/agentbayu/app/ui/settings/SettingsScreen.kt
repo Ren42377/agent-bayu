@@ -29,7 +29,6 @@ fun SettingsScreen(
     onScreenContextChange: (Boolean) -> Unit,
     onClearConversation: () -> Unit,
     onOpenProviders: () -> Unit,
-    onOpenRouting: () -> Unit,
     onOpenUsage: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -45,11 +44,6 @@ fun SettingsScreen(
             title = stringResource(R.string.settings_providers_title),
             body = stringResource(R.string.settings_providers_body),
             onClick = onOpenProviders
-        )
-        NavigationRow(
-            title = stringResource(R.string.settings_routing_title),
-            body = stringResource(R.string.settings_routing_body),
-            onClick = onOpenRouting
         )
         NavigationRow(
             title = stringResource(R.string.settings_usage_title),

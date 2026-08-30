@@ -1,7 +1,7 @@
 package dev.agentbayu.app.domain
 
-import dev.agentbayu.app.ai.ProviderTier
-import dev.agentbayu.app.ai.RouteDecision
+import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -65,36 +65,36 @@ class ConversationRepositoryTest {
 
         repository.appendDelta(message.id + 99L, "hantu")
         repository.replaceText(message.id + 99L, "hantu")
-        repository.complete(message.id + 99L, decision(), TokenUsage(1, 1))
+        repository.complete(message.id + 99L, detail(), TokenUsage(1, 1))
 
         assertEquals(listOf("satu"), repository.messages.value.map { it.text })
     }
 
     @Test
-    fun completeAttachesTheRouteAndClosesTheStream() {
+    fun completeAttachesTheDetailAndClosesTheStream() {
         val repository = ConversationRepository()
         val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
         repository.appendDelta(placeholder.id, "jawaban")
 
-        repository.complete(placeholder.id, decision(), TokenUsage(12, 8, 0.001, false))
+        repository.complete(placeholder.id, detail(), TokenUsage(12, 8, 0.001, false))
 
         val message = repository.messages.value.single()
         assertEquals("jawaban", message.text)
-        assertEquals("groq", message.route?.providerId)
+        assertEquals("kilocode", message.detail?.providerId)
         assertEquals(20, message.usage?.totalTokens)
         assertFalse(message.streaming)
     }
 
     @Test
-    fun completeKeepsAnEarlierRouteWhenNoneIsGiven() {
+    fun completeKeepsAnEarlierDetailWhenNoneIsGiven() {
         val repository = ConversationRepository()
         val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
-        repository.attachRoute(placeholder.id, decision())
+        repository.attachDetail(placeholder.id, detail())
 
         repository.complete(placeholder.id, null, null)
 
         val message = repository.messages.value.single()
-        assertEquals("groq", message.route?.providerId)
+        assertEquals("kilocode", message.detail?.providerId)
         assertNull(message.usage)
         assertFalse(message.streaming)
     }
@@ -139,16 +139,12 @@ class ConversationRepositoryTest {
         assertEquals(listOf("ada"), repository.messages.value.map { it.text })
     }
 
-    private fun decision(): RouteDecision = RouteDecision(
-        channel = "auto",
-        strategy = "priority",
-        providerId = "groq",
-        providerLabel = "Groq",
-        model = "llama-3.3-70b-versatile",
+    private fun detail(): ReplyDetail = ReplyDetail(
+        providerId = "kilocode",
+        providerLabel = "Kilo Code",
+        model = "minimax/minimax-m3:free",
         connectionId = "conn-1",
-        connectionLabel = "Groq utama",
-        tier = ProviderTier.FREE,
-        attempt = 1,
-        candidatesConsidered = 2
+        connectionLabel = "Kilo Code",
+        authKind = AuthKind.NONE
     )
 }

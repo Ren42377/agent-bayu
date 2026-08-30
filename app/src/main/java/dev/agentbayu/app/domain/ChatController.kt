@@ -45,10 +45,10 @@ class ChatController(
                             repository.appendDelta(placeholder.id, event.text)
                         }
 
-                        is AgentEvent.Route -> repository.attachRoute(placeholder.id, event.decision)
+                        is AgentEvent.Detail -> repository.attachDetail(placeholder.id, event.detail)
 
                         is AgentEvent.Completed ->
-                            repository.complete(placeholder.id, event.decision, event.usage)
+                            repository.complete(placeholder.id, event.detail, event.usage)
 
                         is AgentEvent.Failed ->
                             if (!streamed) repository.replaceText(placeholder.id, event.message)

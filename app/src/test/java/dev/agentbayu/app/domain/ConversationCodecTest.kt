@@ -1,9 +1,7 @@
 package dev.agentbayu.app.domain
 
-import dev.agentbayu.app.ai.ProviderTier
-import dev.agentbayu.app.ai.RouteDecision
-import dev.agentbayu.app.ai.SkipReason
-import dev.agentbayu.app.ai.SkippedCandidate
+import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,39 +11,25 @@ import org.junit.Test
 
 class ConversationCodecTest {
 
-    private val decision = RouteDecision(
-        channel = "auto/fast",
-        strategy = "priority",
-        providerId = "groq",
-        providerLabel = "Groq",
-        model = "llama-3.3-70b-versatile",
+    private val replyDetail = ReplyDetail(
+        providerId = "kilocode",
+        providerLabel = "Kilo Code",
+        model = "minimax/minimax-m3:free",
         connectionId = "conn-1",
-        connectionLabel = "Groq utama",
-        tier = ProviderTier.FREE,
-        attempt = 2,
-        candidatesConsidered = 3,
-        reason = "fallback",
+        connectionLabel = "Kilo Code",
+        authKind = AuthKind.NONE,
         firstTokenMillis = 320L,
-        totalMillis = 1_400L,
-        skipped = listOf(
-            SkippedCandidate(
-                connectionLabel = "Cerebras",
-                model = "llama-4",
-                reason = SkipReason.COOLDOWN,
-                detail = "12"
-            )
-        ),
-        degraded = true
+        totalMillis = 1_400L
     )
 
     private fun message(
         id: Long,
         author: MessageAuthor,
         text: String,
-        route: RouteDecision? = null,
+        detail: ReplyDetail? = null,
         usage: TokenUsage? = null,
         streaming: Boolean = false
-    ): ChatMessage = ChatMessage(id, author, text, route, usage, streaming)
+    ): ChatMessage = ChatMessage(id, author, text, detail, usage, streaming)
 
     @Test
     fun encodeAndDecodeSurviveARoundTrip() {
@@ -55,13 +39,14 @@ class ConversationCodecTest {
                 2L,
                 MessageAuthor.AGENT,
                 "halo juga",
-                route = decision,
+                detail = replyDetail,
                 usage = TokenUsage(inputTokens = 120, outputTokens = 40, estimatedCostUsd = 0.002)
             )
         )
         val decoded = ConversationCodec.decode(ConversationCodec.encode(messages))
         assertEquals(messages, decoded)
-        assertEquals(SkipReason.COOLDOWN, decoded[1].route?.skipped?.single()?.reason)
+        assertEquals(AuthKind.NONE, decoded[1].detail?.authKind)
+        assertEquals("Kilo Code minimax/minimax-m3:free", decoded[1].detail?.label)
         assertEquals(160, decoded[1].usage?.totalTokens)
     }
 
@@ -86,15 +71,33 @@ class ConversationCodecTest {
         assertEquals(1, decoded.size)
         assertEquals(7L, decoded.single().id)
         assertEquals("hai", decoded.single().text)
-        assertNull(decoded.single().route)
+        assertNull(decoded.single().detail)
         assertFalse(decoded.single().streaming)
+    }
+
+    @Test
+    fun routerEraFieldsAreDroppedWithoutLosingTheMessage() {
+        val raw = "{\"version\":1,\"messages\":[{\"id\":9,\"author\":\"AGENT\"," +
+            "\"text\":\"lanjut\",\"detail\":{\"providerId\":\"groq\",\"providerLabel\":\"Groq\"," +
+            "\"model\":\"llama\",\"connectionId\":\"conn-1\",\"connectionLabel\":\"Groq\"," +
+            "\"channel\":\"auto/fast\",\"strategy\":\"priority\",\"attempt\":2," +
+            "\"skipped\":[{\"connectionLabel\":\"Cerebras\",\"reason\":\"COOLDOWN\"}]," +
+            "\"degraded\":true}}]}"
+
+        val decoded = ConversationCodec.decode(raw)
+
+        val detail = decoded.single().detail
+        assertEquals("groq", detail?.providerId)
+        assertEquals("llama", detail?.model)
+        assertEquals(AuthKind.API_KEY, detail?.authKind)
+        assertEquals(0L, detail?.totalMillis)
     }
 
     @Test
     fun defaultsAreLeftOutOfThePayload() {
         val encoded = ConversationCodec.encode(listOf(message(1L, MessageAuthor.USER, "hai")))
         assertFalse(encoded.contains("streaming"))
-        assertFalse(encoded.contains("route"))
+        assertFalse(encoded.contains("detail"))
         assertFalse(encoded.contains("usage"))
     }
 

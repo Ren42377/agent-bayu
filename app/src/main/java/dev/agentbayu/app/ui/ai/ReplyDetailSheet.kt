@@ -18,14 +18,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import dev.agentbayu.app.R
-import dev.agentbayu.app.ai.RouteDecision
-import dev.agentbayu.app.ai.SkipReason
-import dev.agentbayu.app.ai.SkippedCandidate
+import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 
 @Composable
-fun RouteDetailSheet(
-    decision: RouteDecision,
+fun ReplyDetailSheet(
+    detail: ReplyDetail,
     usage: TokenUsage?,
     onDismiss: () -> Unit
 ) {
@@ -45,47 +43,28 @@ fun RouteDetailSheet(
                     text = stringResource(R.string.route_title),
                     style = MaterialTheme.typography.titleLarge
                 )
-                DetailRow(label = stringResource(R.string.route_channel), value = decision.channel)
-                DetailRow(label = stringResource(R.string.route_strategy), value = decision.strategy)
                 DetailRow(
                     label = stringResource(R.string.route_provider),
-                    value = decision.providerLabel
+                    value = detail.providerLabel
                 )
-                DetailRow(label = stringResource(R.string.route_model), value = decision.model)
+                DetailRow(label = stringResource(R.string.route_model), value = detail.model)
                 DetailRow(
                     label = stringResource(R.string.route_connection),
-                    value = decision.connectionLabel
+                    value = detail.connectionLabel
                 )
                 DetailRow(
-                    label = stringResource(R.string.route_tier),
-                    value = tierLabel(decision.tier)
-                )
-                Text(
-                    text = stringResource(
-                        R.string.route_attempt,
-                        decision.attempt,
-                        decision.candidatesConsidered
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    label = stringResource(R.string.route_auth),
+                    value = authKindLabel(detail.authKind)
                 )
                 DetailRow(
                     label = stringResource(R.string.route_first_token),
-                    value = stringResource(R.string.route_millis, decision.firstTokenMillis)
+                    value = stringResource(R.string.route_millis, detail.firstTokenMillis)
                 )
                 DetailRow(
                     label = stringResource(R.string.route_total_time),
-                    value = stringResource(R.string.route_millis, decision.totalMillis)
+                    value = stringResource(R.string.route_millis, detail.totalMillis)
                 )
                 UsageRows(usage = usage)
-                if (decision.degraded) {
-                    Text(
-                        text = stringResource(R.string.route_degraded),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error
-                    )
-                }
-                SkippedRows(skipped = decision.skipped)
                 TextButton(onClick = onDismiss) {
                     Text(text = stringResource(R.string.route_close))
                 }
@@ -99,11 +78,19 @@ private fun UsageRows(usage: TokenUsage?) {
     if (usage == null) return
     DetailRow(
         label = stringResource(R.string.route_tokens),
-        value = stringResource(
-            R.string.route_tokens_value,
-            usage.inputTokens,
-            usage.outputTokens
-        )
+        value = if (usage.estimated) {
+            stringResource(
+                R.string.route_tokens_estimated,
+                usage.inputTokens,
+                usage.outputTokens
+            )
+        } else {
+            stringResource(
+                R.string.route_tokens_value,
+                usage.inputTokens,
+                usage.outputTokens
+            )
+        }
     )
     val cost = formatCost(usage.estimatedCostUsd)
     DetailRow(
@@ -114,42 +101,6 @@ private fun UsageRows(usage: TokenUsage?) {
             stringResource(R.string.cost_value, cost)
         }
     )
-}
-
-@Composable
-private fun SkippedRows(skipped: List<SkippedCandidate>) {
-    if (skipped.isEmpty()) return
-    Text(
-        text = stringResource(R.string.route_skipped),
-        style = MaterialTheme.typography.titleSmall,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(top = 12.dp)
-    )
-    skipped.forEach { candidate ->
-        Text(
-            text = stringResource(
-                R.string.route_skipped_row,
-                candidate.connectionLabel,
-                candidate.model,
-                skipDetailLabel(candidate)
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun skipDetailLabel(candidate: SkippedCandidate): String {
-    val reason = skipReasonLabel(candidate.reason)
-    val detail = candidate.detail ?: return reason
-    val template = when (candidate.reason) {
-        SkipReason.BREAKER_OPEN, SkipReason.COOLDOWN, SkipReason.MODEL_LOCKED ->
-            R.string.skip_detail
-
-        else -> R.string.skip_detail_status
-    }
-    return stringResource(template, reason, detail)
 }
 
 @Composable

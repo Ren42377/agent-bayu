@@ -16,15 +16,33 @@ enum class WireFormat {
 }
 
 @Serializable
-enum class AuthType {
+enum class AuthKind {
+    @SerialName("none")
+    NONE,
+
     @SerialName("apikey")
     API_KEY,
 
-    @SerialName("optional")
-    OPTIONAL,
+    @SerialName("oauth_device")
+    OAUTH_DEVICE,
 
+    @SerialName("oauth_pkce")
+    OAUTH_PKCE;
+
+    val isOAuth: Boolean
+        get() = this == OAUTH_DEVICE || this == OAUTH_PKCE
+}
+
+@Serializable
+enum class RiskLevel {
     @SerialName("none")
-    NONE
+    NONE,
+
+    @SerialName("tos_gray")
+    TOS_GRAY,
+
+    @SerialName("fragile")
+    FRAGILE
 }
 
 @Serializable
@@ -55,9 +73,9 @@ enum class ProviderTier {
 
     val order: Int
         get() = when (this) {
-            SUBSCRIPTION -> 0
-            API_KEY -> 1
+            FREE -> 0
+            SUBSCRIPTION -> 1
             CHEAP -> 2
-            FREE -> 3
+            API_KEY -> 3
         }
 }

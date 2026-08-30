@@ -1,6 +1,6 @@
 package dev.agentbayu.app.domain
 
-import dev.agentbayu.app.ai.RouteDecision
+import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import kotlinx.coroutines.flow.Flow
 
@@ -13,9 +13,9 @@ data class AgentRequest(
 sealed interface AgentEvent {
     data class Delta(val text: String) : AgentEvent
 
-    data class Route(val decision: RouteDecision) : AgentEvent
+    data class Detail(val detail: ReplyDetail) : AgentEvent
 
-    data class Completed(val decision: RouteDecision?, val usage: TokenUsage?) : AgentEvent
+    data class Completed(val detail: ReplyDetail?, val usage: TokenUsage?) : AgentEvent
 
     data class Failed(val message: String) : AgentEvent
 }

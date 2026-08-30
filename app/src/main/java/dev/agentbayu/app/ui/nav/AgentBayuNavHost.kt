@@ -9,7 +9,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import dev.agentbayu.app.ui.ai.AiConnectionEditRoute
 import dev.agentbayu.app.ui.ai.AiProvidersRoute
-import dev.agentbayu.app.ui.ai.AiRoutingRoute
 import dev.agentbayu.app.ui.ai.AiUsageRoute
 import dev.agentbayu.app.ui.chat.ChatRoute
 import dev.agentbayu.app.ui.settings.SettingsRoute
@@ -29,7 +28,7 @@ fun AgentBayuNavHost(
         composable(AgentBayuDestination.CHAT.route) {
             ChatRoute(
                 onMessage = onMessage,
-                onOpenRouting = { navController.navigate(AiRoutes.ROUTING) }
+                onOpenProviders = { navController.navigate(AiRoutes.PROVIDERS) }
             )
         }
         composable(AgentBayuDestination.SETUP.route) {
@@ -39,7 +38,6 @@ fun AgentBayuNavHost(
             SettingsRoute(
                 onMessage = onMessage,
                 onOpenProviders = { navController.navigate(AiRoutes.PROVIDERS) },
-                onOpenRouting = { navController.navigate(AiRoutes.ROUTING) },
                 onOpenUsage = { navController.navigate(AiRoutes.USAGE) }
             )
         }
@@ -66,12 +64,6 @@ fun AgentBayuNavHost(
                 onMessage = onMessage
             )
         }
-        composable(AiRoutes.ROUTING) {
-            AiRoutingRoute(
-                onBack = { navController.popBackStack() },
-                onMessage = onMessage
-            )
-        }
         composable(AiRoutes.USAGE) {
             AiUsageRoute(
                 onBack = { navController.popBackStack() },
@@ -83,7 +75,6 @@ fun AgentBayuNavHost(
 
 object AiRoutes {
     const val PROVIDERS = "ai/providers"
-    const val ROUTING = "ai/routing"
     const val USAGE = "ai/usage"
     const val CONNECTION_ARG = "connectionId"
     const val NEW_CONNECTION = "new"

@@ -48,11 +48,11 @@ class ConnectionTester(
 
         val request = ChatRequest(
             turns = listOf(ChatTurn(ChatRole.USER, PROBE_PROMPT)),
-            maxOutputTokens = PROBE_MAX_TOKENS,
+            maxOutputTokens = candidate.provider.clampOutputTokens(PROBE_MAX_TOKENS),
             temperature = null
         )
         val startedAt = clock.nowMillis()
-        val event = adapter.stream(candidate, keyFor(connection, apiKey), request)
+        val event = adapter.stream(candidate, keyFor(candidate, apiKey), request)
             .filter { it is WireEvent.Delta || it is WireEvent.Failure }
             .firstOrNull()
 
@@ -81,7 +81,7 @@ class ConnectionTester(
         val request = Request.Builder()
             .url(joinUrl(candidate.baseUrl, path))
             .get()
-            .applyAuth(candidate, keyFor(connection, apiKey))
+            .applyAuth(candidate, keyFor(candidate, apiKey))
             .applyExtraHeaders(candidate)
             .build()
 
@@ -121,8 +121,8 @@ class ConnectionTester(
         return Candidate(connection, provider, provider.modelOrFallback(connection.model))
     }
 
-    private fun keyFor(connection: Connection, apiKey: String?): String? =
-        apiKey?.takeIf { it.isNotBlank() } ?: keySource.key(connection.id)
+    private fun keyFor(candidate: Candidate, apiKey: String?): String? =
+        apiKey?.takeIf { it.isNotBlank() } ?: keySource.secretFor(candidate)
 
     private fun unknownProvider(): RouteFailure =
         RouteFailure(kind = FailureKind.TERMINAL, message = "unsupported provider")

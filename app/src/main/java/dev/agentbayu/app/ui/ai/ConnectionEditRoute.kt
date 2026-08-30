@@ -31,7 +31,7 @@ fun AiConnectionEditRoute(
     val context = LocalContext.current
     val store = remember(context) { AppGraph.connections(context) }
     val catalog = remember(context) { AppGraph.catalog(context) }
-    val vault = remember(context) { AppGraph.credentials(context) }
+    val credentials = remember(context) { AppGraph.credentials(context) }
     val tester = remember(context) { AppGraph.connectionTester(context) }
     val scope = rememberCoroutineScope()
     val providers = remember(catalog) { catalog.sortedByTier() }
@@ -50,13 +50,12 @@ fun AiConnectionEditRoute(
     var priority by remember {
         mutableStateOf((existing?.priority ?: Connection.DEFAULT_PRIORITY).toString())
     }
-    var weight by remember { mutableStateOf((existing?.weight ?: Connection.DEFAULT_WEIGHT).toString()) }
     var enabled by remember { mutableStateOf(existing?.enabled ?: true) }
     var discovered by remember { mutableStateOf(existing?.discoveredModels ?: emptyList()) }
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
 
-    val keyHint = remember(id, apiKey) { vault.hint(id) }
+    val keyHint = remember(id, apiKey) { credentials.hint(id) }
     val savedMessage = stringResource(R.string.connection_saved)
     val errorKey = stringResource(R.string.connection_error_key)
     val errorModel = stringResource(R.string.connection_error_model)
@@ -73,7 +72,6 @@ fun AiConnectionEditRoute(
         model = model.trim(),
         enabled = enabled,
         priority = priority.toIntOrNull() ?: Connection.DEFAULT_PRIORITY,
-        weight = weight.toIntOrNull() ?: Connection.DEFAULT_WEIGHT,
         baseUrlOverride = baseUrl.trim()
             .takeIf { it.isNotEmpty() && it != provider?.baseUrl },
         discoveredModels = discovered,
@@ -90,7 +88,6 @@ fun AiConnectionEditRoute(
         modelOptions = modelOptions(provider, discovered),
         baseUrl = baseUrl,
         priority = priority,
-        weight = weight,
         enabled = enabled,
         isNew = existing == null,
         testing = testing,
@@ -113,7 +110,6 @@ fun AiConnectionEditRoute(
         onModelChange = { value -> model = value },
         onBaseUrlChange = { value -> baseUrl = value },
         onPriorityChange = { value -> priority = value.filter { it.isDigit() } },
-        onWeightChange = { value -> weight = value.filter { it.isDigit() } },
         onEnabledChange = { value -> enabled = value },
         onRefreshModels = {
             refreshing = true
@@ -151,11 +147,11 @@ fun AiConnectionEditRoute(
                 selected.editableBaseUrl && baseUrl.isBlank() -> onMessage(errorBaseUrl)
                 selected.requiresKey && apiKey.isBlank() && keyHint == null -> onMessage(errorKey)
                 else -> {
-                    if (apiKey.isNotBlank()) vault.put(id, apiKey)
-                    val hasKey = vault.hasKey(id)
+                    if (apiKey.isNotBlank()) credentials.putApiKey(id, apiKey)
+                    val hasKey = credentials.hasKey(id)
                     store.upsert(
                         draft().copy(
-                            keyHint = vault.hint(id),
+                            keyHint = credentials.hint(id),
                             health = if (!selected.requiresKey || hasKey) {
                                 ConnectionHealth.READY
                             } else {

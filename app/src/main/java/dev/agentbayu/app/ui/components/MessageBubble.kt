@@ -23,7 +23,7 @@ import dev.agentbayu.app.ui.theme.UserBubbleShape
 fun MessageBubble(
     message: ChatMessage,
     modifier: Modifier = Modifier,
-    onShowRoute: ((ChatMessage) -> Unit)? = null
+    onShowDetail: ((ChatMessage) -> Unit)? = null
 ) {
     val fromUser = message.author == MessageAuthor.USER
     Column(
@@ -50,13 +50,13 @@ fun MessageBubble(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
             )
         }
-        if (!fromUser && message.route != null && onShowRoute != null) {
+        if (!fromUser && message.detail != null && onShowDetail != null) {
             Text(
                 text = stringResource(R.string.route_show),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier
-                    .clickable { onShowRoute(message) }
+                    .clickable { onShowDetail(message) }
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
         }

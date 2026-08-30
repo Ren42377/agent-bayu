@@ -18,7 +18,7 @@ fun MessageList(
     isResponding: Boolean,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    onShowRoute: ((ChatMessage) -> Unit)? = null
+    onShowDetail: ((ChatMessage) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val visible = messages.filterNot { message -> message.streaming && message.text.isEmpty() }
@@ -37,7 +37,7 @@ fun MessageList(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         items(items = visible, key = { message -> message.id }) { message ->
-            MessageBubble(message = message, onShowRoute = onShowRoute)
+            MessageBubble(message = message, onShowDetail = onShowDetail)
         }
         if (showTyping) {
             item(key = TYPING_KEY) {

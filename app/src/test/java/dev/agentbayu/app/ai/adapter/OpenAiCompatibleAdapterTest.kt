@@ -1,6 +1,6 @@
 package dev.agentbayu.app.ai.adapter
 
-import dev.agentbayu.app.ai.AuthType
+import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.testCandidate
 import okhttp3.mockwebserver.MockWebServer
@@ -135,7 +135,7 @@ class OpenAiCompatibleAdapterTest {
         server.enqueue(sseResponse("[DONE]"))
         collectEvents(
             adapter.stream(
-                testCandidate(baseUrl = baseUrl(), authType = AuthType.NONE),
+                testCandidate(baseUrl = baseUrl(), authKind = AuthKind.NONE, optionalKey = true),
                 null,
                 request()
             )

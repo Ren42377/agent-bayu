@@ -18,6 +18,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -27,18 +28,22 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ProviderTier
+import dev.agentbayu.app.ai.RiskLevel
 
 data class ProviderRowState(
     val connection: Connection,
+    val providerId: String,
     val providerLabel: String,
     val tier: ProviderTier,
+    val authKind: AuthKind,
+    val risk: RiskLevel,
     val keyHint: String?,
-    val cooldownRemainingMillis: Long = 0L,
-    val breakerRemainingMillis: Long = 0L,
-    val modelLockRemainingMillis: Long = 0L
+    val acceptsKey: Boolean,
+    val isActive: Boolean
 )
 
 @Composable
@@ -48,6 +53,7 @@ fun ProvidersScreen(
     onAdd: () -> Unit,
     onEdit: (String) -> Unit,
     onToggle: (String, Boolean) -> Unit,
+    onActivate: (String) -> Unit,
     onDelete: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -72,13 +78,24 @@ fun ProvidersScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            rows.forEach { row ->
-                ConnectionCard(
-                    row = row,
-                    onEdit = onEdit,
-                    onToggle = onToggle,
-                    onDelete = onDelete
-                )
+            AuthKind.entries.forEach { authKind ->
+                val group = rows.filter { it.authKind == authKind }
+                if (group.isNotEmpty()) {
+                    Text(
+                        text = authKindSectionLabel(authKind),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    group.forEach { row ->
+                        ConnectionCard(
+                            row = row,
+                            onEdit = onEdit,
+                            onToggle = onToggle,
+                            onActivate = onActivate,
+                            onDelete = onDelete
+                        )
+                    }
+                }
             }
         }
         Button(
@@ -99,6 +116,7 @@ private fun ConnectionCard(
     row: ProviderRowState,
     onEdit: (String) -> Unit,
     onToggle: (String, Boolean) -> Unit,
+    onActivate: (String) -> Unit,
     onDelete: (String) -> Unit
 ) {
     val connection = row.connection
@@ -141,8 +159,7 @@ private fun ConnectionCard(
                 text = stringResource(
                     R.string.providers_meta,
                     tierLabel(row.tier),
-                    connection.priority,
-                    connection.weight
+                    authKindLabel(row.authKind)
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -150,8 +167,7 @@ private fun ConnectionCard(
             StatusLines(row = row)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = row.keyHint?.let { stringResource(R.string.providers_key_hint, it) }
-                        ?: stringResource(R.string.providers_no_key),
+                    text = credentialSummary(row),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.weight(1f)
@@ -163,7 +179,33 @@ private fun ConnectionCard(
                     )
                 }
             }
+            ActiveRow(row = row, onActivate = onActivate)
         }
+    }
+}
+
+@Composable
+private fun credentialSummary(row: ProviderRowState): String {
+    if (!row.acceptsKey) return stringResource(R.string.providers_no_credential_needed)
+    val hint = row.keyHint ?: return stringResource(R.string.providers_no_key)
+    return stringResource(R.string.providers_key_hint, hint)
+}
+
+@Composable
+private fun ActiveRow(row: ProviderRowState, onActivate: (String) -> Unit) {
+    if (row.isActive) {
+        Text(
+            text = stringResource(R.string.providers_active),
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary
+        )
+        return
+    }
+    TextButton(
+        onClick = { onActivate(row.connection.id) },
+        enabled = row.connection.enabled
+    ) {
+        Text(text = stringResource(R.string.providers_set_active))
     }
 }
 
@@ -190,29 +232,8 @@ private fun StatusLines(row: ProviderRowState) {
     if (!connection.enabled) {
         StatusNote(text = stringResource(R.string.providers_disabled))
     }
-    if (row.breakerRemainingMillis > 0L) {
-        StatusNote(
-            text = stringResource(
-                R.string.providers_breaker_open,
-                durationLabel(row.breakerRemainingMillis)
-            )
-        )
-    }
-    if (row.cooldownRemainingMillis > 0L) {
-        StatusNote(
-            text = stringResource(
-                R.string.providers_cooldown,
-                durationLabel(row.cooldownRemainingMillis)
-            )
-        )
-    }
-    if (row.modelLockRemainingMillis > 0L) {
-        StatusNote(
-            text = stringResource(
-                R.string.providers_model_locked,
-                durationLabel(row.modelLockRemainingMillis)
-            )
-        )
+    riskNotice(row.risk)?.let { notice ->
+        StatusNote(text = stringResource(notice))
     }
 }
 

@@ -1,7 +1,7 @@
 package dev.agentbayu.app.domain
 
-import dev.agentbayu.app.ai.ProviderTier
-import dev.agentbayu.app.ai.RouteDecision
+import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -63,7 +63,7 @@ class ChatControllerTest {
                     AgentEvent.Delta("Hal"),
                     AgentEvent.Delta("lo "),
                     AgentEvent.Delta("Bayu"),
-                    AgentEvent.Completed(decision(), TokenUsage(12, 34, 0.5, true))
+                    AgentEvent.Completed(detail(), TokenUsage(12, 34, 0.5, true))
                 )
             }
         )
@@ -76,7 +76,7 @@ class ChatControllerTest {
         assertEquals("apa kabar", messages[0].text)
         assertEquals("Hallo Bayu", messages[1].text)
         assertFalse(messages[1].streaming)
-        assertNotNull(messages[1].route)
+        assertNotNull(messages[1].detail)
         assertEquals(46, messages[1].usage?.totalTokens)
         assertFalse(chat.isResponding.value)
     }
@@ -101,10 +101,10 @@ class ChatControllerTest {
     }
 
     @Test
-    fun routeEventAttachesBeforeCompletion() = runTest {
+    fun detailEventAttachesBeforeCompletion() = runTest {
         val chat = controller(
             engine {
-                listOf(AgentEvent.Route(decision()), AgentEvent.Delta("ok"))
+                listOf(AgentEvent.Detail(detail()), AgentEvent.Delta("ok"))
             }
         )
 
@@ -112,18 +112,19 @@ class ChatControllerTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         val agent = repository.messages.value.last()
-        assertEquals("groq", agent.route?.providerId)
+        assertEquals("kilocode", agent.detail?.providerId)
+        assertEquals(AuthKind.NONE, agent.detail?.authKind)
         assertNull(agent.usage)
     }
 
     @Test
     fun failureEventReplacesEmptyReply() = runTest {
-        val chat = controller(engine { listOf(AgentEvent.Failed("semua koneksi gagal")) })
+        val chat = controller(engine { listOf(AgentEvent.Failed("penyedia menolak permintaan")) })
 
         chat.send("hi")
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals("semua koneksi gagal", repository.messages.value.last().text)
+        assertEquals("penyedia menolak permintaan", repository.messages.value.last().text)
         assertFalse(chat.isResponding.value)
     }
 
@@ -216,16 +217,12 @@ class ChatControllerTest {
         assertTrue(repository.messages.value.isEmpty())
     }
 
-    private fun decision(): RouteDecision = RouteDecision(
-        channel = "auto",
-        strategy = "priority",
-        providerId = "groq",
-        providerLabel = "Groq",
-        model = "llama-3.3-70b-versatile",
+    private fun detail(): ReplyDetail = ReplyDetail(
+        providerId = "kilocode",
+        providerLabel = "Kilo Code",
+        model = "minimax/minimax-m3:free",
         connectionId = "conn-1",
-        connectionLabel = "Groq utama",
-        tier = ProviderTier.FREE,
-        attempt = 1,
-        candidatesConsidered = 2
+        connectionLabel = "Kilo Code",
+        authKind = AuthKind.NONE
     )
 }

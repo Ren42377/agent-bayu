@@ -127,9 +127,9 @@ fun AssistantPanel(
                 )
                 PanelHeader(
                     isResponding = isResponding,
-                    routeLabel = messages.lastOrNull { message ->
+                    detailLabel = messages.lastOrNull { message ->
                         message.author == MessageAuthor.AGENT
-                    }?.route?.label,
+                    }?.detail?.label,
                     onDismiss = onDismiss
                 )
                 if (messages.isEmpty()) {
@@ -198,7 +198,7 @@ private fun DragHandle(onDrag: (Float) -> Unit, onDragStopped: () -> Unit) {
 }
 
 @Composable
-private fun PanelHeader(isResponding: Boolean, routeLabel: String?, onDismiss: () -> Unit) {
+private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -226,8 +226,8 @@ private fun PanelHeader(isResponding: Boolean, routeLabel: String?, onDismiss: (
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = if (!isResponding && routeLabel != null) {
-                    routeLabel
+                text = if (!isResponding && detailLabel != null) {
+                    detailLabel
                 } else {
                     stringResource(
                         if (isResponding) R.string.chat_thinking else R.string.overlay_subtitle

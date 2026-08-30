@@ -1,6 +1,6 @@
 package dev.agentbayu.app.domain
 
-import dev.agentbayu.app.ai.RouteDecision
+import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,14 +35,14 @@ class ConversationRepository {
         mutate(id) { message -> message.copy(text = text) }
     }
 
-    fun attachRoute(id: Long, decision: RouteDecision) {
-        mutate(id) { message -> message.copy(route = decision) }
+    fun attachDetail(id: Long, detail: ReplyDetail) {
+        mutate(id) { message -> message.copy(detail = detail) }
     }
 
-    fun complete(id: Long, decision: RouteDecision?, usage: TokenUsage?) {
+    fun complete(id: Long, detail: ReplyDetail?, usage: TokenUsage?) {
         mutate(id) { message ->
             message.copy(
-                route = decision ?: message.route,
+                detail = detail ?: message.detail,
                 usage = usage ?: message.usage,
                 streaming = false
             )
