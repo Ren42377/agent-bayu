@@ -34,8 +34,8 @@ internal val TextPrimaryDark = Color(0xFFFFFFFF)
 internal val TextSecondaryDark = Color(0xFF8E8E93)
 internal val TextTertiaryDark = Color(0xFF48484A)
 
-internal val GlassFillLight = Color(0x73FFFFFF)
-internal val GlassFillDark = Color(0x66181A22)
+internal val GlassFillLight = Color(0x99FFFFFF)
+internal val GlassFillDark = Color(0x8C181A22)
 
 internal val GlassSolidLight = Color(0xEBFFFFFF)
 internal val GlassSolidDark = Color(0xE61B1E27)

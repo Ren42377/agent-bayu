@@ -1,11 +1,13 @@
 package dev.agentbayu.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -14,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.emptyBackdrop
 import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.blur
+import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
@@ -28,10 +30,12 @@ data class GlassStyle(
     val strokeWidth: Dp = 1.dp,
     val sheenAlpha: Float = 0.12f,
     val elevation: Dp = 4.dp,
-    val blurRadius: Dp = 12.dp,
-    val refractionHeight: Dp = 8.dp,
-    val refractionAmount: Dp = 12.dp,
-    val highlightAlpha: Float = 0.6f
+    val refractionHeightRatio: Float = 0.5f,
+    val refractionAmountRatio: Float = 1f,
+    val highlightAlpha: Float = 0.6f,
+    val brightness: Float = 0f,
+    val saturation: Float = 1f,
+    val vibrant: Boolean = true
 )
 
 val LocalGlassStyle = compositionLocalOf {
@@ -52,10 +56,8 @@ fun currentGlassStyle(darkTheme: Boolean = isSystemInDarkTheme()): GlassStyle {
             strokeWidth = 1.dp,
             sheenAlpha = 0.10f,
             elevation = 6.dp,
-            blurRadius = 16.dp,
-            refractionHeight = 6.dp,
-            refractionAmount = 10.dp,
-            highlightAlpha = 0.5f
+            highlightAlpha = 0.5f,
+            brightness = -0.04f
         )
     } else {
         GlassStyle(
@@ -64,10 +66,8 @@ fun currentGlassStyle(darkTheme: Boolean = isSystemInDarkTheme()): GlassStyle {
             strokeWidth = 1.dp,
             sheenAlpha = 0.16f,
             elevation = 4.dp,
-            blurRadius = 12.dp,
-            refractionHeight = 8.dp,
-            refractionAmount = 12.dp,
-            highlightAlpha = 0.7f
+            highlightAlpha = 0.7f,
+            brightness = 0.12f
         )
     }
 }
@@ -99,9 +99,15 @@ fun Modifier.liquidGlass(
         backdrop = backdrop,
         shape = { shape },
         effects = {
-            vibrancy()
-            blur(style.blurRadius.toPx())
-            lens(style.refractionHeight.toPx(), style.refractionAmount.toPx())
+            colorControls(brightness = style.brightness, saturation = style.saturation)
+            if (style.vibrant) {
+                vibrancy()
+            }
+            if (size.isSpecified) {
+                val corner = (shape as? CornerBasedShape)?.topStart?.toPx(size, this) ?: 0f
+                val radius = corner.coerceAtMost(size.minDimension * 0.5f)
+                lens(radius * style.refractionHeightRatio, radius * style.refractionAmountRatio)
+            }
         },
         highlight = {
             Highlight(
