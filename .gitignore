@@ -11,4 +11,6 @@ captures/
 .agents/
 skills/
 .claude/
+opencode.json
+opencode.jsonc
 
