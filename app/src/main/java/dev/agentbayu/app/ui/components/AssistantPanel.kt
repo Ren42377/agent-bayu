@@ -2,6 +2,7 @@ package dev.agentbayu.app.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -25,7 +26,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,6 +51,7 @@ import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
+import dev.agentbayu.app.ui.theme.liquidGlass
 
 @Composable
 fun AssistantPanel(
@@ -92,7 +93,7 @@ fun AssistantPanel(
                 .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
                 .pointerInput(Unit) { detectTapGestures { onDismiss() } }
         )
-        Surface(
+        Box(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
@@ -101,11 +102,8 @@ fun AssistantPanel(
                     alpha = progress
                     translationY = (1f - progress) * size.height + dragOffset.value
                 }
-                .pointerInput(Unit) { detectTapGestures { } },
-            shape = PanelShape,
-            color = MaterialTheme.colorScheme.surface,
-            tonalElevation = 3.dp,
-            shadowElevation = 12.dp
+                .liquidGlass(shape = PanelShape)
+                .pointerInput(Unit) { detectTapGestures { } }
         ) {
             Column(
                 modifier = Modifier
@@ -166,6 +164,111 @@ fun AssistantPanel(
                 }
             }
         }
+    }
+}
+
+private const val HIDDEN_THRESHOLD = 0.01f
+
+@Composable
+private fun DragHandle(onDrag: (Float) -> Unit, onDragStopped: () -> Unit) {
+    val handleDescription = stringResource(R.string.overlay_handle)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = handleDescription }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragEnd = onDragStopped,
+                    onDragCancel = onDragStopped,
+                    onVerticalDrag = { _, dragAmount -> onDrag(dragAmount) }
+                )
+            }
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 36.dp, height = 5.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f))
+        )
+    }
+}
+
+@Composable
+private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 20.dp, end = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primaryContainer),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_spark),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.overlay_title),
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = if (!isResponding && detailLabel != null) {
+                    detailLabel
+                } else {
+                    stringResource(
+                        if (isResponding) R.string.chat_thinking else R.string.overlay_subtitle
+                    )
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        IconButton(onClick = onDismiss) {
+            Icon(
+                painter = painterResource(R.drawable.ic_close),
+                contentDescription = stringResource(R.string.overlay_close)
+            )
+        }
+    }
+}
+
+@Composable
+private fun PanelGreeting(suggestions: List<String>, onSuggestionClick: (String) -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 4.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.chat_empty_title),
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.chat_empty_subtitle),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        SuggestionChips(
+            suggestions = suggestions,
+            onSelect = onSuggestionClick,
+            modifier = Modifier.fillMaxWidth()
+        )
     }
 }
 

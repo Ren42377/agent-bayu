@@ -9,23 +9,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import dev.agentbayu.app.ui.components.AmbientBackground
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AgentBayuNavHost
@@ -40,12 +40,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             AgentBayuTheme {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    AgentBayuApp()
-                }
+                AgentBayuApp()
             }
         }
     }
@@ -68,28 +63,33 @@ private fun AgentBayuApp() {
         }
     }
 
-    Scaffold(
-        modifier = Modifier.imePadding(),
-        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-        bottomBar = {
-            AgentBayuBottomBar(
-                currentRoute = currentRoute.orEmpty(),
-                onSelect = { destination -> navigateTo(navController, destination) },
-                windowInsets = if (keyboardVisible) {
-                    WindowInsets(0, 0, 0, 0)
-                } else {
-                    NavigationBarDefaults.windowInsets
-                }
-            )
-        }
-    ) { innerPadding ->
-        AgentBayuNavHost(
-            navController = navController,
-            onMessage = { message -> messages.value = message },
+    AmbientBackground(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
-        )
+                .imePadding(),
+            containerColor = Color.Transparent,
+            snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+            bottomBar = {
+                AgentBayuBottomBar(
+                    currentRoute = currentRoute.orEmpty(),
+                    onSelect = { destination -> navigateTo(navController, destination) },
+                    windowInsets = if (keyboardVisible) {
+                        WindowInsets(0, 0, 0, 0)
+                    } else {
+                        NavigationBarDefaults.windowInsets
+                    }
+                )
+            }
+        ) { innerPadding ->
+            AgentBayuNavHost(
+                navController = navController,
+                onMessage = { message -> messages.value = message },
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            )
+        }
     }
 }
 

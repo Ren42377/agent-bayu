@@ -13,71 +13,71 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
 private val lightColors: ColorScheme = lightColorScheme(
-    primary = Purple40,
+    primary = AppleBlueLight,
     onPrimary = Color.White,
-    primaryContainer = Color(0xFFEADDFF),
-    onPrimaryContainer = Color(0xFF21005D),
-    secondary = PurpleGrey40,
+    primaryContainer = Color(0xFFDCEBFF),
+    onPrimaryContainer = Color(0xFF003F8A),
+    secondary = AppleIndigoLight,
     onSecondary = Color.White,
-    secondaryContainer = Color(0xFFE8DEF8),
-    onSecondaryContainer = Color(0xFF1D192B),
-    tertiary = Pink40,
+    secondaryContainer = Color(0xFFE5E4FF),
+    onSecondaryContainer = Color(0xFF262378),
+    tertiary = AppleTealLight,
     onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFD8E4),
-    onTertiaryContainer = Color(0xFF31111D),
-    error = Color(0xFFB3261E),
+    tertiaryContainer = Color(0xFFD2F5FA),
+    onTertiaryContainer = Color(0xFF004550),
+    error = AppleRedLight,
     onError = Color.White,
-    errorContainer = Color(0xFFF9DEDC),
-    onErrorContainer = Color(0xFF410E0B),
-    background = Color(0xFFFFFBFE),
-    onBackground = Color(0xFF1C1B1F),
-    surface = Color(0xFFFFFBFE),
-    onSurface = Color(0xFF1C1B1F),
-    surfaceVariant = Color(0xFFE7E0EC),
-    onSurfaceVariant = Color(0xFF49454F),
-    outline = Color(0xFF79747E),
-    outlineVariant = Color(0xFFCAC4D0),
-    inverseSurface = Color(0xFF313033),
-    inverseOnSurface = Color(0xFFF4EFF4),
-    inversePrimary = Purple80,
+    errorContainer = Color(0xFFFFD8D6),
+    onErrorContainer = Color(0xFF8A0A04),
+    background = BackgroundLight,
+    onBackground = TextPrimaryLight,
+    surface = SurfaceLight,
+    onSurface = TextPrimaryLight,
+    surfaceVariant = SurfaceVariantLight,
+    onSurfaceVariant = TextSecondaryLight,
+    outline = Color(0xFFD1D1D6),
+    outlineVariant = Color(0xFFE5E5EA),
+    inverseSurface = SurfaceDark,
+    inverseOnSurface = TextPrimaryDark,
+    inversePrimary = AppleBlueDark,
     scrim = ScrimBlack
 )
 
 private val darkColors: ColorScheme = darkColorScheme(
-    primary = Purple80,
-    onPrimary = Color(0xFF381E72),
-    primaryContainer = Color(0xFF4F378B),
-    onPrimaryContainer = Color(0xFFEADDFF),
-    secondary = PurpleGrey80,
-    onSecondary = Color(0xFF332D41),
-    secondaryContainer = Color(0xFF4A4458),
-    onSecondaryContainer = Color(0xFFE8DEF8),
-    tertiary = Pink80,
-    onTertiary = Color(0xFF492532),
-    tertiaryContainer = Color(0xFF633B48),
-    onTertiaryContainer = Color(0xFFFFD8E4),
-    error = Color(0xFFF2B8B5),
-    onError = Color(0xFF601410),
-    errorContainer = Color(0xFF8C1D18),
-    onErrorContainer = Color(0xFFF9DEDC),
-    background = Color(0xFF1C1B1F),
-    onBackground = Color(0xFFE6E1E5),
-    surface = Color(0xFF1C1B1F),
-    onSurface = Color(0xFFE6E1E5),
-    surfaceVariant = Color(0xFF49454F),
-    onSurfaceVariant = Color(0xFFCAC4D0),
-    outline = Color(0xFF938F99),
-    outlineVariant = Color(0xFF49454F),
-    inverseSurface = Color(0xFFE6E1E5),
-    inverseOnSurface = Color(0xFF313033),
-    inversePrimary = Purple40,
+    primary = AppleBlueDark,
+    onPrimary = Color.White,
+    primaryContainer = Color(0xFF003875),
+    onPrimaryContainer = Color(0xFFDCEBFF),
+    secondary = AppleIndigoDark,
+    onSecondary = Color.White,
+    secondaryContainer = Color(0xFF23206B),
+    onSecondaryContainer = Color(0xFFE5E4FF),
+    tertiary = AppleTealDark,
+    onTertiary = Color.Black,
+    tertiaryContainer = Color(0xFF003F4A),
+    onTertiaryContainer = Color(0xFFD2F5FA),
+    error = AppleRedDark,
+    onError = Color.Black,
+    errorContainer = Color(0xFF8A0A04),
+    onErrorContainer = Color(0xFFFFD8D6),
+    background = BackgroundDark,
+    onBackground = TextPrimaryDark,
+    surface = SurfaceDark,
+    onSurface = TextPrimaryDark,
+    surfaceVariant = SurfaceVariantDark,
+    onSurfaceVariant = TextSecondaryDark,
+    outline = Color(0xFF38383A),
+    outlineVariant = Color(0xFF2C2C2E),
+    inverseSurface = SurfaceLight,
+    inverseOnSurface = TextPrimaryLight,
+    inversePrimary = AppleBlueLight,
     scrim = ScrimBlack
 )
 
 @Composable
 fun AgentBayuTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
@@ -89,10 +89,15 @@ fun AgentBayuTheme(
         darkTheme -> darkColors
         else -> lightColors
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AgentBayuTypography,
-        shapes = AgentBayuShapes,
-        content = content
-    )
+    val glassStyle = currentGlassStyle(darkTheme)
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalGlassStyle provides glassStyle
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AgentBayuTypography,
+            shapes = AgentBayuShapes,
+            content = content
+        )
+    }
 }
