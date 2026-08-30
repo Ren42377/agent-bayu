@@ -4,6 +4,7 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.Color
 
 object AgentBayuMotion {
     const val ScrimAlpha = 0.5f
@@ -15,6 +16,11 @@ object AgentBayuMotion {
     )
 
     val snappySpring: AnimationSpec<Float> = spring(
+        dampingRatio = 0.75f,
+        stiffness = Spring.StiffnessMedium
+    )
+
+    val snappyColorSpring: AnimationSpec<Color> = spring(
         dampingRatio = 0.75f,
         stiffness = Spring.StiffnessMedium
     )

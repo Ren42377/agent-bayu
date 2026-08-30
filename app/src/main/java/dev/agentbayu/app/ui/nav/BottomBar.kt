@@ -75,7 +75,7 @@ fun AgentBayuBottomBar(
                         } else {
                             MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
                         },
-                        animationSpec = AgentBayuMotion.snappySpring,
+                        animationSpec = AgentBayuMotion.snappyColorSpring,
                         label = "tabContentColor"
                     )
                     val containerColor by animateColorAsState(
@@ -84,7 +84,7 @@ fun AgentBayuBottomBar(
                         } else {
                             Color.Transparent
                         },
-                        animationSpec = AgentBayuMotion.snappySpring,
+                        animationSpec = AgentBayuMotion.snappyColorSpring,
                         label = "tabContainerColor"
                     )
 
