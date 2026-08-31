@@ -26,6 +26,29 @@ Panel muncul di atas aplikasi yang sedang aktif tanpa izin overlay karena memaka
 Build otomatis berjalan di GitHub Actions dengan Gradle 8.11.1 dan cache dependency. Tidak ada
 Gradle wrapper di repo ini, jadi versi Gradle ditentukan oleh workflow.
 
+## Otomatisasi Codespaces dan Telegram
+
+Saat sebuah Codespace dibuat, dev container memasang Claude Code, OpenCode, `ccbot`, dan
+`@grinev/opencode-telegram-bot`. Saat Codespace kemudian mulai, ia menjalankan:
+
+- `ccbot`, sebagai bridge Telegram ↔ tmux untuk Claude Code. Sesi tmux bernama `ccbot` dibuat
+  otomatis; setiap topic Telegram dapat mengontrol sesi Claude Code di dalam tmux.
+- `opencode serve --port 4096`, lalu bridge Telegram OpenCode, sehingga pesan Telegram dapat
+  membuat dan memantau tugas OpenCode.
+
+Jangan menyimpan token di Git. Untuk Codespace baru, tambahkan repository/user Codespaces Secrets
+berikut (atau sediakan berkas yang sama di `.env/`, yang diabaikan Git):
+
+- `TELEGRAM_BOT_TOKEN_CC` dan `ALLOWED_USERS` untuk `ccbot` / Claude Code.
+- `TELEGRAM_BOT_TOKEN_OP` dan `ALLOWED_USERS` untuk bridge OpenCode.
+- Kredensial model yang dipakai Claude Code dan OpenCode, misalnya `ANTHROPIC_API_KEY` dan
+  `BAI_API_KEY`. Konfigurasi OpenCode kustom tetap harus tersedia sebagai `opencode.json` tanpa
+  memasukkan API key secara literal; gunakan substitusi `{env:NAMA_SECRET}`.
+
+Claude Code tetap memerlukan autentikasi atau API key yang valid sebelum dapat menerima tugas.
+Log startup tersedia di `/tmp/ccbot.log`, `/tmp/opencode_serve.log`, dan
+`/tmp/opencode_telegram.log`.
+
 ## Ambil APK debug
 
 Setiap push (dan setiap `workflow_dispatch`) membangun APK debug, mengunggahnya sebagai artefak

@@ -2,19 +2,20 @@
   "name": "agent-bayu",
   "image": "mcr.microsoft.com/devcontainers/base:noble",
   "features": {
-    "ghcr.io/devcontainers/features/common-utils": {
-      "installZsh": true,
-      "configureZshAsDefaultShell": true,
-      "username": "codespace",
-      "userUid": 1000,
-      "userGid": 1000
+    "ghcr.io/devcontainers/features/node:2": {
+      "version": "lts"
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "os-provided",
+      "installTools": false
     }
   },
+  "remoteUser": "vscode",
   "customizations": {
     "codespaces": {
       "openFiles": ["README.md"]
     }
   },
-  "postCreateCommand": "pipx install git+https://github.com/six-ddc/ccbot.git; npm install -g opencode-ai 2>/dev/null || npm i -g @opencode-ai/opencode 2>/dev/null || true; mkdir -p ~/.ccbot ~/.config/opencode-telegram-bot; if test -f /workspaces/agent-bayu/.env/ccbot.env; then cp /workspaces/agent-bayu/.env/ccbot.env ~/.ccbot/.env; elif test -n \"$TELEGRAM_BOT_TOKEN_CC\"; then printf 'TELEGRAM_BOT_TOKEN=%s\nALLOWED_USERS=%s\nTMUX_SESSION_NAME=ccbot\nCLAUDE_COMMAND=claude --dangerously-skip-permissions\n' \"$TELEGRAM_BOT_TOKEN_CC\" \"${ALLOWED_USERS:-7862672686}\" > ~/.ccbot/.env; elif test ! -f ~/.ccbot/.env; then echo \"missing .env/ccbot.env and TELEGRAM_BOT_TOKEN_CC secret - create .env/ccbot.env manually\"; fi; if test -f /workspaces/agent-bayu/.env/opencode-telegram.env; then cp /workspaces/agent-bayu/.env/opencode-telegram.env ~/.config/opencode-telegram-bot/.env; elif test -n \"$TELEGRAM_BOT_TOKEN_OP\"; then printf 'TELEGRAM_BOT_TOKEN=%s\nTELEGRAM_ALLOWED_USER_ID=%s\nOPENCODE_API_URL=http://localhost:4096\nOPENCODE_MODEL_PROVIDER=bai\nOPENCODE_MODEL_ID=glm-5.3-flash\n' \"$TELEGRAM_BOT_TOKEN_OP\" \"${ALLOWED_USERS:-7862672686}\" > ~/.config/opencode-telegram-bot/.env; elif test ! -f ~/.config/opencode-telegram-bot/.env; then echo \"missing .env/opencode-telegram.env and TELEGRAM_BOT_TOKEN_OP secret\"; fi; ccbot hook --install || true; test -f /workspaces/agent-bayu/opencode.json || echo \"create opencode.json from opencode.json.example or set BAI_API_KEY secret\"",
-  "postStartCommand": "bash -c 'set -e; export PATH=\"$HOME/.bun/bin:$HOME/.local/bin:$HOME/.opencode/bin:/usr/local/py-utils/bin:$PATH\"; LOCK=/tmp/codespace-autostart.lock; exec 9>\"$LOCK\"; flock -n 9 || { echo \"autostart already running\"; exit 0; }; if [ -f /workspaces/agent-bayu/.env/ccbot.env ]; then mkdir -p ~/.ccbot; cp /workspaces/agent-bayu/.env/ccbot.env ~/.ccbot/.env; echo \"synced ccbot .env\"; fi; if [ -f /workspaces/agent-bayu/.env/opencode-telegram.env ]; then mkdir -p ~/.config/opencode-telegram-bot; cp /workspaces/agent-bayu/.env/opencode-telegram.env ~/.config/opencode-telegram-bot/.env; echo \"synced opencode .env\"; fi; pgrep -f \"opencode --auto\" >/dev/null 2>&1 && { pkill -f \"opencode --auto\" || true; sleep 1; echo \"killed stray opencode --auto\"; }; if pgrep -f \"opencode serve\" >/dev/null 2>&1 && ! ss -tlnp 2>/dev/null | grep -q \"127.0.0.1:4096\"; then pkill -f \"opencode serve\" || true; sleep 1; fi; if ! ss -tlnp 2>/dev/null | grep -q \"127.0.0.1:4096\"; then nohup opencode serve --port 4096 > /tmp/opencode_serve.log 2>&1 & echo \"serve started\"; fi; for i in 1 2 3 4 5 6 7 8 9 10; do curl -s http://127.0.0.1:4096 >/dev/null 2>&1 && break; sleep 1; done; if ! tmux has-session -t ccbot 2>/dev/null; then tmux new-session -d -s ccbot; echo \"tmux ccbot created\"; fi; if ! pgrep -f \"ccbot\" >/dev/null 2>&1; then nohup ccbot > /tmp/ccbot.log 2>&1 & echo \"ccbot started\"; else echo \"ccbot already running\"; fi; sleep 2; if ! opencode-telegram status 2>&1 | grep -q running; then opencode-telegram start --daemon 2>&1 | head -n 5 || true; else echo \"telegram already running\"; fi; for ENV in ~/.ccbot/.env ~/.config/opencode-telegram-bot/.env; do BOT=$(grep TELEGRAM_BOT_TOKEN \"$ENV\" 2>/dev/null | cut -d= -f2 | tr -d \"\\r\\n \" | head -n1); if [ -n \"$BOT\" ]; then PENDING=$(curl -s \"https://api.telegram.org/bot$BOT/getUpdates\" 2>&1 | python3 -c \"import json,sys; d=json.load(sys.stdin); print(len(d.get(\\\"result\\\",[])))\" 2>/dev/null || echo 0); if [ \"$PENDING\" != \"0\" ]; then LAST=$(curl -s \"https://api.telegram.org/bot$BOT/getUpdates\" 2>&1 | python3 -c \"import json,sys; d=json.load(sys.stdin); r=d.get(\\\"result\\\",[]); print(max([x[\\\"update_id\\\"] for x in r])+1 if r else 0)\" 2>/dev/null || echo 0); curl -s \"https://api.telegram.org/bot$BOT/getUpdates?offset=$LAST\" >/dev/null 2>&1 || true; echo \"cleared $BOT pending $PENDING\"; fi; fi; done; echo \"autostart done auto-permissions ok\"; tmux ls 2>&1 | head -n 5; ps aux | grep -E \"ccbot|opencode serve\" | grep -v grep | head -n 5'"
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "postStartCommand": "bash .devcontainer/post-start.sh"
 }
