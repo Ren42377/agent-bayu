@@ -13,5 +13,5 @@ skills/
 .claude/
 opencode.json
 opencode.jsonc
-scripts/*
+.env/
 
