@@ -10,6 +10,7 @@ import dev.agentbayu.app.ai.FakeClock
 import dev.agentbayu.app.ai.FakeConnectionSource
 import dev.agentbayu.app.ai.FakeKeys
 import dev.agentbayu.app.ai.KeySourceCredentials
+import dev.agentbayu.app.ai.LogStore
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderCatalog
 import dev.agentbayu.app.ai.RouteFailure
@@ -121,6 +122,7 @@ class ProviderAgentEngineTest {
             credentials = KeySourceCredentials(keySource),
             adapters = mapOf(WireFormat.OPENAI to adapter),
             usageTracker = UsageTracker(clock),
+            logStore = LogStore(clock),
             clock = clock
         )
         return ProviderAgentEngine(

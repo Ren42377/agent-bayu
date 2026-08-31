@@ -2,6 +2,7 @@ package dev.agentbayu.app
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -18,24 +19,33 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import dev.agentbayu.app.ui.ai.AiSheetController
+import dev.agentbayu.app.ui.ai.AiSheetHost
+import dev.agentbayu.app.ui.chat.ChatRoute
 import dev.agentbayu.app.ui.components.AmbientBackground
+import dev.agentbayu.app.ui.components.CardPager
+import dev.agentbayu.app.ui.components.GlassOverlay
 import dev.agentbayu.app.ui.components.GlassOverlayController
 import dev.agentbayu.app.ui.components.GlassOverlayHost
+import dev.agentbayu.app.ui.components.GlassOverlayPresentation
+import dev.agentbayu.app.ui.components.GlassTabsProgress
 import dev.agentbayu.app.ui.components.LocalGlassOverlay
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
-import dev.agentbayu.app.ui.nav.AgentBayuNavHost
+import dev.agentbayu.app.ui.onboarding.OnboardingRoute
+import dev.agentbayu.app.ui.settings.SettingsRoute
 import dev.agentbayu.app.ui.theme.AgentBayuTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -57,17 +67,22 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun AgentBayuApp() {
-    val navController = rememberNavController()
+    val context = LocalContext.current
+    val settings = remember(context) { AppGraph.settings(context) }
+    val onboardingVisible by settings.onboardingVisible.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val messages = remember { MutableStateFlow<String?>(null) }
     val pendingMessage by messages.collectAsState()
-    val backStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = backStackEntry?.destination?.route
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val ambientBackdrop = rememberLayerBackdrop()
     val contentBackdrop = rememberLayerBackdrop()
     val chromeBackdrop = rememberCombinedBackdrop(ambientBackdrop, contentBackdrop)
     val overlayController = remember { GlassOverlayController() }
+    val sheetController = remember { AiSheetController() }
+    val tabProgress = remember { GlassTabsProgress() }
+    val destinations = AgentBayuDestination.entries
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val onMessage: (String) -> Unit = { message -> messages.value = message }
 
     LaunchedEffect(pendingMessage) {
         pendingMessage?.let { message ->
@@ -75,6 +90,8 @@ private fun AgentBayuApp() {
             messages.value = null
         }
     }
+
+    BackHandler(enabled = selectedTab != 0) { selectedTab = 0 }
 
     AmbientBackground(
         modifier = Modifier.fillMaxSize(),
@@ -90,8 +107,9 @@ private fun AgentBayuApp() {
                 bottomBar = {
                     CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
                         AgentBayuBottomBar(
-                            currentRoute = currentRoute.orEmpty(),
-                            onSelect = { destination -> navigateTo(navController, destination) },
+                            selectedIndex = selectedTab,
+                            onSelect = { index -> selectedTab = index },
+                            progress = tabProgress,
                             windowInsets = if (keyboardVisible) {
                                 WindowInsets(0, 0, 0, 0)
                             } else {
@@ -110,28 +128,48 @@ private fun AgentBayuApp() {
                             .fillMaxSize()
                             .layerBackdrop(contentBackdrop)
                     ) {
-                        AgentBayuNavHost(
-                            navController = navController,
-                            onMessage = { message -> messages.value = message },
+                        CardPager(
+                            pageCount = destinations.size,
+                            progress = { tabProgress.value() },
                             modifier = Modifier.fillMaxSize()
-                        )
+                        ) { page ->
+                            when (destinations[page]) {
+                                AgentBayuDestination.CHAT -> ChatRoute(
+                                    onMessage = onMessage,
+                                    onOpenProviders = { sheetController.openProviders() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                AgentBayuDestination.SETTINGS -> SettingsRoute(
+                                    onMessage = onMessage,
+                                    onOpenProviders = { sheetController.openProviders() },
+                                    onOpenLogs = { sheetController.openLogs() },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
                     }
                 }
             }
+
+            AiSheetHost(controller = sheetController, onMessage = onMessage)
+
+            GlassOverlay(
+                visible = onboardingVisible,
+                presentation = GlassOverlayPresentation.SHEET,
+                onDismiss = settings::completeOnboarding
+            ) {
+                OnboardingRoute(
+                    onFinish = settings::completeOnboarding,
+                    onMessage = onMessage
+                )
+            }
+
+            GlassOverlayHost(
+                controller = overlayController,
+                backdrop = chromeBackdrop,
+                modifier = Modifier.fillMaxSize()
+            )
         }
-
-        GlassOverlayHost(
-            controller = overlayController,
-            backdrop = chromeBackdrop,
-            modifier = Modifier.fillMaxSize()
-        )
-    }
-}
-
-private fun navigateTo(controller: NavHostController, destination: AgentBayuDestination) {
-    controller.navigate(destination.route) {
-        popUpTo(AgentBayuDestination.CHAT.route) { saveState = true }
-        launchSingleTop = true
-        restoreState = true
     }
 }

@@ -18,30 +18,30 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.components.GlassBottomTab
 import dev.agentbayu.app.ui.components.GlassBottomTabs
+import dev.agentbayu.app.ui.components.GlassTabsProgress
 
 @Composable
 fun AgentBayuBottomBar(
-    currentRoute: String,
-    onSelect: (AgentBayuDestination) -> Unit,
+    selectedIndex: Int,
+    onSelect: (index: Int) -> Unit,
+    progress: GlassTabsProgress,
     windowInsets: WindowInsets = NavigationBarDefaults.windowInsets
 ) {
     val haptics = LocalHapticFeedback.current
     val destinations = AgentBayuDestination.entries
-    val selectedIndex = destinations
-        .indexOfFirst { it.route == currentRoute }
-        .coerceAtLeast(0)
 
-    val select = { destination: AgentBayuDestination ->
-        if (destination.route != currentRoute) {
+    val select = { index: Int ->
+        if (index != selectedIndex) {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            onSelect(destination)
+            onSelect(index)
         }
     }
 
     GlassBottomTabs(
         selectedTabIndex = selectedIndex,
-        onTabSelected = { index -> select(destinations[index]) },
+        onTabSelected = { index -> select(index) },
         tabsCount = destinations.size,
+        progress = progress,
         modifier = Modifier
             .fillMaxWidth()
             .windowInsetsPadding(windowInsets)
@@ -49,7 +49,7 @@ fun AgentBayuBottomBar(
     ) {
         destinations.forEachIndexed { index, destination ->
             val selected = index == selectedIndex
-            GlassBottomTab(onClick = { select(destination) }) {
+            GlassBottomTab(onClick = { select(index) }) {
                 Icon(
                     painter = painterResource(destination.iconRes),
                     contentDescription = stringResource(destination.labelRes),

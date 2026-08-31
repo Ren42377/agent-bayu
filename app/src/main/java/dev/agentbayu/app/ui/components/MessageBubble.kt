@@ -28,7 +28,7 @@ import dev.agentbayu.app.ui.theme.AgentBubbleShape
 import dev.agentbayu.app.ui.theme.AppleBlueDark
 import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.UserBubbleShape
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
 fun MessageBubble(
@@ -49,7 +49,7 @@ fun MessageBubble(
             Box(
                 modifier = Modifier
                     .widthIn(max = 300.dp)
-                    .liquidGlass(shape = UserBubbleShape, tint = userTint)
+                    .glassSurface(shape = UserBubbleShape, tint = userTint)
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(
@@ -62,7 +62,7 @@ fun MessageBubble(
             Box(
                 modifier = Modifier
                     .widthIn(max = 320.dp)
-                    .liquidGlass(shape = AgentBubbleShape)
+                    .glassSurface(shape = AgentBubbleShape)
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Column {

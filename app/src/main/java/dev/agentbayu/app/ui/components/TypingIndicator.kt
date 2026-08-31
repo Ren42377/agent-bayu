@@ -21,7 +21,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.theme.CapsuleShape
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 private const val DOT_COUNT = 3
 
@@ -30,7 +30,7 @@ fun TypingIndicator(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "typing")
     Box(
         modifier = modifier
-            .liquidGlass(shape = CapsuleShape)
+            .glassSurface(shape = CapsuleShape)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Row(

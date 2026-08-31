@@ -26,12 +26,17 @@ class AiClient(
     private val credentials: CredentialProvider,
     private val adapters: Map<WireFormat, ChatAdapter>,
     private val usageTracker: UsageTracker,
+    private val logStore: LogStore,
     private val clock: Clock = RealClock
 ) {
 
     fun stream(request: ChatRequest): Flow<ReplyEvent> = flow {
         when (val resolution = activeProvider.resolve()) {
-            is ActiveResolution.Unavailable -> emit(ReplyEvent.Unavailable(resolution.problem))
+            is ActiveResolution.Unavailable -> {
+                logStore.warning(SOURCE, "No usable connection", resolution.problem.name)
+                emit(ReplyEvent.Unavailable(resolution.problem))
+            }
+
             is ActiveResolution.Ready -> streamCandidate(resolution.candidate, request)
         }
     }
@@ -41,8 +46,10 @@ class AiClient(
         request: ChatRequest
     ) {
         val detail = detailOf(candidate)
+        val route = candidate.provider.id + " " + candidate.model.id
         val adapter = adapters[candidate.provider.wireFormat]
         if (adapter == null) {
+            logStore.error(SOURCE, "Unsupported wire format", route)
             emit(ReplyEvent.Failed(unsupportedWireFormat(), detail))
             return
         }
@@ -54,6 +61,7 @@ class AiClient(
         val credential = credentials.resolve(candidate)
         val startedAt = clock.nowMillis()
         usageTracker.beginRequest(connectionId)
+        logStore.info(SOURCE, "Request started", route)
 
         var firstTokenMillis = 0L
         var outputChars = 0
@@ -88,6 +96,11 @@ class AiClient(
             healthFor(reported)?.let { health ->
                 connections.markHealth(connectionId, health, reported.logLabel)
             }
+            logStore.error(
+                SOURCE,
+                reported.message,
+                route + " " + reported.logLabel
+            )
             Log.e(
                 TAG,
                 "Reply failed: provider=" + candidate.provider.id +
@@ -100,6 +113,12 @@ class AiClient(
         val usage = usageOf(candidate, effective, wireUsage, outputChars)
         usageTracker.recordSuccess(connectionId, usage)
         connections.markHealth(connectionId, ConnectionHealth.READY, null)
+        logStore.info(
+            SOURCE,
+            "Reply completed",
+            route + " " + complete.totalMillis + " ms, " +
+                usage.outputTokens + " output tokens"
+        )
         emit(ReplyEvent.Completed(complete, usage))
     }
 
@@ -153,6 +172,7 @@ class AiClient(
 
     companion object {
         private const val TAG = "AgentBayu"
+        private const val SOURCE = "AiClient"
         private const val UNAUTHORIZED_STATUS = 401
     }
 }

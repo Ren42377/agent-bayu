@@ -15,7 +15,7 @@ import dev.agentbayu.app.R
 fun SettingsRoute(
     onMessage: (String) -> Unit,
     onOpenProviders: () -> Unit,
-    onOpenUsage: () -> Unit,
+    onOpenLogs: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -32,7 +32,8 @@ fun SettingsRoute(
             onMessage(clearedMessage)
         },
         onOpenProviders = onOpenProviders,
-        onOpenUsage = onOpenUsage,
+        onOpenLogs = onOpenLogs,
+        onOpenOnboarding = settings::showOnboarding,
         modifier = modifier
     )
 }

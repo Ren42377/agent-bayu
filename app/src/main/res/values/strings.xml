@@ -3,8 +3,12 @@
     <string name="app_name">Agent Bayu</string>
 
     <string name="tab_chat">Chat</string>
-    <string name="tab_setup">Persiapan</string>
     <string name="tab_settings">Pengaturan</string>
+
+    <string name="onboarding_step">Langkah %1$d dari %2$d</string>
+    <string name="onboarding_next">Lanjut</string>
+    <string name="onboarding_finish">Selesai</string>
+    <string name="onboarding_skip">Lewati</string>
 
     <string name="chat_empty_title">Halo, saya Bayu.</string>
     <string name="chat_empty_subtitle">Tanya apa saja, atau mulai dari salah satu saran di bawah.</string>
@@ -58,11 +62,14 @@
     <string name="settings_clear_action">Hapus</string>
     <string name="settings_cleared">Riwayat percakapan dihapus.</string>
 
+    <string name="settings_assistant">Asisten</string>
     <string name="settings_ai">Backend AI</string>
     <string name="settings_providers_title">Provider AI</string>
     <string name="settings_providers_body">Kelola koneksi, cara masuk, kunci API, dan model.</string>
-    <string name="settings_usage_title">Pemakaian</string>
-    <string name="settings_usage_body">Permintaan, token, biaya perkiraan, dan latensi.</string>
+    <string name="settings_logs_title">Logs</string>
+    <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
+    <string name="settings_onboarding_title">Panduan awal</string>
+    <string name="settings_onboarding_body">Ulangi langkah asisten bawaan, mikrofon, dan panel suara.</string>
 
     <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu belum bisa membuka aplikasi lain, mengirim pesan, atau mengubah kalender, jadi jangan mengaku sudah melakukannya.</string>
     <string name="agent_screen_context_prompt">Pemilik sedang melihat layar dengan teks berikut. Pakai ini hanya kalau relevan dengan pertanyaannya.\n\n%1$s</string>
@@ -206,18 +213,15 @@
     <string name="device_failed">Login gagal: %1$s</string>
     <string name="device_retry">Coba lagi</string>
     <string name="device_unsupported">Provider ini tidak memakai login kode perangkat.</string>
-    <string name="usage_title">Pemakaian</string>
-    <string name="usage_empty">Belum ada permintaan yang tercatat.</string>
-    <string name="usage_note">Biaya adalah perkiraan dari harga katalog, bukan tagihan resmi.</string>
-    <string name="usage_requests">%1$d permintaan, %2$d sukses, %3$d gagal</string>
-    <string name="usage_tokens">%1$d token masuk, %2$d token keluar</string>
-    <string name="usage_cost">Biaya perkiraan %1$s</string>
-    <string name="usage_latency">Token pertama %1$d ms, p95 %2$d ms</string>
-    <string name="usage_latency_empty">Belum ada sampel latensi</string>
-    <string name="usage_last_failure">Kegagalan terakhir: %1$s</string>
-    <string name="usage_reset">Reset statistik</string>
-    <string name="usage_reset_done">Statistik pemakaian direset.</string>
-    <string name="usage_total">Total %1$d permintaan, %2$d token, perkiraan %3$s</string>
+    <string name="logs_title">Logs</string>
+    <string name="logs_empty">Belum ada catatan. Kirim pesan ke AI untuk mulai merekam.</string>
+    <string name="logs_note">Catatan hanya disimpan di memori dan hilang saat aplikasi ditutup. Maksimal %1$d catatan terakhir.</string>
+    <string name="logs_clear">Bersihkan catatan</string>
+    <string name="logs_cleared">Catatan dibersihkan.</string>
+    <string name="logs_level_info">Info</string>
+    <string name="logs_level_warning">Peringatan</string>
+    <string name="logs_level_error">Error</string>
+    <string name="logs_meta">%1$s, %2$s</string>
     <string name="route_show">Lihat detail</string>
     <string name="route_title">Detail jawaban</string>
     <string name="route_provider">Provider</string>

@@ -30,6 +30,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
@@ -48,6 +49,7 @@ fun PromptBar(
 ) {
     val haptics = LocalHapticFeedback.current
     val barBackdrop = rememberLayerBackdrop()
+    val buttonBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, barBackdrop)
     val canSend = enabled && value.isNotBlank()
     val sendScale by animateFloatAsState(
         targetValue = if (canSend) 1f else 0.85f,
@@ -62,15 +64,17 @@ fun PromptBar(
         }
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .liquidGlass(shape = CapsuleShape, exportedBackdrop = barBackdrop)
-            .padding(horizontal = 6.dp, vertical = 6.dp)
-    ) {
-        CompositionLocalProvider(LocalGlassBackdrop provides barBackdrop) {
+    Box(modifier = modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .liquidGlass(shape = CapsuleShape, exportedBackdrop = barBackdrop)
+        )
+        CompositionLocalProvider(LocalGlassBackdrop provides buttonBackdrop) {
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 GlassButton(

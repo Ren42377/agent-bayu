@@ -1,12 +1,16 @@
 package dev.agentbayu.app.ui.theme
 
+import androidx.compose.foundation.border
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.CornerBasedShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -91,6 +95,33 @@ fun glassSheenBrush(sheenAlpha: Float): Brush {
         )
     )
 }
+
+@Composable
+fun Modifier.glassSurface(
+    shape: Shape = GlassCardShape,
+    style: GlassStyle = LocalGlassStyle.current,
+    tint: Color = Color.Unspecified,
+    elevation: Dp = style.elevation * STATIC_ELEVATION_RATIO
+): Modifier {
+    val sheenBrush = remember(style.sheenAlpha) { glassSheenBrush(style.sheenAlpha) }
+    val fill = style.fill
+    val borderColor = remember(style.highlight, style.highlightAlpha) {
+        style.highlight.copy(alpha = style.highlight.alpha * style.highlightAlpha)
+    }
+    return this
+        .shadow(elevation = elevation, shape = shape, clip = true)
+        .drawBehind {
+            drawRect(color = fill)
+            if (tint.isSpecified) {
+                drawRect(color = tint.copy(alpha = STATIC_TINT_ALPHA))
+            }
+            drawRect(brush = sheenBrush)
+        }
+        .border(width = style.strokeWidth, color = borderColor, shape = shape)
+}
+
+private const val STATIC_TINT_ALPHA = 0.86f
+private const val STATIC_ELEVATION_RATIO = 0.5f
 
 @Composable
 fun Modifier.liquidGlass(

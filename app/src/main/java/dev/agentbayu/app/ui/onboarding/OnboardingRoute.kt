@@ -1,4 +1,4 @@
-package dev.agentbayu.app.ui.setup
+package dev.agentbayu.app.ui.onboarding
 
 import android.Manifest
 import android.content.Context
@@ -25,7 +25,11 @@ import dev.agentbayu.app.assistant.BayuVoiceInteractionService
 import dev.agentbayu.app.platform.AssistantRole
 
 @Composable
-fun SetupRoute(onMessage: (String) -> Unit, modifier: Modifier = Modifier) {
+fun OnboardingRoute(
+    onFinish: () -> Unit,
+    onMessage: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
     val context = LocalContext.current
     val settings = remember(context) { AppGraph.settings(context) }
     val useScreenContext by settings.useScreenContext.collectAsState()
@@ -55,7 +59,7 @@ fun SetupRoute(onMessage: (String) -> Unit, modifier: Modifier = Modifier) {
         onMessage(if (granted) micGrantedMessage else micDeniedMessage)
     }
 
-    SetupScreen(
+    OnboardingScreen(
         isDefaultAssistant = isDefaultAssistant,
         isMicrophoneGranted = isMicrophoneGranted,
         useScreenContext = useScreenContext,
@@ -71,6 +75,7 @@ fun SetupRoute(onMessage: (String) -> Unit, modifier: Modifier = Modifier) {
                 onMessage(testUnavailable)
             }
         },
+        onFinish = onFinish,
         modifier = modifier
     )
 }

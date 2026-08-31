@@ -54,6 +54,7 @@ class AiClientTest {
             candidate.connection.id
         ),
         tracker: UsageTracker = UsageTracker(FakeClock()),
+        logStore: LogStore = LogStore(FakeClock()),
         clock: Clock = FakeClock(1_000L)
     ): AiClient = AiClient(
         activeProvider = ActiveProvider(
@@ -65,6 +66,7 @@ class AiClientTest {
         credentials = credentials,
         adapters = adapter?.let { mapOf(candidate.provider.wireFormat to it) } ?: emptyMap(),
         usageTracker = tracker,
+        logStore = logStore,
         clock = clock
     )
 
@@ -292,6 +294,7 @@ class AiClientTest {
             credentials = KeySourceCredentials(FakeKeys()),
             adapters = emptyMap(),
             usageTracker = UsageTracker(FakeClock()),
+            logStore = LogStore(FakeClock()),
             clock = FakeClock()
         )
 

@@ -1,6 +1,7 @@
 package dev.agentbayu.app.domain
 
 import android.util.Log
+import dev.agentbayu.app.ai.LogStore
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -13,6 +14,7 @@ class ChatController(
     private val repository: ConversationRepository,
     private val engine: AgentEngine,
     private val errorReply: String,
+    private val logStore: LogStore,
     private val scope: CoroutineScope
 ) {
 
@@ -58,6 +60,7 @@ class ChatController(
                 throw cancellation
             } catch (error: Exception) {
                 Log.e(TAG, "Agent reply failed: " + error.javaClass.simpleName)
+                logStore.error(SOURCE, "Agent reply failed", error.javaClass.simpleName)
                 if (!streamed) repository.replaceText(placeholder.id, errorReply)
             } finally {
                 repository.finishStreaming(placeholder.id)
@@ -79,5 +82,6 @@ class ChatController(
 
     private companion object {
         const val TAG = "AgentBayu"
+        const val SOURCE = "Chat"
     }
 }

@@ -35,6 +35,7 @@ import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleIndigoLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
+import dev.agentbayu.app.ui.theme.AppleTealLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -46,7 +47,8 @@ fun SettingsScreen(
     onScreenContextChange: (Boolean) -> Unit,
     onClearConversation: () -> Unit,
     onOpenProviders: () -> Unit,
-    onOpenUsage: () -> Unit,
+    onOpenLogs: () -> Unit,
+    onOpenOnboarding: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
@@ -70,6 +72,16 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
         )
 
+        SectionGroup(title = stringResource(R.string.settings_assistant)) {
+            NavigationSettingRow(
+                icon = painterResource(R.drawable.ic_setup),
+                iconColor = AppleGreenLight,
+                title = stringResource(R.string.settings_onboarding_title),
+                subtitle = stringResource(R.string.settings_onboarding_body),
+                onClick = onOpenOnboarding
+            )
+        }
+
         SectionGroup(title = stringResource(R.string.settings_ai)) {
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_spark),
@@ -80,11 +92,11 @@ fun SettingsScreen(
             )
             SettingDivider()
             NavigationSettingRow(
-                icon = painterResource(R.drawable.ic_check),
-                iconColor = AppleGreenLight,
-                title = stringResource(R.string.settings_usage_title),
-                subtitle = stringResource(R.string.settings_usage_body),
-                onClick = onOpenUsage
+                icon = painterResource(R.drawable.ic_pending),
+                iconColor = AppleTealLight,
+                title = stringResource(R.string.settings_logs_title),
+                subtitle = stringResource(R.string.settings_logs_body),
+                onClick = onOpenLogs
             )
         }
 

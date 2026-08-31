@@ -9,6 +9,7 @@ import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ConnectionStore
 import dev.agentbayu.app.ai.ConnectionTester
 import dev.agentbayu.app.ai.CredentialStore
+import dev.agentbayu.app.ai.LogStore
 import dev.agentbayu.app.ai.ProviderCatalog
 import dev.agentbayu.app.ai.RealClock
 import dev.agentbayu.app.ai.StoredCredentials
@@ -53,7 +54,8 @@ object AppGraph {
         val activeProvider: ActiveProvider,
         val tester: ConnectionTester,
         val deviceFlow: CodexDeviceFlow,
-        val usageTracker: UsageTracker
+        val usageTracker: UsageTracker,
+        val logStore: LogStore
     )
 
     @Volatile
@@ -74,6 +76,8 @@ object AppGraph {
     fun deviceFlow(context: Context): CodexDeviceFlow = container(context).deviceFlow
 
     fun usage(context: Context): UsageTracker = container(context).usageTracker
+
+    fun logs(context: Context): LogStore = container(context).logStore
 
     fun conversationStore(context: Context): ConversationStore = container(context).conversationStore
 
@@ -97,6 +101,7 @@ object AppGraph {
         val credentialStore = CredentialStore(secureStore)
         val connectionStore = ConnectionStore(secureStore, clock)
         val usageTracker = UsageTracker(clock)
+        val logStore = LogStore(clock)
         seedDefaultConnection(context, catalog, connectionStore)
         val client = OkHttpClient.Builder()
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -125,6 +130,7 @@ object AppGraph {
             credentials = credentials,
             adapters = adapters,
             usageTracker = usageTracker,
+            logStore = logStore,
             clock = clock
         )
         val engine = ProviderAgentEngine(
@@ -141,6 +147,7 @@ object AppGraph {
             repository = conversation,
             engine = engine,
             errorReply = context.getString(R.string.agent_error_reply),
+            logStore = logStore,
             scope = scope
         )
         return Container(
@@ -152,7 +159,8 @@ object AppGraph {
             activeProvider = activeProvider,
             tester = ConnectionTester(client, catalog, credentials, adapters, clock),
             deviceFlow = CodexDeviceFlow(client, clock),
-            usageTracker = usageTracker
+            usageTracker = usageTracker,
+            logStore = logStore
         )
     }
 

@@ -15,9 +15,23 @@ class AppSettings(context: Context) {
 
     val useScreenContext: StateFlow<Boolean> = screenContextState.asStateFlow()
 
+    private val onboardingState =
+        MutableStateFlow(!preferences.getBoolean(KEY_ONBOARDING_DONE, false))
+
+    val onboardingVisible: StateFlow<Boolean> = onboardingState.asStateFlow()
+
     fun setUseScreenContext(enabled: Boolean) {
         screenContextState.value = enabled
         preferences.edit().putBoolean(KEY_SCREEN_CONTEXT, enabled).apply()
+    }
+
+    fun showOnboarding() {
+        onboardingState.value = true
+    }
+
+    fun completeOnboarding() {
+        onboardingState.value = false
+        preferences.edit().putBoolean(KEY_ONBOARDING_DONE, true).apply()
     }
 
     fun defaultConnectionSeeded(): Boolean = preferences.getBoolean(KEY_DEFAULT_SEEDED, false)
@@ -30,5 +44,6 @@ class AppSettings(context: Context) {
         const val FILE_NAME = "agent_bayu_settings"
         const val KEY_SCREEN_CONTEXT = "use_screen_context"
         const val KEY_DEFAULT_SEEDED = "default_connection_seeded"
+        const val KEY_ONBOARDING_DONE = "onboarding_done"
     }
 }

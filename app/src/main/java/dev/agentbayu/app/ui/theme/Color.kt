@@ -20,6 +20,8 @@ internal val AppleGreenDark = Color(0xFF30D158)
 internal val AppleRedLight = Color(0xFFFF3B30)
 internal val AppleRedDark = Color(0xFFFF453A)
 
+internal val AppleOrangeLight = Color(0xFFFF9500)
+
 internal val BackgroundLight = Color(0xFFF2F2F7)
 internal val SurfaceLight = Color(0xFFFFFFFF)
 internal val SurfaceVariantLight = Color(0xFFE5E5EA)

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -18,6 +20,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.lerp
+import androidx.compose.ui.zIndex
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.liquidGlass
 import kotlin.math.abs
@@ -33,6 +36,8 @@ object GlassButtonDefaults {
     val IconPadding: PaddingValues = PaddingValues(0.dp)
 }
 
+private const val RAISED_Z_INDEX = 1f
+
 @Composable
 fun GlassButton(
     onClick: () -> Unit,
@@ -47,9 +52,13 @@ fun GlassButton(
 ) {
     val animationScope = rememberCoroutineScope()
     val interactiveHighlight = remember(animationScope) { InteractiveHighlight(animationScope) }
+    val raised by remember(interactiveHighlight) {
+        derivedStateOf { interactiveHighlight.pressProgress > 0f }
+    }
 
     Row(
         modifier = modifier
+            .zIndex(if (raised) RAISED_Z_INDEX else 0f)
             .liquidGlass(
                 shape = shape,
                 tint = tint,

@@ -1,6 +1,7 @@
 package dev.agentbayu.app.domain
 
 import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.LogStore
 import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
 import kotlinx.coroutines.CoroutineScope
@@ -45,6 +46,7 @@ class ChatControllerTest {
             repository = repository,
             engine = engine,
             errorReply = errorReply,
+            logStore = LogStore(),
             scope = CoroutineScope(SupervisorJob() + dispatcher)
         )
 

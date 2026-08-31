@@ -20,9 +20,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.Stable
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -69,6 +72,14 @@ import kotlin.math.sign
 
 internal val LocalGlassTabScale = staticCompositionLocalOf { { 1f } }
 
+@Stable
+class GlassTabsProgress {
+
+    internal var reader: () -> Float by mutableStateOf({ 0f })
+
+    fun value(): Float = reader()
+}
+
 @Composable
 fun RowScope.GlassBottomTab(
     onClick: () -> Unit,
@@ -105,6 +116,7 @@ fun GlassBottomTabs(
     tabsCount: Int,
     modifier: Modifier = Modifier,
     backdrop: Backdrop = LocalGlassBackdrop.current,
+    progress: GlassTabsProgress? = null,
     content: @Composable RowScope.() -> Unit
 ) {
     val style = LocalGlassStyle.current
@@ -163,6 +175,11 @@ fun GlassBottomTabs(
         }
         LaunchedEffect(selectedTabIndex) {
             currentIndex = selectedTabIndex
+        }
+        if (progress != null) {
+            SideEffect {
+                progress.reader = { dampedDragAnimation.value }
+            }
         }
         LaunchedEffect(dampedDragAnimation) {
             snapshotFlow { currentIndex }

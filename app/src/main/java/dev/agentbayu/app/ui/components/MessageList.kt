@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.domain.ChatMessage
@@ -33,20 +34,21 @@ fun MessageList(
 
     LaunchedEffect(itemCount, lastLength) {
         if (itemCount == 0) return@LaunchedEffect
-        val firstRun = scrolledCount.intValue == 0
-        if (!firstRun && !listState.isNearBottom()) return@LaunchedEffect
-        when {
-            firstRun -> {
-                scrolledCount.intValue = itemCount
-                listState.scrollToItem(itemCount - 1)
-            }
-
-            itemCount != scrolledCount.intValue -> {
-                scrolledCount.intValue = itemCount
-                listState.animateScrollToItem(itemCount - 1)
-            }
-
-            else -> listState.scrollBy(listState.layoutInfo.viewportSize.height.toFloat())
+        if (scrolledCount.intValue == 0) {
+            scrolledCount.intValue = itemCount
+            listState.scrollToItem(itemCount - 1)
+            return@LaunchedEffect
+        }
+        if (!listState.isNearBottom()) return@LaunchedEffect
+        if (itemCount != scrolledCount.intValue) {
+            scrolledCount.intValue = itemCount
+            listState.animateScrollToItem(itemCount - 1)
+            return@LaunchedEffect
+        }
+        withFrameNanos { }
+        val overflow = listState.bottomOverflow()
+        if (overflow > 0f) {
+            listState.scrollBy(overflow)
         }
     }
 
@@ -81,6 +83,14 @@ private fun LazyListState.isNearBottom(): Boolean {
     if (last.index < layout.totalItemsCount - 1) return false
     val contentEnd = layout.viewportEndOffset - layout.afterContentPadding
     return last.offset + last.size - contentEnd <= BOTTOM_TOLERANCE_PIXELS
+}
+
+private fun LazyListState.bottomOverflow(): Float {
+    val layout = layoutInfo
+    val last = layout.visibleItemsInfo.lastOrNull() ?: return 0f
+    if (last.index < layout.totalItemsCount - 1) return 0f
+    val contentEnd = layout.viewportEndOffset - layout.afterContentPadding
+    return (last.offset + last.size - contentEnd).toFloat().coerceAtLeast(0f)
 }
 
 private const val TYPING_KEY = "typing"
