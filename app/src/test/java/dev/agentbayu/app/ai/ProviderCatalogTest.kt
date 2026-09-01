@@ -32,12 +32,27 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `bundled catalog holds opencode codex and one openai compatible entry`() {
+    fun `bundled catalog holds opencode codex agy and one openai compatible entry`() {
         assertEquals(
-            listOf("opencode", "codex", "openai-compatible"),
+            listOf("opencode", "codex", "agy", "openai-compatible"),
             catalog.providers.map { it.id }
         )
         assertEquals("opencode", ProviderCatalog.DEFAULT_PROVIDER_ID)
+    }
+
+    @Test
+    fun `agy entry uses antigravity wire with browser login and bootstrap`() {
+        val provider = catalog.find("agy")!!
+
+        assertEquals(WireFormat.ANTIGRAVITY, provider.wireFormat)
+        assertEquals(AuthKind.OAUTH_PKCE, provider.authKind)
+        assertEquals(ProviderTier.SUBSCRIPTION, provider.tier)
+        assertEquals(RiskLevel.TOS_GRAY, provider.risk)
+        assertNotNull(provider.browserLogin)
+        assertTrue(provider.needsProjectBootstrap)
+        assertTrue(provider.modelsUsePost)
+        assertTrue(provider.models.isNotEmpty())
+        assertFalse(provider.browserLogin!!.clientSecretMasked.isNullOrBlank())
     }
 
     @Test
