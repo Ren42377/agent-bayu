@@ -1,7 +1,5 @@
 package dev.agentbayu.app.ui.settings
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -25,7 +23,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,8 +40,11 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
 import dev.agentbayu.app.R
 import dev.agentbayu.app.platform.ThemeMode
+import dev.agentbayu.app.ui.components.DampedDragAnimation
 import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassToggle
@@ -52,6 +60,9 @@ import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
 import dev.agentbayu.app.ui.theme.liquidGlass
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.drop
+import kotlin.math.abs
 
 @Composable
 fun SettingsScreen(
@@ -245,24 +256,58 @@ private fun ThemeModeSelector(
     onModeChange: (ThemeMode) -> Unit
 ) {
     val options = ThemeMode.entries
+    val lastIndex = options.lastIndex
     val selectedIndex = options.indexOf(mode).coerceAtLeast(0)
-    val indicator by animateFloatAsState(
-        targetValue = selectedIndex.toFloat(),
-        animationSpec = spring(dampingRatio = 0.85f, stiffness = 320f),
-        label = "themeModeIndicator"
-    )
     val accent = MaterialTheme.colorScheme.primary
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val indicatorStyle = LocalGlassStyle.current.copy(
         elevation = SELECTOR_ELEVATION,
         highlightAlpha = SELECTOR_HIGHLIGHT_ALPHA
     )
+    val animationScope = rememberCoroutineScope()
+    val currentOnModeChange by rememberUpdatedState(onModeChange)
+    var currentIndex by remember { mutableIntStateOf(selectedIndex) }
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(SELECTOR_HEIGHT)
     ) {
         val segmentWidth = maxWidth / options.size
+        val segmentWidthPx = constraints.maxWidth.toFloat() / options.size
+        val dragAnimation = remember(animationScope, segmentWidthPx) {
+            DampedDragAnimation(
+                animationScope = animationScope,
+                initialValue = selectedIndex.toFloat(),
+                valueRange = 0f..lastIndex.toFloat(),
+                visibilityThreshold = 0.001f,
+                initialScale = 1f,
+                pressedScale = SELECTOR_PRESSED_SCALE,
+                onDragStarted = {},
+                onDragStopped = {
+                    val target = targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
+                    currentIndex = target
+                    animateToValue(target.toFloat())
+                },
+                onDrag = { _, dragAmount ->
+                    updateValue(
+                        (targetValue + dragAmount.x / segmentWidthPx)
+                            .fastCoerceIn(0f, lastIndex.toFloat())
+                    )
+                }
+            )
+        }
+        LaunchedEffect(selectedIndex) {
+            currentIndex = selectedIndex
+        }
+        LaunchedEffect(dragAnimation) {
+            snapshotFlow { currentIndex }
+                .drop(1)
+                .collectLatest { index ->
+                    dragAnimation.animateToValue(index.toFloat())
+                    currentOnModeChange(options[index])
+                }
+        }
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -272,12 +317,21 @@ private fun ThemeModeSelector(
             modifier = Modifier
                 .width(segmentWidth)
                 .fillMaxHeight()
-                .graphicsLayer { translationX = indicator * segmentWidth.toPx() }
+                .graphicsLayer { translationX = dragAnimation.value * segmentWidthPx }
                 .liquidGlass(
                     shape = CapsuleShape,
                     style = indicatorStyle,
                     tint = accent,
-                    tintAlpha = SELECTOR_TINT_ALPHA
+                    tintAlpha = SELECTOR_TINT_ALPHA,
+                    layerBlock = {
+                        scaleX = dragAnimation.scaleX
+                        scaleY = dragAnimation.scaleY
+                        val velocity = dragAnimation.velocity / SELECTOR_VELOCITY_SCALE
+                        scaleX /= 1f - (velocity * 0.75f)
+                            .fastCoerceIn(-SELECTOR_SQUISH, SELECTOR_SQUISH)
+                        scaleY *= 1f - (velocity * 0.25f)
+                            .fastCoerceIn(-SELECTOR_SQUISH, SELECTOR_SQUISH)
+                    }
                 )
         )
         Row(modifier = Modifier.fillMaxSize()) {
@@ -292,16 +346,22 @@ private fun ThemeModeSelector(
                         .weight(1f)
                         .fillMaxHeight()
                         .clip(CapsuleShape)
-                        .clickable { onModeChange(option) },
+                        .then(dragAnimation.modifier)
+                        .clickable { currentIndex = index },
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (index == selectedIndex) {
-                            Color.White
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                        color = labelColor
+                    )
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White,
+                        modifier = Modifier.graphicsLayer {
+                            alpha = (1f - abs(index - dragAnimation.value))
+                                .fastCoerceIn(0f, 1f)
                         }
                     )
                 }
@@ -398,3 +458,6 @@ private val SELECTOR_HEIGHT = 36.dp
 private val SELECTOR_ELEVATION = 3.dp
 private const val SELECTOR_HIGHLIGHT_ALPHA = 0.9f
 private const val SELECTOR_TINT_ALPHA = 0.88f
+private const val SELECTOR_PRESSED_SCALE = 1.1f
+private const val SELECTOR_VELOCITY_SCALE = 10f
+private const val SELECTOR_SQUISH = 0.2f
