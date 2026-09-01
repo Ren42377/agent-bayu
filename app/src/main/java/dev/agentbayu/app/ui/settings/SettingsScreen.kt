@@ -48,8 +48,10 @@ import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.AppleTealLight
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.liquidGlass
 
 @Composable
 fun SettingsScreen(
@@ -250,22 +252,33 @@ private fun ThemeModeSelector(
         label = "themeModeIndicator"
     )
     val accent = MaterialTheme.colorScheme.primary
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f)
+    val indicatorStyle = LocalGlassStyle.current.copy(
+        elevation = SELECTOR_ELEVATION,
+        highlightAlpha = SELECTOR_HIGHLIGHT_ALPHA
+    )
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
             .height(SELECTOR_HEIGHT)
-            .background(
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-                shape = CapsuleShape
-            )
     ) {
         val segmentWidth = maxWidth / options.size
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(color = trackColor, shape = CapsuleShape)
+        )
         Box(
             modifier = Modifier
                 .width(segmentWidth)
                 .fillMaxHeight()
                 .graphicsLayer { translationX = indicator * segmentWidth.toPx() }
-                .glassSurface(shape = CapsuleShape, tint = accent, elevation = 2.dp)
+                .liquidGlass(
+                    shape = CapsuleShape,
+                    style = indicatorStyle,
+                    tint = accent,
+                    tintAlpha = SELECTOR_TINT_ALPHA
+                )
         )
         Row(modifier = Modifier.fillMaxSize()) {
             options.forEachIndexed { index, option ->
@@ -382,3 +395,6 @@ private fun SettingDivider() {
 }
 
 private val SELECTOR_HEIGHT = 36.dp
+private val SELECTOR_ELEVATION = 3.dp
+private const val SELECTOR_HIGHLIGHT_ALPHA = 0.9f
+private const val SELECTOR_TINT_ALPHA = 0.88f
