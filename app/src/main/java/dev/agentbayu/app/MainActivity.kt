@@ -26,7 +26,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -35,20 +37,18 @@ import androidx.core.view.WindowCompat
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import dev.agentbayu.app.ui.ai.AiSheetController
-import dev.agentbayu.app.ui.ai.AiSheetHost
 import dev.agentbayu.app.ui.chat.ChatRoute
 import dev.agentbayu.app.ui.components.AmbientBackground
 import dev.agentbayu.app.ui.components.CardPager
-import dev.agentbayu.app.ui.components.GlassOverlay
 import dev.agentbayu.app.ui.components.GlassOverlayController
 import dev.agentbayu.app.ui.components.GlassOverlayHost
-import dev.agentbayu.app.ui.components.GlassOverlayPresentation
 import dev.agentbayu.app.ui.components.GlassTabsProgress
 import dev.agentbayu.app.ui.components.LocalGlassOverlay
+import dev.agentbayu.app.ui.components.PageStackProgress
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
-import dev.agentbayu.app.ui.onboarding.OnboardingRoute
+import dev.agentbayu.app.ui.nav.AppPageController
+import dev.agentbayu.app.ui.nav.AppPageHost
 import dev.agentbayu.app.ui.settings.SettingsRoute
 import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
@@ -97,7 +97,8 @@ private fun AgentBayuApp() {
     val contentBackdrop = rememberLayerBackdrop()
     val chromeBackdrop = rememberCombinedBackdrop(ambientBackdrop, contentBackdrop)
     val overlayController = remember { GlassOverlayController() }
-    val sheetController = remember { AiSheetController() }
+    val pageController = remember { AppPageController() }
+    val pageProgress = remember { PageStackProgress() }
     val tabProgress = remember { GlassTabsProgress() }
     val destinations = AgentBayuDestination.entries
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -128,7 +129,10 @@ private fun AgentBayuApp() {
                     CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
                         AgentBayuBottomBar(
                             selectedIndex = selectedTab,
-                            onSelect = { index -> selectedTab = index },
+                            onSelect = { index ->
+                                pageController.closeAll()
+                                selectedTab = index
+                            },
                             progress = tabProgress,
                             windowInsets = if (keyboardVisible) {
                                 WindowInsets(0, 0, 0, 0)
@@ -148,41 +152,52 @@ private fun AgentBayuApp() {
                             .fillMaxSize()
                             .layerBackdrop(contentBackdrop)
                     ) {
-                        CardPager(
-                            pageCount = destinations.size,
-                            progress = { tabProgress.value() },
-                            modifier = Modifier.fillMaxSize()
-                        ) { page ->
-                            when (destinations[page]) {
-                                AgentBayuDestination.CHAT -> ChatRoute(
-                                    onMessage = onMessage,
-                                    onOpenProviders = { sheetController.openProviders() },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    val cover = pageProgress.value().coerceIn(0f, 1f)
+                                    alpha = 1f - cover
+                                    translationX = -size.width * BASE_PARALLAX * cover
+                                }
+                                .drawWithContent {
+                                    if (pageProgress.value() < BASE_COVER_LIMIT) {
+                                        drawContent()
+                                    }
+                                }
+                        ) {
+                            CardPager(
+                                pageCount = destinations.size,
+                                progress = { tabProgress.value() },
+                                modifier = Modifier.fillMaxSize()
+                            ) { page ->
+                                when (destinations[page]) {
+                                    AgentBayuDestination.CHAT -> ChatRoute(
+                                        onMessage = onMessage,
+                                        onOpenProviders = { pageController.openProviders() },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
 
-                                AgentBayuDestination.SETTINGS -> SettingsRoute(
-                                    onMessage = onMessage,
-                                    onOpenProviders = { sheetController.openProviders() },
-                                    onOpenLogs = { sheetController.openLogs() },
-                                    modifier = Modifier.fillMaxSize()
-                                )
+                                    AgentBayuDestination.SETTINGS -> SettingsRoute(
+                                        onMessage = onMessage,
+                                        onOpenProviders = { pageController.openProviders() },
+                                        onOpenLogs = { pageController.openLogs() },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
                             }
                         }
+
+                        AppPageHost(
+                            controller = pageController,
+                            progress = pageProgress,
+                            onboardingVisible = onboardingVisible,
+                            onOnboardingFinish = settings::completeOnboarding,
+                            onMessage = onMessage,
+                            modifier = Modifier.fillMaxSize()
+                        )
                     }
                 }
-            }
-
-            AiSheetHost(controller = sheetController, onMessage = onMessage)
-
-            GlassOverlay(
-                visible = onboardingVisible,
-                presentation = GlassOverlayPresentation.SHEET,
-                onDismiss = settings::completeOnboarding
-            ) {
-                OnboardingRoute(
-                    onFinish = settings::completeOnboarding,
-                    onMessage = onMessage
-                )
             }
 
             GlassOverlayHost(
@@ -193,3 +208,6 @@ private fun AgentBayuApp() {
         }
     }
 }
+
+private const val BASE_PARALLAX = 0.25f
+private const val BASE_COVER_LIMIT = 0.999f

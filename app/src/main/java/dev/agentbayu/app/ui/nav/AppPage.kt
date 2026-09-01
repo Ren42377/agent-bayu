@@ -1,0 +1,54 @@
+package dev.agentbayu.app.ui.nav
+
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.mutableStateListOf
+
+sealed interface AppPage {
+
+    data object Onboarding : AppPage
+
+    data object Providers : AppPage
+
+    data object Logs : AppPage
+
+    data class Connection(val connectionId: String?) : AppPage
+
+    data class DeviceCode(val connectionId: String) : AppPage
+}
+
+@Stable
+class AppPageController {
+
+    internal val stack = mutableStateListOf<AppPage>()
+
+    fun openProviders() {
+        stack.clear()
+        stack.add(AppPage.Providers)
+    }
+
+    fun openLogs() {
+        stack.clear()
+        stack.add(AppPage.Logs)
+    }
+
+    fun openConnection(connectionId: String?) {
+        stack.add(AppPage.Connection(connectionId))
+    }
+
+    fun openDeviceCode(connectionId: String) {
+        if (stack.lastOrNull() is AppPage.Connection) {
+            stack.removeAt(stack.lastIndex)
+        }
+        stack.add(AppPage.DeviceCode(connectionId))
+    }
+
+    fun back() {
+        if (stack.isNotEmpty()) {
+            stack.removeAt(stack.lastIndex)
+        }
+    }
+
+    fun closeAll() {
+        stack.clear()
+    }
+}
