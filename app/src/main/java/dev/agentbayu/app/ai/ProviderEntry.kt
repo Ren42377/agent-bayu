@@ -26,6 +26,7 @@ data class ProviderEntry(
     val editableBaseUrl: Boolean = false,
     val allowCustomModel: Boolean = false,
     val unsupportedParams: List<String> = emptyList(),
+    val effortMode: EffortMode = EffortMode.NONE,
     val extraHeaders: Map<String, String> = emptyMap(),
     val oauth: OAuthConfig? = null,
     val models: List<ModelEntry> = emptyList()

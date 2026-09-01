@@ -65,6 +65,10 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
         if (temperature != null && WireParams.supports(candidate, WireParams.TEMPERATURE)) {
             put(WireParams.TEMPERATURE, temperature)
         }
+        val effort = request.effort
+        if (effort != null && WireParams.supports(candidate, WireParams.REASONING)) {
+            put(REASONING_EFFORT, effort.wireValue)
+        }
         if (candidate.provider.supportsStreamUsage && WireParams.supports(candidate, WireParams.STREAM_OPTIONS)) {
             putJsonObject(WireParams.STREAM_OPTIONS) {
                 put("include_usage", true)
@@ -103,6 +107,7 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
 
     companion object {
         const val CHAT_PATH = "chat/completions"
+        const val REASONING_EFFORT = "reasoning_effort"
         const val STREAM_ERROR_STATUS = 500
     }
 }

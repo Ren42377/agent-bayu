@@ -9,6 +9,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -67,6 +68,12 @@ class OpenAiResponsesAdapter(
         }
         put("stream", true)
         put("store", false)
+        val effort = request.effort
+        if (effort != null && WireParams.supports(candidate, WireParams.REASONING)) {
+            putJsonObject("reasoning") {
+                put("effort", effort.wireValue)
+            }
+        }
     }
 
     private fun instructionsOf(request: ChatRequest): String {

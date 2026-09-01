@@ -52,7 +52,8 @@ class ConnectionTester(
         val request = ChatRequest(
             turns = listOf(ChatTurn(ChatRole.USER, PROBE_PROMPT)),
             maxOutputTokens = candidate.provider.clampOutputTokens(PROBE_MAX_TOKENS),
-            temperature = null
+            temperature = null,
+            effort = candidate.effort
         )
         val credential = credentialFor(candidate, apiKey)
         val startedAt = clock.nowMillis()
@@ -151,6 +152,7 @@ class ConnectionTester(
     private fun candidateOf(connection: Connection): Candidate? {
         val provider = catalog.find(connection.providerId) ?: return null
         return Candidate(connection, provider, provider.modelOrFallback(connection.model))
+            .withEffortModel()
     }
 
     private suspend fun credentialFor(candidate: Candidate, apiKey: String?): WireCredential {

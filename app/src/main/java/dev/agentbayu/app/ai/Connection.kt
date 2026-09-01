@@ -21,6 +21,7 @@ data class Connection(
     val healthDetail: String? = null,
     val keyHint: String? = null,
     val projectId: String? = null,
+    val effort: ReasoningEffort? = null,
     val createdAtMillis: Long = 0L
 )
 

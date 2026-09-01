@@ -55,7 +55,8 @@ class AiClient(
         }
 
         val effective = request.copy(
-            maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens)
+            maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens),
+            effort = candidate.effort
         )
         val connectionId = candidate.connection.id
         val credential = credentials.resolve(candidate)

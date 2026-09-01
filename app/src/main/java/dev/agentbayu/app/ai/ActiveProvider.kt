@@ -38,6 +38,7 @@ class ActiveProvider(
         }
         return ActiveResolution.Ready(
             Candidate(connection, provider, provider.modelOrFallback(connection.model))
+                .withEffortModel()
         )
     }
 

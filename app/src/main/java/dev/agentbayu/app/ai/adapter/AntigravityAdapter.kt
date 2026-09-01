@@ -3,6 +3,7 @@ package dev.agentbayu.app.ai.adapter
 import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.RouteFailure
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
@@ -64,9 +65,10 @@ internal fun antigravityBody(
     projectId: String,
     requestId: String
 ): JsonObject = buildJsonObject {
+    val upstreamModel = resolveAntigravityModelId(candidate.model.id)
     put(PROJECT, projectId)
     put(REQUEST_ID, requestId)
-    put(MODEL, resolveAntigravityModelId(candidate.model.id))
+    put(MODEL, upstreamModel)
     put(USER_AGENT, USER_AGENT_VALUE)
     put(REQUEST_TYPE, REQUEST_TYPE_VALUE)
     putJsonObject(REQUEST) {
@@ -90,12 +92,24 @@ internal fun antigravityBody(
             }
         }
         putJsonObject("generationConfig") {
-            put("maxOutputTokens", request.maxOutputTokens ?: candidate.model.maxOutputTokens)
+            val budget = if (WireParams.supports(candidate, WireParams.REASONING)) {
+                antigravityThinkingBudget(upstreamModel, request.effort)
+            } else {
+                null
+            }
+            val requestedMax = request.maxOutputTokens ?: candidate.model.maxOutputTokens
+            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax, budget))
             put("topK", DEFAULT_TOP_K)
             put("topP", DEFAULT_TOP_P)
             val temperature = request.temperature
             if (temperature != null && WireParams.supports(candidate, WireParams.TEMPERATURE)) {
                 put("temperature", temperature)
+            }
+            if (budget != null) {
+                putJsonObject("thinkingConfig") {
+                    put("thinkingBudget", budget)
+                    put("includeThoughts", true)
+                }
             }
         }
     }
@@ -118,6 +132,24 @@ internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
 internal fun resolveAntigravityModelId(modelId: String): String =
     MODEL_ALIASES[modelId] ?: modelId
 
+internal fun antigravityThinkingBudget(upstreamModel: String, effort: ReasoningEffort?): Int? {
+    if (effort == null) return null
+    val unsupported = THINKING_UNSUPPORTED_PREFIXES.any {
+        upstreamModel.startsWith(it, ignoreCase = true)
+    }
+    if (unsupported) return null
+    val budget = THINKING_BUDGETS[effort] ?: return null
+    val cap = THINKING_BUDGET_CAPS
+        .firstOrNull { upstreamModel.startsWith(it.first, ignoreCase = true) }
+        ?.second
+    return if (cap != null && budget > cap) cap else budget
+}
+
+internal fun antigravityMaxOutputTokens(requested: Int, budget: Int?): Int {
+    if (budget == null || budget <= 0) return requested
+    return if (requested <= budget) budget + 1 else requested
+}
+
 internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
     val envelope = parseJsonObject(raw) ?: return emptyList()
     val root = envelope.objectField(RESPONSE) ?: envelope
@@ -134,11 +166,9 @@ internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
     if (parts != null) {
         val text = parts.mapNotNull { element ->
             val part = element as? JsonObject ?: return@mapNotNull null
-            if (part.containsKey(THOUGHT) || part.containsKey(THOUGHT_SIGNATURE)) {
-                null
-            } else {
-                part.stringField("text")
-            }
+            val isThought = part.booleanField(THOUGHT) == true ||
+                !part.stringField(THOUGHT_SIGNATURE).isNullOrEmpty()
+            if (isThought) null else part.stringField("text")
         }.joinToString("")
         if (text.isNotEmpty()) events += WireEvent.Delta(text)
     }
@@ -158,6 +188,23 @@ private val MODEL_ALIASES = mapOf(
     "gemini-3.7-flash-low" to "gemini-3.7-flash-tiered",
     "gemini-3.1-pro-high" to "gemini-pro-agent",
     "gpt-oss-120b" to "gpt-oss-120b-medium"
+)
+
+private val THINKING_UNSUPPORTED_PREFIXES = listOf("claude-", "gpt-oss-", "tab_")
+
+private val THINKING_BUDGETS = mapOf(
+    ReasoningEffort.LOW to 1_024,
+    ReasoningEffort.MEDIUM to 10_240,
+    ReasoningEffort.HIGH to 32_768,
+    ReasoningEffort.XHIGH to 131_072,
+    ReasoningEffort.MAX to 131_072
+)
+
+private val THINKING_BUDGET_CAPS = listOf(
+    "gemini-3.7-flash" to 24_576,
+    "gemini-3.1-pro-low" to 16_000,
+    "gemini-3.1-pro" to 32_768,
+    "gemini-pro-agent" to 32_768
 )
 
 private const val PROJECT = "project"

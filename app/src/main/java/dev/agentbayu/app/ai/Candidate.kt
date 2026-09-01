@@ -26,6 +26,12 @@ data class Candidate(
     val blendedPricePerMillion: Double
         get() = (inputPricePerMillion + outputPricePerMillion * 3.0) / 4.0
 
+    val efforts: List<ReasoningEffort>
+        get() = availableEfforts(provider, model.id, connection.discoveredModels)
+
+    val effort: ReasoningEffort?
+        get() = resolveEffort(efforts, connection.effort, model.id)
+
     companion object {
         private val LOOPBACK_HOSTS = listOf("127.0.0.1", "localhost", "10.0.2.2", "[::1]")
     }

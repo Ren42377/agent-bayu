@@ -20,8 +20,11 @@ import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ConnectionTestResult
 import dev.agentbayu.app.ai.Credential
+import dev.agentbayu.app.ai.MIN_EFFORT_FAMILY_SIZE
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderEntry
+import dev.agentbayu.app.ai.availableEfforts
+import dev.agentbayu.app.ai.resolveEffort
 import dev.agentbayu.app.ui.components.GlassDialog
 import kotlinx.coroutines.launch
 
@@ -56,6 +59,7 @@ fun AiConnectionEditRoute(
     }
     var discovered by remember { mutableStateOf(existing?.discoveredModels ?: emptyList()) }
     var modelProbes by remember { mutableStateOf(emptyMap<String, String>()) }
+    var effort by remember { mutableStateOf(existing?.effort) }
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var probing by remember { mutableStateOf(false) }
@@ -63,6 +67,10 @@ fun AiConnectionEditRoute(
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
     val loggedIn = remember(id) { credentials.credential(id) is Credential.OAuthTokens }
+    val effortOptions = remember(provider, model, discovered) {
+        provider?.let { availableEfforts(it, model.trim(), discovered) }.orEmpty()
+    }
+    val selectedEffort = resolveEffort(effortOptions, effort, model.trim())
     val savedMessage = stringResource(R.string.connection_saved)
     val errorKey = stringResource(R.string.connection_error_key)
     val errorModel = stringResource(R.string.connection_error_model)
@@ -84,6 +92,7 @@ fun AiConnectionEditRoute(
             .takeIf { it.isNotEmpty() && it != provider?.baseUrl },
         discoveredModels = discovered,
         projectId = existing?.projectId,
+        effort = selectedEffort.takeIf { effortOptions.size >= MIN_EFFORT_FAMILY_SIZE },
         createdAtMillis = existing?.createdAtMillis ?: 0L
     )
 
@@ -112,6 +121,8 @@ fun AiConnectionEditRoute(
         model = model,
         modelOptions = modelOptions(provider, discovered),
         modelProbes = modelProbes,
+        efforts = effortOptions,
+        effort = selectedEffort,
         baseUrl = baseUrl,
         isNew = existing == null,
         loggedIn = loggedIn,
@@ -129,12 +140,14 @@ fun AiConnectionEditRoute(
                 model = defaultModel(selected)
                 discovered = emptyList()
                 modelProbes = emptyMap()
+                effort = null
                 provider = selected
             }
         },
         onLabelChange = { value -> label = value },
         onKeyChange = { value -> apiKey = value },
         onModelChange = { value -> model = value },
+        onEffortChange = { value -> effort = value },
         onBaseUrlChange = { value -> baseUrl = value },
         onRefreshModels = {
             refreshing = true

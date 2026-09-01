@@ -67,6 +67,7 @@ fun testProvider(
     modelIdFilter: String? = null,
     timeoutMillis: Long = ProviderEntry.DEFAULT_TIMEOUT_MILLIS,
     unsupportedParams: List<String> = emptyList(),
+    effortMode: EffortMode = EffortMode.NONE,
     extraHeaders: Map<String, String> = emptyMap(),
     oauth: OAuthConfig? = null
 ): ProviderEntry = ProviderEntry(
@@ -87,6 +88,7 @@ fun testProvider(
     modelIdFilter = modelIdFilter,
     timeoutMillis = timeoutMillis,
     unsupportedParams = unsupportedParams,
+    effortMode = effortMode,
     extraHeaders = extraHeaders,
     oauth = oauth,
     models = models
@@ -98,6 +100,9 @@ fun testConnection(
     label: String = id,
     model: String = "model-a",
     baseUrlOverride: String? = null,
+    discoveredModels: List<String> = emptyList(),
+    projectId: String? = null,
+    effort: ReasoningEffort? = null,
     health: ConnectionHealth = ConnectionHealth.READY,
     createdAtMillis: Long = 0L
 ): Connection = Connection(
@@ -106,6 +111,9 @@ fun testConnection(
     label = label,
     model = model,
     baseUrlOverride = baseUrlOverride,
+    discoveredModels = discoveredModels,
+    projectId = projectId,
+    effort = effort,
     health = health,
     createdAtMillis = createdAtMillis
 )
@@ -122,6 +130,7 @@ fun testCandidate(
     free: Boolean = false,
     baseUrl: String = "https://api.example.test/v1",
     baseUrlOverride: String? = null,
+    projectId: String? = null,
     authKind: AuthKind = AuthKind.API_KEY,
     optionalKey: Boolean = false,
     anonymousKey: String? = null,
@@ -151,7 +160,8 @@ fun testCandidate(
             providerId = providerId,
             label = connectionId,
             model = modelId,
-            baseUrlOverride = baseUrlOverride
+            baseUrlOverride = baseUrlOverride,
+            projectId = projectId
         ),
         provider = testProvider(
             id = providerId,

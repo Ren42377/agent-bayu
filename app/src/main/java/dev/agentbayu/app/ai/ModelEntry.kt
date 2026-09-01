@@ -11,6 +11,7 @@ data class ModelEntry(
     val inputPricePerMillion: Double? = null,
     val outputPricePerMillion: Double? = null,
     val unsupportedParams: List<String> = emptyList(),
+    val efforts: List<ReasoningEffort> = emptyList(),
     val free: Boolean = false
 ) {
     val hasKnownPrice: Boolean
