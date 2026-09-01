@@ -15,7 +15,7 @@ import dev.agentbayu.app.MainActivity
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.AssistantPanel
 import dev.agentbayu.app.ui.components.defaultSuggestions
-import dev.agentbayu.app.ui.theme.AgentBayuTheme
+import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
 
 class AssistFallbackActivity : ComponentActivity() {
 
@@ -32,7 +32,7 @@ class AssistFallbackActivity : ComponentActivity() {
             val messages by chat.messages.collectAsState()
             val responding by chat.isResponding.collectAsState()
             LaunchedEffect(Unit) { panel.show() }
-            AgentBayuTheme {
+            AgentBayuAppTheme {
                 AssistantPanel(
                     visible = visible,
                     messages = messages,

@@ -63,6 +63,12 @@
     <string name="settings_cleared">Riwayat percakapan dihapus.</string>
 
     <string name="settings_assistant">Asisten</string>
+    <string name="settings_appearance">Tampilan</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_body">Pilih tema terang, gelap, atau ikut pengaturan sistem.</string>
+    <string name="theme_mode_system">Sistem</string>
+    <string name="theme_mode_light">Terang</string>
+    <string name="theme_mode_dark">Gelap</string>
     <string name="settings_ai">Backend AI</string>
     <string name="settings_providers_title">Provider AI</string>
     <string name="settings_providers_body">Kelola koneksi, cara masuk, kunci API, dan model.</string>

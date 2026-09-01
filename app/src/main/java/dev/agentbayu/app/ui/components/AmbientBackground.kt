@@ -1,20 +1,14 @@
 package dev.agentbayu.app.ui.components
 
-import androidx.compose.animation.core.InfiniteTransition
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.State
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -23,6 +17,8 @@ import androidx.compose.ui.graphics.Color
 import dev.agentbayu.app.ui.theme.AppleBlueDark
 import dev.agentbayu.app.ui.theme.AppleIndigoDark
 import dev.agentbayu.app.ui.theme.AppleTealDark
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
 
@@ -30,7 +26,7 @@ import kotlin.math.sin
 fun AmbientBackground(
     modifier: Modifier = Modifier,
     canvasModifier: Modifier = Modifier,
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = LocalDarkTheme.current,
     content: @Composable BoxScope.() -> Unit
 ) {
     Box(modifier = modifier.fillMaxSize()) {
@@ -51,19 +47,23 @@ fun AmbientBackground(
             AppleTealDark.copy(alpha = 0.05f)
         }
 
-        val transition = rememberInfiniteTransition(label = "ambientDrift")
-        val primaryPhase = transition.driftPhase(PRIMARY_CYCLE_MILLIS, "ambientPrimary")
-        val secondaryPhase = transition.driftPhase(SECONDARY_CYCLE_MILLIS, "ambientSecondary")
-        val tertiaryPhase = transition.driftPhase(TERTIARY_CYCLE_MILLIS, "ambientTertiary")
+        val drift = remember { mutableFloatStateOf(0f) }
+        LaunchedEffect(Unit) {
+            while (true) {
+                delay(DRIFT_STEP_MILLIS)
+                drift.floatValue = (drift.floatValue + DRIFT_STEP_MILLIS) % DRIFT_WRAP_MILLIS
+            }
+        }
 
         Canvas(modifier = canvasModifier.fillMaxSize()) {
+            val elapsed = drift.floatValue
             drawRect(color = baseColor)
 
             val primaryCenter = driftCenter(
                 size = size,
                 baseX = 0.85f,
                 baseY = 0.15f,
-                phase = primaryPhase.value,
+                phase = elapsed / PRIMARY_CYCLE_MILLIS,
                 xTurns = 1f,
                 yTurns = 2f,
                 offset = 0f
@@ -83,7 +83,7 @@ fun AmbientBackground(
                 size = size,
                 baseX = 0.15f,
                 baseY = 0.65f,
-                phase = secondaryPhase.value,
+                phase = elapsed / SECONDARY_CYCLE_MILLIS,
                 xTurns = 2f,
                 yTurns = 1f,
                 offset = HALF_PI
@@ -103,7 +103,7 @@ fun AmbientBackground(
                 size = size,
                 baseX = 0.7f,
                 baseY = 0.9f,
-                phase = tertiaryPhase.value,
+                phase = elapsed / TERTIARY_CYCLE_MILLIS,
                 xTurns = 1f,
                 yTurns = 3f,
                 offset = PI.toFloat()
@@ -124,18 +124,6 @@ fun AmbientBackground(
     }
 }
 
-@Composable
-private fun InfiniteTransition.driftPhase(cycleMillis: Int, label: String): State<Float> =
-    animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = cycleMillis, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = label
-    )
-
 private fun driftCenter(
     size: Size,
     baseX: Float,
@@ -153,9 +141,11 @@ private fun driftCenter(
     )
 }
 
-private const val PRIMARY_CYCLE_MILLIS = 45_000
-private const val SECONDARY_CYCLE_MILLIS = 60_000
-private const val TERTIARY_CYCLE_MILLIS = 52_000
+private const val PRIMARY_CYCLE_MILLIS = 45_000f
+private const val SECONDARY_CYCLE_MILLIS = 60_000f
+private const val TERTIARY_CYCLE_MILLIS = 48_000f
+private const val DRIFT_STEP_MILLIS = 200L
+private const val DRIFT_WRAP_MILLIS = 3_600_000f
 private const val DRIFT_AMPLITUDE = 0.08f
 private val TWO_PI = (PI * 2.0).toFloat()
 private val HALF_PI = (PI / 2.0).toFloat()

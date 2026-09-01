@@ -4,7 +4,6 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -50,6 +49,7 @@ import dev.agentbayu.app.ui.theme.GlassOverlayDimDark
 import dev.agentbayu.app.ui.theme.GlassOverlayDimLight
 import dev.agentbayu.app.ui.theme.GlassOverlayFillDark
 import dev.agentbayu.app.ui.theme.GlassOverlayFillLight
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.PanelShape
@@ -107,7 +107,7 @@ fun GlassOverlayHost(
     controller: GlassOverlayController,
     backdrop: Backdrop,
     modifier: Modifier = Modifier,
-    darkTheme: Boolean = isSystemInDarkTheme()
+    darkTheme: Boolean = LocalDarkTheme.current
 ) {
     val rendered = remember { mutableStateListOf<GlassOverlayEntry>() }
     controller.entries.forEach { entry ->

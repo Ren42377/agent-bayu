@@ -37,7 +37,7 @@ import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 data class ProviderRowState(
     val connection: Connection,
@@ -81,7 +81,7 @@ fun ProvidersScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .liquidGlass(shape = GlassCardShape)
+                        .glassSurface(shape = GlassCardShape)
                         .padding(20.dp)
                 ) {
                     Column {
@@ -167,7 +167,7 @@ private fun ConnectionCard(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(shape = GlassCardShape)
+            .glassSurface(shape = GlassCardShape)
             .clickable { onEdit(connection.id) }
             .padding(16.dp)
     ) {

@@ -33,7 +33,7 @@ import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassOverlay
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 data class ProviderOption(
     val connectionId: String,
@@ -202,7 +202,11 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
             Box(
                 modifier = Modifier
                     .size(24.dp)
-                    .liquidGlass(shape = CircleShape, tint = AppleGreenLight),
+                    .glassSurface(
+                        shape = CircleShape,
+                        tint = AppleGreenLight,
+                        elevation = 2.dp
+                    ),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(

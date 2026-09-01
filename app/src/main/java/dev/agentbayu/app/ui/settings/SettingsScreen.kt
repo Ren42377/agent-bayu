@@ -1,12 +1,17 @@
 package dev.agentbayu.app.ui.settings
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,30 +25,38 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.platform.ThemeMode
 import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleIndigoLight
+import dev.agentbayu.app.ui.theme.ApplePurpleLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.AppleTealLight
+import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
 fun SettingsScreen(
     versionName: String,
     useScreenContext: Boolean,
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
     onClearConversation: () -> Unit,
     onOpenProviders: () -> Unit,
@@ -71,6 +84,34 @@ fun SettingsScreen(
             color = MaterialTheme.colorScheme.onBackground,
             modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
         )
+
+        SectionGroup(title = stringResource(R.string.settings_appearance)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                GlassBadge(
+                    icon = painterResource(R.drawable.ic_theme),
+                    containerColor = ApplePurpleLight
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_theme_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_theme_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            ThemeModeSelector(mode = themeMode, onModeChange = onThemeModeChange)
+        }
 
         SectionGroup(title = stringResource(R.string.settings_assistant)) {
             NavigationSettingRow(
@@ -186,11 +227,71 @@ private fun SectionGroup(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .liquidGlass(shape = GlassCardShape)
+                .glassSurface(shape = GlassCardShape)
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 content()
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeModeSelector(
+    mode: ThemeMode,
+    onModeChange: (ThemeMode) -> Unit
+) {
+    val options = ThemeMode.entries
+    val selectedIndex = options.indexOf(mode).coerceAtLeast(0)
+    val indicator by animateFloatAsState(
+        targetValue = selectedIndex.toFloat(),
+        animationSpec = spring(dampingRatio = 0.85f, stiffness = 320f),
+        label = "themeModeIndicator"
+    )
+    val accent = MaterialTheme.colorScheme.primary
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(SELECTOR_HEIGHT)
+            .background(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+                shape = CapsuleShape
+            )
+    ) {
+        val segmentWidth = maxWidth / options.size
+        Box(
+            modifier = Modifier
+                .width(segmentWidth)
+                .fillMaxHeight()
+                .graphicsLayer { translationX = indicator * segmentWidth.toPx() }
+                .glassSurface(shape = CapsuleShape, tint = accent, elevation = 2.dp)
+        )
+        Row(modifier = Modifier.fillMaxSize()) {
+            options.forEachIndexed { index, option ->
+                val label = when (option) {
+                    ThemeMode.SYSTEM -> stringResource(R.string.theme_mode_system)
+                    ThemeMode.LIGHT -> stringResource(R.string.theme_mode_light)
+                    ThemeMode.DARK -> stringResource(R.string.theme_mode_dark)
+                }
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(CapsuleShape)
+                        .clickable { onModeChange(option) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (index == selectedIndex) {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
             }
         }
     }
@@ -279,3 +380,5 @@ private fun SettingDivider() {
         color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
     )
 }
+
+private val SELECTOR_HEIGHT = 36.dp

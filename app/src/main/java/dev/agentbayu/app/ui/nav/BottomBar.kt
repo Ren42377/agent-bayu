@@ -48,7 +48,6 @@ fun AgentBayuBottomBar(
             .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
         destinations.forEachIndexed { index, destination ->
-            val selected = index == selectedIndex
             GlassBottomTab(onClick = { select(index) }) {
                 Icon(
                     painter = painterResource(destination.iconRes),
@@ -56,13 +55,11 @@ fun AgentBayuBottomBar(
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
                 )
-                if (selected) {
-                    Text(
-                        text = stringResource(destination.labelRes),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                Text(
+                    text = stringResource(destination.labelRes),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

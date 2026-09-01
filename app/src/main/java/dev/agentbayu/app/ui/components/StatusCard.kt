@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
 fun StatusCard(
@@ -43,7 +43,7 @@ fun StatusCard(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(shape = GlassCardShape)
+            .glassSurface(shape = GlassCardShape)
             .padding(16.dp)
     ) {
         Row(
@@ -53,9 +53,10 @@ fun StatusCard(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .liquidGlass(
+                    .glassSurface(
                         shape = CircleShape,
-                        tint = if (done) activeColor else Color.Unspecified
+                        tint = if (done) activeColor else Color.Unspecified,
+                        elevation = 2.dp
                     ),
                 contentAlignment = Alignment.Center
             ) {

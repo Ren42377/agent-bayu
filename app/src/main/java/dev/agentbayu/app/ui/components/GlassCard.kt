@@ -25,7 +25,7 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
 fun GlassCard(
@@ -38,7 +38,7 @@ fun GlassCard(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(shape = shape)
+            .glassSurface(shape = shape)
             .then(clickModifier)
             .padding(16.dp),
         content = content
@@ -58,7 +58,7 @@ fun GlassBadge(
     Box(
         modifier = modifier
             .size(size)
-            .liquidGlass(shape = shape, tint = containerColor),
+            .glassSurface(shape = shape, tint = containerColor, elevation = BADGE_ELEVATION),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -69,6 +69,8 @@ fun GlassBadge(
         )
     }
 }
+
+private val BADGE_ELEVATION = 2.dp
 
 @Composable
 fun GlassPill(

@@ -20,9 +20,23 @@ class AppSettings(context: Context) {
 
     val onboardingVisible: StateFlow<Boolean> = onboardingState.asStateFlow()
 
+    private val themeModeState = MutableStateFlow(readThemeMode())
+
+    val themeMode: StateFlow<ThemeMode> = themeModeState.asStateFlow()
+
     fun setUseScreenContext(enabled: Boolean) {
         screenContextState.value = enabled
         preferences.edit().putBoolean(KEY_SCREEN_CONTEXT, enabled).apply()
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        themeModeState.value = mode
+        preferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
+    }
+
+    private fun readThemeMode(): ThemeMode {
+        val stored = preferences.getString(KEY_THEME_MODE, null) ?: return ThemeMode.SYSTEM
+        return ThemeMode.entries.firstOrNull { it.name == stored } ?: ThemeMode.SYSTEM
     }
 
     fun showOnboarding() {
@@ -45,5 +59,12 @@ class AppSettings(context: Context) {
         const val KEY_SCREEN_CONTEXT = "use_screen_context"
         const val KEY_DEFAULT_SEEDED = "default_connection_seeded"
         const val KEY_ONBOARDING_DONE = "onboarding_done"
+        const val KEY_THEME_MODE = "theme_mode"
     }
+}
+
+enum class ThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK
 }

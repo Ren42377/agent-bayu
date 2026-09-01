@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -34,6 +35,11 @@ fun CardPager(
                             scaleY = scale
                             alpha = 1f - depth
                         }
+                        .drawWithContent {
+                            if (abs(page - progress()) < PAGE_VISIBLE_DISTANCE) {
+                                drawContent()
+                            }
+                        }
                 ) {
                     pageContent(page)
                 }
@@ -44,4 +50,5 @@ fun CardPager(
 
 private const val PAGE_MIN_SCALE = 0.9f
 private const val PAGE_TRAVEL_RATIO = 0.92f
+private const val PAGE_VISIBLE_DISTANCE = 0.999f
 private val PAGE_LIFT = 12.dp

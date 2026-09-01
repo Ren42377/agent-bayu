@@ -1,7 +1,6 @@
 package dev.agentbayu.app.ui.components
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,6 +26,7 @@ import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.theme.AgentBubbleShape
 import dev.agentbayu.app.ui.theme.AppleBlueDark
 import dev.agentbayu.app.ui.theme.AppleBlueLight
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.UserBubbleShape
 import dev.agentbayu.app.ui.theme.glassSurface
 
@@ -37,7 +37,7 @@ fun MessageBubble(
     onShowDetail: ((ChatMessage) -> Unit)? = null
 ) {
     val fromUser = message.author == MessageAuthor.USER
-    val isDark = isSystemInDarkTheme()
+    val isDark = LocalDarkTheme.current
 
     val userTint = if (isDark) AppleBlueDark else AppleBlueLight
 

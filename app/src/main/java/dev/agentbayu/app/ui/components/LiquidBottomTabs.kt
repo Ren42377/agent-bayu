@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.EaseOut
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -61,6 +60,7 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.liquidGlass
@@ -121,7 +121,7 @@ fun GlassBottomTabs(
 ) {
     val style = LocalGlassStyle.current
     val accentColor = MaterialTheme.colorScheme.primary
-    val darkTheme = isSystemInDarkTheme()
+    val darkTheme = LocalDarkTheme.current
     val tabsBackdrop = rememberLayerBackdrop()
 
     BoxWithConstraints(

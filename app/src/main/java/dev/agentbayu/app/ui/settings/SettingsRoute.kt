@@ -22,10 +22,13 @@ fun SettingsRoute(
     val chat = remember(context) { AppGraph.chat(context) }
     val settings = remember(context) { AppGraph.settings(context) }
     val useScreenContext by settings.useScreenContext.collectAsState()
+    val themeMode by settings.themeMode.collectAsState()
     val clearedMessage = stringResource(R.string.settings_cleared)
     SettingsScreen(
         versionName = BuildConfig.VERSION_NAME,
         useScreenContext = useScreenContext,
+        themeMode = themeMode,
+        onThemeModeChange = settings::setThemeMode,
         onScreenContextChange = settings::setUseScreenContext,
         onClearConversation = {
             chat.clear()

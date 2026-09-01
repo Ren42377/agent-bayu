@@ -3,6 +3,7 @@ package dev.agentbayu.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
@@ -17,6 +18,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -27,7 +29,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.view.WindowCompat
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -46,7 +50,8 @@ import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.onboarding.OnboardingRoute
 import dev.agentbayu.app.ui.settings.SettingsRoute
-import dev.agentbayu.app.ui.theme.AgentBayuTheme
+import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -58,9 +63,24 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            AgentBayuTheme {
+            AgentBayuAppTheme {
+                SystemBarAppearance()
                 AgentBayuApp()
             }
+        }
+    }
+}
+
+@Composable
+private fun SystemBarAppearance() {
+    val darkTheme = LocalDarkTheme.current
+    val view = LocalView.current
+    val window = LocalActivity.current?.window
+    SideEffect {
+        if (window != null) {
+            val controller = WindowCompat.getInsetsController(window, view)
+            controller.isAppearanceLightStatusBars = !darkTheme
+            controller.isAppearanceLightNavigationBars = !darkTheme
         }
     }
 }
@@ -73,7 +93,6 @@ private fun AgentBayuApp() {
     val snackbarHostState = remember { SnackbarHostState() }
     val messages = remember { MutableStateFlow<String?>(null) }
     val pendingMessage by messages.collectAsState()
-    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val ambientBackdrop = rememberLayerBackdrop()
     val contentBackdrop = rememberLayerBackdrop()
     val chromeBackdrop = rememberCombinedBackdrop(ambientBackdrop, contentBackdrop)
@@ -105,6 +124,7 @@ private fun AgentBayuApp() {
                 containerColor = Color.Transparent,
                 snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
                 bottomBar = {
+                    val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
                     CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
                         AgentBayuBottomBar(
                             selectedIndex = selectedTab,

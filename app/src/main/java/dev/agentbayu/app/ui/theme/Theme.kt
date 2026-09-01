@@ -9,8 +9,12 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+
+val LocalDarkTheme = staticCompositionLocalOf { false }
 
 private val lightColors: ColorScheme = lightColorScheme(
     primary = AppleBlueLight,
@@ -90,7 +94,8 @@ fun AgentBayuTheme(
         else -> lightColors
     }
     val glassStyle = currentGlassStyle(darkTheme)
-    androidx.compose.runtime.CompositionLocalProvider(
+    CompositionLocalProvider(
+        LocalDarkTheme provides darkTheme,
         LocalGlassStyle provides glassStyle
     ) {
         MaterialTheme(

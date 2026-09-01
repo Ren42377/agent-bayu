@@ -26,7 +26,7 @@ import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 sealed interface DeviceCodeUiState {
     data object Starting : DeviceCodeUiState
@@ -216,7 +216,7 @@ private fun GlassBox(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(shape = GlassCardShape)
+            .glassSurface(shape = GlassCardShape)
             .padding(16.dp)
     ) {
         content()

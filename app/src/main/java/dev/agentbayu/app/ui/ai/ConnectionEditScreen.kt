@@ -43,7 +43,7 @@ import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
 
 data class ConnectionEditState(
     val providers: List<ProviderEntry>,
@@ -155,7 +155,7 @@ private fun FormSection(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .liquidGlass(shape = GlassCardShape)
+                .glassSurface(shape = GlassCardShape)
                 .padding(16.dp)
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

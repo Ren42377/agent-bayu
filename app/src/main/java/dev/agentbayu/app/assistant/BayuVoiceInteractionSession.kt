@@ -24,7 +24,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.ui.components.AssistantPanel
 import dev.agentbayu.app.ui.components.defaultSuggestions
-import dev.agentbayu.app.ui.theme.AgentBayuTheme
+import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
 
 class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(context) {
 
@@ -51,7 +51,7 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
             val messages by chat.messages.collectAsState()
             val responding by chat.isResponding.collectAsState()
             val useScreenContext by settings.useScreenContext.collectAsState()
-            AgentBayuTheme {
+            AgentBayuAppTheme {
                 key(resetToken) {
                     AssistantPanel(
                         visible = visible,
