@@ -14,6 +14,8 @@ sealed interface AppPage {
     data class Connection(val connectionId: String?) : AppPage
 
     data class DeviceCode(val connectionId: String) : AppPage
+
+    data class BrowserLogin(val connectionId: String) : AppPage
 }
 
 @Stable
@@ -40,6 +42,13 @@ class AppPageController {
             stack.removeAt(stack.lastIndex)
         }
         stack.add(AppPage.DeviceCode(connectionId))
+    }
+
+    fun openBrowserLogin(connectionId: String) {
+        if (stack.lastOrNull() is AppPage.Connection) {
+            stack.removeAt(stack.lastIndex)
+        }
+        stack.add(AppPage.BrowserLogin(connectionId))
     }
 
     fun back() {

@@ -15,7 +15,10 @@ enum class WireFormat {
     ANTHROPIC,
 
     @SerialName("gemini")
-    GEMINI
+    GEMINI,
+
+    @SerialName("antigravity")
+    ANTIGRAVITY
 }
 
 @Serializable

@@ -39,9 +39,11 @@ fun providerHint(providerId: String): Int? = when (providerId) {
     PROVIDER_OPENCODE -> R.string.provider_hint_opencode
     PROVIDER_OPENAI_COMPATIBLE -> R.string.provider_hint_openai_compatible
     PROVIDER_CODEX -> R.string.provider_hint_codex
+    PROVIDER_AGY -> R.string.provider_hint_agy
     else -> null
 }
 
 private const val PROVIDER_OPENCODE = "opencode"
 private const val PROVIDER_OPENAI_COMPATIBLE = "openai-compatible"
 private const val PROVIDER_CODEX = "codex"
+private const val PROVIDER_AGY = "agy"

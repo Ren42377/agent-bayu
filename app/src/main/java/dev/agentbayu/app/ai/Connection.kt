@@ -20,6 +20,7 @@ data class Connection(
     val health: ConnectionHealth = ConnectionHealth.READY,
     val healthDetail: String? = null,
     val keyHint: String? = null,
+    val projectId: String? = null,
     val createdAtMillis: Long = 0L
 )
 

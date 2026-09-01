@@ -38,6 +38,9 @@ class TokenRefresher(
             .add(GRANT_TYPE, REFRESH_TOKEN_GRANT)
             .add(CLIENT_ID, config.clientId)
             .add(REFRESH_TOKEN, refreshToken)
+            .apply {
+                config.clientSecret?.let { secret -> add(CLIENT_SECRET, secret) }
+            }
             .build()
         val request = Request.Builder()
             .url(config.tokenUrl)
@@ -79,6 +82,7 @@ class TokenRefresher(
     companion object {
         const val GRANT_TYPE = "grant_type"
         const val CLIENT_ID = "client_id"
+        const val CLIENT_SECRET = "client_secret"
         const val REFRESH_TOKEN = "refresh_token"
         const val REFRESH_TOKEN_GRANT = "refresh_token"
         const val ERROR_SNIPPET_LENGTH = 512

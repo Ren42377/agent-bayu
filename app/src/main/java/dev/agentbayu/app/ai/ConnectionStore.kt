@@ -51,6 +51,13 @@ class ConnectionStore(
         upsert(target.copy(model = trimmed))
     }
 
+    fun setProjectId(connectionId: String, projectId: String?) {
+        val target = find(connectionId) ?: return
+        val trimmed = projectId?.trim()?.takeIf { it.isNotEmpty() }
+        if (target.projectId == trimmed) return
+        upsert(target.copy(projectId = trimmed))
+    }
+
     fun setActive(connectionId: String) {
         if (activeState.value == connectionId) return
         if (find(connectionId) == null) return

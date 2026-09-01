@@ -171,7 +171,20 @@ private fun CredentialSection(state: ConnectionEditState, actions: ConnectionEdi
     FormSection(title = stringResource(R.string.connection_credential_section)) {
         ProviderNotes(provider = provider)
         when {
-            provider.deviceLogin != null -> DeviceLoginFields(state = state, actions = actions)
+            provider.browserLogin != null -> LoginFields(
+                state = state,
+                actions = actions,
+                loginLabel = stringResource(R.string.connection_login_browser),
+                pendingLabel = stringResource(R.string.connection_login_browser_needed)
+            )
+
+            provider.deviceLogin != null -> LoginFields(
+                state = state,
+                actions = actions,
+                loginLabel = stringResource(R.string.connection_login),
+                pendingLabel = stringResource(R.string.connection_login_needed)
+            )
+
             !provider.acceptsKey -> Text(
                 text = stringResource(R.string.connection_key_none),
                 style = MaterialTheme.typography.bodySmall,
@@ -184,12 +197,17 @@ private fun CredentialSection(state: ConnectionEditState, actions: ConnectionEdi
 }
 
 @Composable
-private fun DeviceLoginFields(state: ConnectionEditState, actions: ConnectionEditActions) {
+private fun LoginFields(
+    state: ConnectionEditState,
+    actions: ConnectionEditActions,
+    loginLabel: String,
+    pendingLabel: String
+) {
     Text(
         text = if (state.loggedIn) {
             stringResource(R.string.connection_login_saved)
         } else {
-            stringResource(R.string.connection_login_needed)
+            pendingLabel
         },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -203,7 +221,7 @@ private fun DeviceLoginFields(state: ConnectionEditState, actions: ConnectionEdi
             text = if (state.loggedIn) {
                 stringResource(R.string.connection_login_again)
             } else {
-                stringResource(R.string.connection_login)
+                loginLabel
             },
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onPrimary

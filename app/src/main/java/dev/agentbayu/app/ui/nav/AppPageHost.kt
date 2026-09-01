@@ -2,6 +2,7 @@ package dev.agentbayu.app.ui.nav
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import dev.agentbayu.app.ui.ai.AiBrowserLoginRoute
 import dev.agentbayu.app.ui.ai.AiConnectionEditRoute
 import dev.agentbayu.app.ui.ai.AiDeviceCodeRoute
 import dev.agentbayu.app.ui.ai.AiLogsRoute
@@ -58,10 +59,17 @@ fun AppPageHost(
                 connectionId = page.connectionId,
                 onBack = controller::back,
                 onStartLogin = controller::openDeviceCode,
+                onStartBrowserLogin = controller::openBrowserLogin,
                 onMessage = onMessage
             )
 
             is AppPage.DeviceCode -> AiDeviceCodeRoute(
+                connectionId = page.connectionId,
+                onBack = controller::back,
+                onMessage = onMessage
+            )
+
+            is AppPage.BrowserLogin -> AiBrowserLoginRoute(
                 connectionId = page.connectionId,
                 onBack = controller::back,
                 onMessage = onMessage

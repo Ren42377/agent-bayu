@@ -18,6 +18,7 @@ data class ProviderEntry(
     val authHeader: AuthHeader = AuthHeader.BEARER,
     val authPrefix: String? = null,
     val modelsPath: String? = null,
+    val modelsMethod: String = "GET",
     val modelIdFilter: String? = null,
     val supportsStreamUsage: Boolean = false,
     val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
@@ -40,6 +41,15 @@ data class ProviderEntry(
 
     val deviceLogin: OAuthConfig?
         get() = oauth?.takeIf { authKind.isOAuth && it.isDeviceCode }
+
+    val browserLogin: OAuthConfig?
+        get() = oauth?.takeIf { authKind.isOAuth && it.isAuthorizationCode }
+
+    val needsProjectBootstrap: Boolean
+        get() = oauth?.projectBootstrap == true
+
+    val modelsUsePost: Boolean
+        get() = modelsMethod.equals("POST", ignoreCase = true)
 
     fun model(modelId: String): ModelEntry? = models.firstOrNull { it.id == modelId }
 

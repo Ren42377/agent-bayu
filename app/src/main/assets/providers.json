@@ -56,6 +56,53 @@
       ]
     },
     {
+      "id": "agy",
+      "label": "Antigravity CLI",
+      "wireFormat": "antigravity",
+      "baseUrl": "https://cloudcode-pa.googleapis.com",
+      "authKind": "oauth_pkce",
+      "authHeader": "bearer",
+      "tier": "subscription",
+      "risk": "tos_gray",
+      "supportsStreamUsage": true,
+      "allowCustomModel": true,
+      "timeoutMillis": 120000,
+      "modelsPath": "/v1internal:fetchAvailableModels",
+      "modelsMethod": "POST",
+      "extraHeaders": {
+        "User-Agent": "antigravity/cli/1.1.5 (aidev_client; os_type=darwin; arch=arm64; auth_method=consumer)"
+      },
+      "oauth": {
+        "flow": "authorization_code",
+        "clientId": "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com",
+        "authorizeUrl": "https://accounts.google.com/o/oauth2/v2/auth",
+        "tokenUrl": "https://oauth2.googleapis.com/token",
+        "redirectPath": "/callback",
+        "clientSecretMasked": "KCItOiI3WD9QFTYiMFhRVWESfSVcAyUwVwYsJhkKQxMoKAU=",
+        "projectBootstrap": true,
+        "extraAuthorizeParams": { "access_type": "offline", "prompt": "consent" },
+        "scopes": [
+          "https://www.googleapis.com/auth/cloud-platform",
+          "https://www.googleapis.com/auth/userinfo.email",
+          "https://www.googleapis.com/auth/userinfo.profile",
+          "https://www.googleapis.com/auth/cclog",
+          "https://www.googleapis.com/auth/experimentsandconfigs"
+        ]
+      },
+      "models": [
+        { "id": "gemini-3.7-flash-high", "label": "Gemini 3.7 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-3.7-flash-tiered", "label": "Gemini 3.7 Flash (Tiered)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 65535 },
+        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 65535 },
+        { "id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash Lite", "contextLength": 1048576, "maxOutputTokens": 65535 },
+        { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gpt-oss-120b-medium", "label": "GPT-OSS 120B (Medium)", "contextLength": 131072, "maxOutputTokens": 32768 }
+      ]
+    },
+    {
       "id": "openai-compatible",
       "label": "OpenAI Compatible",
       "wireFormat": "openai",

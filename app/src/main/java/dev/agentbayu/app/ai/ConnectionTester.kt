@@ -4,6 +4,7 @@ import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
+import dev.agentbayu.app.ai.adapter.StreamingHttp
 import dev.agentbayu.app.ai.adapter.WireEvent
 import dev.agentbayu.app.ai.adapter.applyAuth
 import dev.agentbayu.app.ai.adapter.applyAuthHeaders
@@ -20,6 +21,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 
 sealed interface ConnectionTestResult {
     data class Success(val latencyMillis: Long, val model: String) : ConnectionTestResult
@@ -83,7 +85,14 @@ class ConnectionTester(
 
         val request = Request.Builder()
             .url(joinUrl(candidate.baseUrl, path))
-            .get()
+            .apply {
+                if (candidate.provider.modelsUsePost) {
+                    header("Content-Type", "application/json")
+                    post(EMPTY_JSON_BODY.toRequestBody(StreamingHttp.jsonMediaType))
+                } else {
+                    get()
+                }
+            }
             .applyAuth(candidate, credential.token)
             .applyExtraHeaders(candidate)
             .applyAuthHeaders(credential.headers)
@@ -126,7 +135,9 @@ class ConnectionTester(
         if (!fromData.isNullOrEmpty()) return fromData.matching(token).sorted()
         val fromModels = root.arrayField("models")?.mapNotNull { entry ->
             val node = entry as? JsonObject ?: return@mapNotNull null
-            val name = node.stringField("name") ?: node.stringField("id")
+            val name = node.stringField("id")
+                ?: node.stringField("name")
+                ?: node.stringField("model")
             name?.removePrefix(GEMINI_MODEL_PREFIX)
         }
         return fromModels?.matching(token)?.sorted().orEmpty()
@@ -156,5 +167,6 @@ class ConnectionTester(
         const val PROBE_MAX_TOKENS = 16
         const val GEMINI_MODEL_PREFIX = "models/"
         const val ERROR_SNIPPET_LENGTH = 512
+        private const val EMPTY_JSON_BODY = "{}"
     }
 }

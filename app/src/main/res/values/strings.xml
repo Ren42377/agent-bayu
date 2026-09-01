@@ -137,6 +137,7 @@
     <string name="provider_hint_opencode">Gratis tanpa kredensial. Hanya model berakhiran -free, dan model gratisnya bisa mati lalu hidup lagi dalam hitungan jam.</string>
     <string name="provider_hint_openai_compatible">Isi kunci API dan arahkan base URL ke endpoint OpenAI-compatible mana pun.</string>
     <string name="provider_hint_codex">Pakai langganan ChatGPT lewat kode perangkat. Model yang tersedia tergantung langgananmu, dan kamu bisa mengisi nama model sendiri.</string>
+    <string name="provider_hint_agy">Pakai akun Google yang punya akses Antigravity lewat login browser. Setelah login, aplikasi menyiapkan proyek Cloud otomatis.</string>
 
     <string name="providers_title">Provider AI</string>
     <string name="providers_empty_title">Belum ada koneksi</string>
@@ -206,6 +207,8 @@
     <string name="connection_login_again">Login ulang</string>
     <string name="connection_login_saved">Sudah login. Token tersimpan di perangkat ini.</string>
     <string name="connection_login_needed">Belum login. Tekan Login perangkat, koneksi ini akan disimpan lebih dulu.</string>
+    <string name="connection_login_browser">Login browser</string>
+    <string name="connection_login_browser_needed">Belum login. Tekan Login browser, koneksi ini akan disimpan lebih dulu.</string>
     <string name="device_title">Login kode perangkat</string>
     <string name="device_starting">Menyiapkan kode</string>
     <string name="device_instruction">Buka halaman verifikasi di browser, lalu masukkan kode ini.</string>
@@ -219,6 +222,20 @@
     <string name="device_failed">Login gagal: %1$s</string>
     <string name="device_retry">Coba lagi</string>
     <string name="device_unsupported">Provider ini tidak memakai login kode perangkat.</string>
+    <string name="browser_title">Login browser</string>
+    <string name="browser_starting">Menyiapkan halaman login</string>
+    <string name="browser_instruction">Buka halaman login Google, pilih akunmu, lalu setujui aksesnya. Aplikasi akan menangkap balasannya sendiri.</string>
+    <string name="browser_open">Buka halaman login</string>
+    <string name="browser_waiting">Menunggu kamu menyetujui di browser</string>
+    <string name="browser_manual_hint">Kalau browser berhenti di halaman kosong, salin URL dari address bar lalu tempel di sini.</string>
+    <string name="browser_manual_label">URL balasan</string>
+    <string name="browser_manual_submit">Lanjutkan dengan URL ini</string>
+    <string name="browser_finishing">Menukar kode dan menyiapkan proyek</string>
+    <string name="browser_project_failed">Login berhasil, tapi proyek gagal disiapkan: %1$s</string>
+    <string name="browser_success">Login berhasil. Koneksi siap dipakai.</string>
+    <string name="browser_failed">Login gagal: %1$s</string>
+    <string name="browser_retry">Coba lagi</string>
+    <string name="browser_unsupported">Provider ini tidak memakai login browser.</string>
     <string name="logs_title">Logs</string>
     <string name="logs_empty">Belum ada catatan. Kirim pesan ke AI untuk mulai merekam.</string>
     <string name="logs_note">Catatan hanya disimpan di memori dan hilang saat aplikasi ditutup. Maksimal %1$d catatan terakhir.</string>

@@ -16,11 +16,14 @@ import dev.agentbayu.app.ai.StoredCredentials
 import dev.agentbayu.app.ai.UsageTracker
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.adapter.AnthropicAdapter
+import dev.agentbayu.app.ai.adapter.AntigravityAdapter
 import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.GeminiAdapter
 import dev.agentbayu.app.ai.adapter.OpenAiCompatibleAdapter
 import dev.agentbayu.app.ai.adapter.OpenAiResponsesAdapter
+import dev.agentbayu.app.ai.oauth.AntigravityProjectBootstrap
 import dev.agentbayu.app.ai.oauth.CodexDeviceFlow
+import dev.agentbayu.app.ai.oauth.GoogleCodeFlow
 import dev.agentbayu.app.ai.oauth.TokenRefresher
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.domain.ContextBuilder
@@ -54,6 +57,8 @@ object AppGraph {
         val activeProvider: ActiveProvider,
         val tester: ConnectionTester,
         val deviceFlow: CodexDeviceFlow,
+        val codeFlow: GoogleCodeFlow,
+        val projectBootstrap: AntigravityProjectBootstrap,
         val usageTracker: UsageTracker,
         val logStore: LogStore
     )
@@ -74,6 +79,11 @@ object AppGraph {
     fun connectionTester(context: Context): ConnectionTester = container(context).tester
 
     fun deviceFlow(context: Context): CodexDeviceFlow = container(context).deviceFlow
+
+    fun codeFlow(context: Context): GoogleCodeFlow = container(context).codeFlow
+
+    fun projectBootstrap(context: Context): AntigravityProjectBootstrap =
+        container(context).projectBootstrap
 
     fun usage(context: Context): UsageTracker = container(context).usageTracker
 
@@ -111,7 +121,8 @@ object AppGraph {
             WireFormat.OPENAI to OpenAiCompatibleAdapter(client),
             WireFormat.OPENAI_RESPONSES to OpenAiResponsesAdapter(client),
             WireFormat.ANTHROPIC to AnthropicAdapter(client),
-            WireFormat.GEMINI to GeminiAdapter(client)
+            WireFormat.GEMINI to GeminiAdapter(client),
+            WireFormat.ANTIGRAVITY to AntigravityAdapter(client)
         )
         val activeProvider = ActiveProvider(
             connections = connectionStore,
@@ -159,6 +170,8 @@ object AppGraph {
             activeProvider = activeProvider,
             tester = ConnectionTester(client, catalog, credentials, adapters, clock),
             deviceFlow = CodexDeviceFlow(client, clock),
+            codeFlow = GoogleCodeFlow(client, clock),
+            projectBootstrap = AntigravityProjectBootstrap(client),
             usageTracker = usageTracker,
             logStore = logStore
         )

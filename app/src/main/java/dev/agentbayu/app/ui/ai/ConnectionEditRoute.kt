@@ -30,6 +30,7 @@ fun AiConnectionEditRoute(
     connectionId: String?,
     onBack: () -> Unit,
     onStartLogin: (String) -> Unit,
+    onStartBrowserLogin: (String) -> Unit,
     onMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -82,6 +83,7 @@ fun AiConnectionEditRoute(
         baseUrlOverride = baseUrl.trim()
             .takeIf { it.isNotEmpty() && it != provider?.baseUrl },
         discoveredModels = discovered,
+        projectId = existing?.projectId,
         createdAtMillis = existing?.createdAtMillis ?: 0L
     )
 
@@ -205,7 +207,11 @@ fun AiConnectionEditRoute(
                 model.isBlank() -> onMessage(errorModel)
                 else -> {
                     persist(selected)
-                    onStartLogin(id)
+                    if (selected.browserLogin != null) {
+                        onStartBrowserLogin(id)
+                    } else {
+                        onStartLogin(id)
+                    }
                 }
             }
         },
