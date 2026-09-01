@@ -190,6 +190,7 @@ fun Modifier.liquidGlass(
     backdrop: Backdrop = LocalGlassBackdrop.current,
     tint: Color = Color.Unspecified,
     tintAlpha: Float = LIQUID_TINT_ALPHA,
+    tintProvider: (() -> Color)? = null,
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
     exportedBackdrop: LayerBackdrop? = null
 ): Modifier {
@@ -225,9 +226,10 @@ fun Modifier.liquidGlass(
         },
         onDrawSurface = {
             drawRect(color = style.fill)
-            if (tint.isSpecified) {
-                drawRect(color = tint, blendMode = BlendMode.Hue)
-                drawRect(color = tint.copy(alpha = tintAlpha))
+            val activeTint = tintProvider?.invoke() ?: tint
+            if (activeTint.isSpecified) {
+                drawRect(color = activeTint, blendMode = BlendMode.Hue)
+                drawRect(color = activeTint.copy(alpha = tintAlpha))
             }
             drawRect(brush = sheenBrush)
         }
