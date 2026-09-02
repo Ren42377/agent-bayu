@@ -45,14 +45,17 @@ fun PromptBar(
     onSend: () -> Unit,
     onMicClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    isResponding: Boolean = false,
+    onStop: () -> Unit = {}
 ) {
     val haptics = LocalHapticFeedback.current
     val barBackdrop = rememberLayerBackdrop()
     val buttonBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, barBackdrop)
     val canSend = enabled && value.isNotBlank()
+    val trailingActive = isResponding || canSend
     val sendScale by animateFloatAsState(
-        targetValue = if (canSend) 1f else 0.85f,
+        targetValue = if (trailingActive) 1f else 0.85f,
         animationSpec = AgentBayuMotion.snappySpring,
         label = "sendScale"
     )
@@ -62,6 +65,11 @@ fun PromptBar(
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onSend()
         }
+    }
+
+    val stop = {
+        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        onStop()
     }
 
     Box(modifier = modifier.fillMaxWidth()) {
@@ -127,24 +135,32 @@ fun PromptBar(
                 Spacer(modifier = Modifier.width(6.dp))
 
                 GlassButton(
-                    onClick = submit,
+                    onClick = if (isResponding) stop else submit,
                     modifier = Modifier
                         .size(40.dp)
                         .scale(sendScale),
-                    enabled = canSend,
-                    tint = if (canSend) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                    enabled = trailingActive,
+                    tint = when {
+                        isResponding -> MaterialTheme.colorScheme.error
+                        canSend -> MaterialTheme.colorScheme.primary
+                        else -> Color.Unspecified
+                    },
                     shape = CircleShape,
                     contentPadding = GlassButtonDefaults.IconPadding
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_send),
-                        contentDescription = stringResource(R.string.chat_send),
-                        tint = if (canSend) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                        painter = painterResource(
+                            if (isResponding) R.drawable.ic_stop else R.drawable.ic_send
+                        ),
+                        contentDescription = stringResource(
+                            if (isResponding) R.string.chat_stop else R.string.chat_send
+                        ),
+                        tint = when {
+                            isResponding -> Color.White
+                            canSend -> MaterialTheme.colorScheme.onPrimary
+                            else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                         },
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
                     )
                 }
             }

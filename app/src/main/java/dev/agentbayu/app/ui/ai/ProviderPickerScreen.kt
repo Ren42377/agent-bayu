@@ -109,18 +109,12 @@ private fun PickerContent(
         options.forEach { option ->
             OptionRow(
                 option = option,
-                onSelect = {
-                    onSelect(option.connectionId)
-                    onDismiss()
-                }
+                onSelect = { onSelect(option.connectionId) }
             )
             if (option.isActive) {
                 ModelList(
                     option = option,
-                    onSelectModel = { modelId ->
-                        onSelectModel(option.connectionId, modelId)
-                        onDismiss()
-                    }
+                    onSelectModel = { modelId -> onSelectModel(option.connectionId, modelId) }
                 )
                 EffortRow(
                     option = option,

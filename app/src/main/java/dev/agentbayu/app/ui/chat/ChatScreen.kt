@@ -1,8 +1,5 @@
 package dev.agentbayu.app.ui.chat
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -134,7 +130,6 @@ fun ChatScreen(
                 hint = providerHint,
                 isResponding = isResponding,
                 onOpenPicker = { pickerVisible = true },
-                onStop = onStop,
                 modifier = headerModifier
             )
 
@@ -154,6 +149,8 @@ fun ChatScreen(
                     onValueChange = onInputChange,
                     onSend = onSend,
                     onMicClick = onMicClick,
+                    isResponding = isResponding,
+                    onStop = onStop,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
@@ -193,7 +190,6 @@ private fun ProviderCapsule(
     hint: String,
     isResponding: Boolean,
     onOpenPicker: () -> Unit,
-    onStop: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -233,25 +229,6 @@ private fun ProviderCapsule(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(12.dp)
             )
-        }
-
-        AnimatedVisibility(
-            visible = isResponding,
-            enter = fadeIn(),
-            exit = fadeOut()
-        ) {
-            GlassButton(
-                onClick = onStop,
-                modifier = Modifier.padding(start = 8.dp),
-                tint = MaterialTheme.colorScheme.error,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.chat_stop),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White
-                )
-            }
         }
     }
 }
