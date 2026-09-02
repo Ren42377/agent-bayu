@@ -46,7 +46,7 @@ class ConnectionTester(
     suspend fun test(connection: Connection, apiKey: String? = null): ConnectionTestResult {
         val candidate = candidateOf(connection)
             ?: return ConnectionTestResult.Failure(unknownProvider())
-        val adapter = adapters[candidate.provider.wireFormat]
+        val adapter = adapters[candidate.wireFormat]
             ?: return ConnectionTestResult.Failure(unknownProvider())
 
         val request = ChatRequest(
@@ -85,7 +85,7 @@ class ConnectionTester(
         val credential = credentialFor(candidate, apiKey)
 
         val request = Request.Builder()
-            .url(joinUrl(candidate.baseUrl, path))
+            .url(joinUrl(candidate.controlBaseUrl, path))
             .apply {
                 if (candidate.provider.modelsUsePost) {
                     header("Content-Type", "application/json")

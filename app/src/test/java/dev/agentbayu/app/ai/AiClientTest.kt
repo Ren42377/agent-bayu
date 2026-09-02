@@ -58,6 +58,21 @@ class AiClientTest {
         }
     }
 
+    private class SilentAdapter(private val silentAttempts: Int) : ChatAdapter {
+        var calls = 0
+
+        override fun stream(
+            candidate: Candidate,
+            apiKey: String?,
+            request: ChatRequest,
+            authHeaders: Map<String, String>
+        ): Flow<WireEvent> = flow {
+            calls += 1
+            if (calls > silentAttempts) emit(WireEvent.Delta("ok"))
+            emit(WireEvent.Done)
+        }
+    }
+
     private val storedKeys = FakeKeys(mapOf("conn-1" to "key-1234"))
 
     private val request = ChatRequest(
@@ -284,6 +299,33 @@ class AiClientTest {
         val failed = events.single() as ReplyEvent.Failed
         assertEquals(FailureKind.RETRYABLE, failed.failure.kind)
         assertTrue(connections.healthCalls.isEmpty())
+    }
+
+    @Test
+    fun `retries an empty stream and reports the later success`() = runTest {
+        val candidate = testCandidate()
+        val adapter = SilentAdapter(silentAttempts = 1)
+        val tracker = UsageTracker(FakeClock())
+
+        val events = clientFor(candidate, adapter, tracker = tracker).stream(request).toList()
+
+        assertEquals(2, adapter.calls)
+        assertEquals(listOf("ok"), events.filterIsInstance<ReplyEvent.Delta>().map { it.text })
+        assertTrue(events.last() is ReplyEvent.Completed)
+        assertEquals(1, tracker.statsFor("conn-1").successes)
+        assertEquals(0, tracker.statsFor("conn-1").failures)
+    }
+
+    @Test
+    fun `stops retrying an empty stream at the attempt ceiling`() = runTest {
+        val adapter = SilentAdapter(silentAttempts = 9)
+
+        val events = clientFor(testCandidate(), adapter).stream(request).toList()
+
+        assertEquals(3, adapter.calls)
+        val failed = events.single() as ReplyEvent.Failed
+        assertEquals(FailureKind.RETRYABLE, failed.failure.kind)
+        assertEquals("no content", failed.failure.message)
     }
 
     @Test

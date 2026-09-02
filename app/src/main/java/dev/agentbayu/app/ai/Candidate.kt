@@ -11,8 +11,14 @@ data class Candidate(
     val tier: ProviderTier
         get() = provider.tier
 
+    val wireFormat: WireFormat
+        get() = model.wireFormat ?: provider.wireFormat
+
     val baseUrl: String
         get() = connection.baseUrlOverride?.takeIf { it.isNotBlank() } ?: provider.baseUrl
+
+    val controlBaseUrl: String
+        get() = connection.baseUrlOverride?.takeIf { it.isNotBlank() } ?: provider.controlUrl
 
     val isLocal: Boolean
         get() = LOOPBACK_HOSTS.any { baseUrl.contains(it, ignoreCase = true) }

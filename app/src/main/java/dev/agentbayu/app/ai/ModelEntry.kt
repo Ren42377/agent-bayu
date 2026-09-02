@@ -6,6 +6,8 @@ import kotlinx.serialization.Serializable
 data class ModelEntry(
     val id: String,
     val label: String = id,
+    val upstreamId: String? = null,
+    val wireFormat: WireFormat? = null,
     val contextLength: Int = DEFAULT_CONTEXT_LENGTH,
     val maxOutputTokens: Int = DEFAULT_MAX_OUTPUT_TOKENS,
     val inputPricePerMillion: Double? = null,
@@ -14,6 +16,9 @@ data class ModelEntry(
     val efforts: List<ReasoningEffort> = emptyList(),
     val free: Boolean = false
 ) {
+    val wireId: String
+        get() = upstreamId?.takeIf { it.isNotBlank() } ?: id
+
     val hasKnownPrice: Boolean
         get() = inputPricePerMillion != null && outputPricePerMillion != null
 

@@ -104,7 +104,7 @@ fun AiBrowserLoginRoute(
             if (provider.needsProjectBootstrap) {
                 val bootstrapped = projectBootstrap.resolve(
                     baseUrl = connection?.baseUrlOverride?.takeIf { it.isNotBlank() }
-                        ?: provider.baseUrl,
+                        ?: provider.controlUrl,
                     accessToken = tokens.accessToken,
                     extraHeaders = provider.extraHeaders
                 )

@@ -9,6 +9,7 @@ data class ProviderEntry(
     val label: String,
     val wireFormat: WireFormat,
     val baseUrl: String,
+    val controlBaseUrl: String? = null,
     val tier: ProviderTier,
     val authKind: AuthKind = AuthKind.API_KEY,
     val optionalKey: Boolean = false,
@@ -31,6 +32,9 @@ data class ProviderEntry(
     val oauth: OAuthConfig? = null,
     val models: List<ModelEntry> = emptyList()
 ) {
+    val controlUrl: String
+        get() = controlBaseUrl?.takeIf { it.isNotBlank() } ?: baseUrl
+
     val requiresKey: Boolean
         get() = authKind == AuthKind.API_KEY
 

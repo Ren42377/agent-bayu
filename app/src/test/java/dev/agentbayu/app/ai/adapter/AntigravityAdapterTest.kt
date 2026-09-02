@@ -1,7 +1,8 @@
 package dev.agentbayu.app.ai.adapter
 
+import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureKind
-import dev.agentbayu.app.ai.ReasoningEffort
+import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +19,7 @@ import org.junit.Test
 class AntigravityAdapterTest {
 
     private lateinit var server: MockWebServer
-    private val adapter = AntigravityAdapter(adapterTestClient)
+    private val adapter = AntigravityAdapter(adapterTestClient, LAUNCH_MILLIS)
 
     @Before
     fun setUp() {
@@ -33,40 +34,47 @@ class AntigravityAdapterTest {
 
     private fun candidate(
         modelId: String = "gemini-3.7-flash-high",
+        upstreamModelId: String? = "gemini-3.7-flash-tiered(high)",
         projectId: String? = "projects/42",
-        maxOutputTokens: Int = 65_536,
+        maxOutputTokens: Int = 64_000,
         unsupportedParams: List<String> = emptyList()
     ) = testCandidate(
         providerId = "agy",
         modelId = modelId,
+        upstreamModelId = upstreamModelId,
         maxOutputTokens = maxOutputTokens,
         baseUrl = server.url("/").toString(),
         projectId = projectId,
         wireFormat = WireFormat.ANTIGRAVITY,
-        providerUnsupportedParams = unsupportedParams
+        providerUnsupportedParams = unsupportedParams,
+        extraHeaders = mapOf("User-Agent" to IDE_USER_AGENT)
     )
 
-    private fun request(
-        effort: ReasoningEffort? = ReasoningEffort.HIGH,
-        maxOutputTokens: Int? = 512
-    ): ChatRequest = ChatRequest(
-        systemPrompt = "You are Bayu.",
-        turns = listOf(
-            ChatTurn(ChatRole.SYSTEM, "diabaikan"),
-            ChatTurn(ChatRole.USER, "pertama"),
-            ChatTurn(ChatRole.ASSISTANT, "jawaban"),
-            ChatTurn(ChatRole.USER, "lanjut")
-        ),
+    private fun chat(
+        systemPrompt: String? = "be brief",
+        turns: List<ChatTurn> = listOf(ChatTurn(ChatRole.USER, "hello")),
+        maxOutputTokens: Int? = 512,
+        temperature: Double? = 0.4
+    ) = ChatRequest(
+        systemPrompt = systemPrompt,
+        turns = turns,
         maxOutputTokens = maxOutputTokens,
-        temperature = 0.3,
-        effort = effort
+        temperature = temperature
     )
 
-    private fun textDelta(text: String): String =
-        "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[{\"text\":\"" + text + "\"}]}}]}}"
+    private fun bodyOf(
+        route: Candidate = candidate(),
+        request: ChatRequest = chat()
+    ): JsonObject {
+        server.enqueue(sseResponse(EMPTY_CHUNK))
+        collectEvents(adapter.stream(route, "token-1", request))
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertNotNull(body)
+        return body!!
+    }
 
-    private fun contents(body: JsonObject?): List<Pair<String?, String?>> {
-        val array = body?.objectField("request")?.arrayField("contents") ?: return emptyList()
+    private fun contents(inner: JsonObject?): List<Pair<String?, String?>> {
+        val array = inner?.arrayField("contents") ?: return emptyList()
         return array.mapNotNull { element ->
             val turn = element as? JsonObject ?: return@mapNotNull null
             val text = turn.arrayField("parts")
@@ -78,229 +86,250 @@ class AntigravityAdapterTest {
 
     @Test
     fun postsTheEnvelopeToTheInternalStreamEndpoint() {
-        server.enqueue(sseResponse(textDelta("ok")))
+        server.enqueue(sseResponse(EMPTY_CHUNK))
 
-        val events = collectEvents(adapter.stream(candidate(), "token-x", request()))
-
-        assertEquals("ok", events.deltaText())
-        assertTrue(events.completed())
+        collectEvents(adapter.stream(candidate(), "token-1", chat()))
 
         val recorded = server.takeRequest()
         assertEquals("POST", recorded.method)
         assertEquals("/v1internal:streamGenerateContent?alt=sse", recorded.path)
         assertEquals("text/event-stream", recorded.getHeader("Accept"))
-        assertEquals("Bearer token-x", recorded.getHeader("Authorization"))
-        assertEquals("projects/42", recorded.getHeader("x-goog-user-project"))
+        assertEquals("Bearer token-1", recorded.getHeader("Authorization"))
+        assertEquals(IDE_USER_AGENT, recorded.getHeader("User-Agent"))
+        assertNull(recorded.getHeader("x-goog-user-project"))
 
         val body = parseJsonObject(recorded.body.readUtf8())
         assertEquals("projects/42", body?.stringField("project"))
-        assertEquals("gemini-3.7-flash-tiered", body?.stringField("model"))
+        assertEquals("gemini-3.7-flash-tiered(high)", body?.stringField("model"))
         assertEquals("antigravity", body?.stringField("userAgent"))
         assertEquals("agent", body?.stringField("requestType"))
-        assertTrue(body?.stringField("requestId").orEmpty().startsWith("agent/"))
-        assertNull(body?.get("generationConfig"))
+        assertTrue(IDE_REQUEST_ID.matches(body?.stringField("requestId").orEmpty()))
 
         val inner = body?.objectField("request")
-        assertTrue(inner?.stringField("sessionId").orEmpty().startsWith("-"))
-        val instruction = inner?.objectField("systemInstruction")
-            ?.arrayField("parts")
-            ?.firstOrNull() as? JsonObject
-        assertEquals("You are Bayu.", instruction?.stringField("text"))
+        assertEquals(antigravitySessionId("conn-1", LAUNCH_MILLIS), inner?.stringField("sessionId"))
         assertEquals(
-            listOf("user" to "pertama", "model" to "jawaban", "user" to "lanjut"),
-            contents(body)
+            "be brief",
+            inner?.objectField("systemInstruction")
+                ?.arrayField("parts")
+                ?.firstOrNull()
+                ?.let { it as? JsonObject }
+                ?.stringField("text")
         )
+        assertEquals(listOf("user" to "hello"), contents(inner))
 
         val config = inner?.objectField("generationConfig")
-        assertEquals(40, config?.intField("topK"))
-        assertTrue(config?.containsKey("topP") == true)
-        assertTrue(config?.containsKey("temperature") == true)
-        assertEquals(24_577, config?.intField("maxOutputTokens"))
-        assertEquals(24_576, config?.objectField("thinkingConfig")?.intField("thinkingBudget"))
-        assertEquals(true, config?.objectField("thinkingConfig")?.booleanField("includeThoughts"))
+        assertEquals(512, config?.intField("maxOutputTokens"))
+        assertNotNull(config?.get("temperature"))
+        assertFalse(config?.containsKey("topK") == true)
+        assertFalse(config?.containsKey("topP") == true)
+        assertFalse(config?.containsKey("thinkingConfig") == true)
+        assertFalse(inner?.containsKey("safetySettings") == true)
     }
 
     @Test
     fun sameRoleTurnsMergeAndTheModelIdIsPassedThroughWhenUnaliased() {
-        server.enqueue(sseResponse(textDelta("hi")))
-        collectEvents(
-            adapter.stream(
-                candidate(modelId = "gemini-3.1-pro-low"),
-                "token-x",
-                ChatRequest(
-                    turns = listOf(
-                        ChatTurn(ChatRole.USER, "satu"),
-                        ChatTurn(ChatRole.USER, "dua")
-                    ),
-                    maxOutputTokens = 4_096,
-                    effort = ReasoningEffort.MAX
+        val body = bodyOf(
+            route = candidate(modelId = "claude-sonnet-4-6", upstreamModelId = null),
+            request = chat(
+                systemPrompt = null,
+                turns = listOf(
+                    ChatTurn(ChatRole.SYSTEM, "ignored"),
+                    ChatTurn(ChatRole.USER, "one"),
+                    ChatTurn(ChatRole.USER, "two"),
+                    ChatTurn(ChatRole.ASSISTANT, "reply")
                 )
             )
         )
 
-        val body = parseJsonObject(server.takeRequest().body.readUtf8())
-        assertEquals("gemini-3.1-pro-low", body?.stringField("model"))
-        assertEquals(listOf("user" to "satu\n\ndua"), contents(body))
+        assertEquals("claude-sonnet-4-6", body.stringField("model"))
+        val inner = body.objectField("request")
+        assertFalse(inner?.containsKey("systemInstruction") == true)
+        assertEquals(
+            listOf("user" to "one\n\ntwo", "model" to "reply"),
+            contents(inner)
+        )
+    }
 
-        val config = body?.objectField("request")?.objectField("generationConfig")
-        assertEquals(16_000, config?.objectField("thinkingConfig")?.intField("thinkingBudget"))
-        assertEquals(16_001, config?.intField("maxOutputTokens"))
+    @Test
+    fun theOutputCeilingMatchesTheIdeLimit() {
+        assertEquals(64_000, antigravityMaxOutputTokens(200_000))
+        assertEquals(64_000, antigravityMaxOutputTokens(64_000))
+        assertEquals(1, antigravityMaxOutputTokens(0))
+        assertEquals(4_096, antigravityMaxOutputTokens(4_096))
+
+        val body = bodyOf(request = chat(maxOutputTokens = 250_000))
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertEquals(64_000, config?.intField("maxOutputTokens"))
+    }
+
+    @Test
+    fun theModelCeilingAppliesWhenTheRequestLeavesItOpen() {
+        val body = bodyOf(
+            route = candidate(maxOutputTokens = 32_768),
+            request = chat(maxOutputTokens = null)
+        )
+
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertEquals(32_768, config?.intField("maxOutputTokens"))
+    }
+
+    @Test
+    fun temperatureIsDroppedWhenTheProviderRejectsIt() {
+        val body = bodyOf(
+            route = candidate(unsupportedParams = listOf(WireParams.TEMPERATURE))
+        )
+
+        val config = body.objectField("request")?.objectField("generationConfig")
         assertFalse(config?.containsKey("temperature") == true)
     }
 
     @Test
-    fun noEffortAndUnsupportedReasoningLeaveThinkingOut() {
-        server.enqueue(sseResponse(textDelta("hi")))
-        collectEvents(
-            adapter.stream(
-                candidate(modelId = "gemini-3.7-flash-tiered"),
-                "token-x",
-                request(effort = null)
-            )
+    fun theRequestIdFollowsTheIdeShape() {
+        val sessionId = antigravitySessionId("conn-1", LAUNCH_MILLIS)
+        val requestId = antigravityRequestId(
+            sessionId = sessionId,
+            upstreamModel = "gemini-3.7-flash-tiered(high)",
+            contentCount = 3,
+            nowMillis = LAUNCH_MILLIS
         )
-        val plain = parseJsonObject(server.takeRequest().body.readUtf8())
-            ?.objectField("request")
-            ?.objectField("generationConfig")
-        assertFalse(plain?.containsKey("thinkingConfig") == true)
-        assertEquals(512, plain?.intField("maxOutputTokens"))
 
-        server.enqueue(sseResponse(textDelta("hi")))
-        collectEvents(
-            adapter.stream(
-                candidate(unsupportedParams = listOf(WireParams.REASONING)),
-                "token-x",
-                request()
-            )
-        )
-        val blocked = parseJsonObject(server.takeRequest().body.readUtf8())
-            ?.objectField("request")
-            ?.objectField("generationConfig")
-        assertFalse(blocked?.containsKey("thinkingConfig") == true)
-        assertEquals(512, blocked?.intField("maxOutputTokens"))
+        assertTrue(IDE_REQUEST_ID.matches(requestId))
+        val parts = requestId.split("/")
+        assertEquals(5, parts.size)
+        assertEquals("agent", parts[0])
+        assertTrue(UUID_SHAPE.matches(parts[1]))
+        assertEquals(LAUNCH_MILLIS.toString(), parts[2])
+        assertTrue(UUID_SHAPE.matches(parts[3]))
+        assertEquals("5", parts[4])
+        assertFalse(parts[1] == parts[3])
     }
 
     @Test
-    fun theModelIdTierDrivesTheBudgetWhenNoLevelIsRequested() {
-        server.enqueue(sseResponse(textDelta("hi")))
-        collectEvents(
-            adapter.stream(
-                candidate(modelId = "gemini-3.7-flash-low"),
-                "token-x",
-                request(effort = null)
-            )
+    fun theRequestIdStepNeverDropsBelowOne() {
+        val stepless = antigravityRequestId(
+            sessionId = "session",
+            upstreamModel = "model",
+            contentCount = 0,
+            nowMillis = LAUNCH_MILLIS
         )
 
-        val body = parseJsonObject(server.takeRequest().body.readUtf8())
-        assertEquals("gemini-3.7-flash-tiered", body?.stringField("model"))
-        val config = body?.objectField("request")?.objectField("generationConfig")
-        assertEquals(1_024, config?.objectField("thinkingConfig")?.intField("thinkingBudget"))
-        assertEquals(1_025, config?.intField("maxOutputTokens"))
+        assertTrue(IDE_REQUEST_ID.matches(stepless))
+        assertEquals("1", stepless.split("/").last())
     }
 
     @Test
-    fun theRequestIdAndSessionIdFollowTheCliShape() {
-        assertEquals("agent/1700000000000/0000002a", antigravityRequestId(1_700_000_000_000L, 42))
-        assertEquals("agent/1700000000000/ffffffff", antigravityRequestId(1_700_000_000_000L, -1))
+    fun theTrajectoryIdTracksTheModel() {
+        val sessionId = antigravitySessionId("conn-1", LAUNCH_MILLIS)
+        val first = antigravityRequestId(sessionId, "gemini-3.7-flash-tiered(high)", 1, 1L)
+        val second = antigravityRequestId(sessionId, "gemini-3.7-flash-tiered(low)", 1, 1L)
 
-        val session = antigravitySessionId(-7L)
-        assertTrue(session.startsWith("-"))
-        assertTrue(session.drop(1).all { it.isDigit() })
-        assertEquals("-0", antigravitySessionId(0L))
+        assertEquals(first.split("/")[1], second.split("/")[1])
+        assertFalse(first.split("/")[3] == second.split("/")[3])
     }
 
     @Test
-    fun onlyTheLevelSuffixesCountAsATier() {
-        assertEquals(ReasoningEffort.LOW, antigravityTierEffort("gemini-3.7-flash-low"))
-        assertEquals(ReasoningEffort.MEDIUM, antigravityTierEffort("gemini-3.7-flash-medium"))
-        assertEquals(ReasoningEffort.HIGH, antigravityTierEffort("gemini-3.7-flash-high"))
-        assertNull(antigravityTierEffort("gemini-3.7-flash-tiered"))
-        assertNull(antigravityTierEffort("gemini-pro-agent"))
-        assertNull(antigravityTierEffort("claude-sonnet-4-6"))
+    fun theSessionIdStaysStablePerConnectionAndLaunch() {
+        val session = antigravitySessionId("conn-1", LAUNCH_MILLIS)
+
+        assertEquals(session, antigravitySessionId("conn-1", LAUNCH_MILLIS))
+        assertFalse(session == antigravitySessionId("conn-2", LAUNCH_MILLIS))
+        assertFalse(session == antigravitySessionId("conn-1", LAUNCH_MILLIS + 1))
+        assertTrue(session.endsWith(LAUNCH_MILLIS.toString()))
+        assertTrue(UUID_SHAPE.matches(session.removeSuffix(LAUNCH_MILLIS.toString())))
+    }
+
+    @Test
+    fun modelAliasesCarryTheTierForStaleIds() {
+        assertEquals("gemini-3.7-flash-tiered(high)", resolveAntigravityModelId("gemini-3.7-flash"))
+        assertEquals(
+            "gemini-3.7-flash-tiered(high)",
+            resolveAntigravityModelId("gemini-3.7-flash-tiered")
+        )
+        assertEquals(
+            "gemini-3.7-flash-tiered(medium)",
+            resolveAntigravityModelId("gemini-3.7-flash-medium")
+        )
+        assertEquals(
+            "gemini-3.6-flash-tiered(low)",
+            resolveAntigravityModelId("gemini-3.6-flash-low")
+        )
+        assertEquals("gemini-pro-agent", resolveAntigravityModelId("gemini-3.1-pro-high"))
+        assertEquals("gpt-oss-120b-medium", resolveAntigravityModelId("gpt-oss-120b"))
+        assertEquals("gemini-3.1-pro-low", resolveAntigravityModelId("gemini-3.1-pro-low"))
+    }
+
+    @Test
+    fun theCatalogUpstreamIdWinsOverTheAliasTable() {
+        val entry = ModelEntry(
+            id = "gemini-3.7-flash",
+            upstreamId = "gemini-3.7-flash-tiered(low)"
+        )
+
+        assertEquals("gemini-3.7-flash-tiered(low)", resolveAntigravityModelId(entry))
+        assertEquals(
+            "gemini-3.7-flash-tiered(high)",
+            resolveAntigravityModelId(ModelEntry(id = "gemini-3.7-flash"))
+        )
+        assertEquals(
+            "gemini-3.7-flash-tiered(high)",
+            resolveAntigravityModelId(ModelEntry(id = "gemini-3.7-flash", upstreamId = " "))
+        )
     }
 
     @Test
     fun aMissingProjectFailsBeforeAnyRequest() {
-        val events = collectEvents(adapter.stream(candidate(projectId = null), "token-x", request()))
+        val events = collectEvents(
+            adapter.stream(candidate(projectId = null), "token-1", chat())
+        )
 
         assertEquals(FailureKind.TERMINAL, events.firstFailure()?.kind)
         assertEquals(0, server.requestCount)
     }
 
     @Test
-    fun thoughtPartsAreSkippedAndUsageIsReported() {
+    fun thoughtPartsAreSkippedAndUsageIsRead() {
         val events = parseAntigravityChunk(
-            "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[" +
-                "{\"text\":\"batin\",\"thought\":true}," +
-                "{\"text\":\"tanda\",\"thoughtSignature\":\"abc\"}," +
-                "{\"text\":\"halo \"},{\"text\":\"dunia\"}" +
-                "]}}],\"usageMetadata\":{\"promptTokenCount\":11,\"candidatesTokenCount\":4}}}"
+            """
+            {"response":{"candidates":[{"content":{"parts":[
+            {"text":"planning","thought":true},
+            {"text":"signed","thoughtSignature":"abc"},
+            {"text":"visible"}
+            ]}}],"usageMetadata":{"promptTokenCount":11,"candidatesTokenCount":7}}}
+            """.trimIndent()
         )
 
-        assertEquals("halo dunia", events.deltaText())
-        assertEquals(WireEvent.Usage(11, 4), events.lastUsage())
-    }
-
-    @Test
-    fun thoughtFlagsThatAreFalseOrEmptyKeepTheText() {
-        val events = parseAntigravityChunk(
-            "{\"response\":{\"candidates\":[{\"content\":{\"parts\":[" +
-                "{\"text\":\"satu\",\"thought\":false},{\"text\":\"dua\",\"thoughtSignature\":\"\"}" +
-                "]}}]}}"
-        )
-
-        assertEquals("satudua", events.deltaText())
-        assertNull(events.lastUsage())
+        assertEquals("visible", events.deltaText())
+        assertEquals(11, events.lastUsage()?.inputTokens)
+        assertEquals(7, events.lastUsage()?.outputTokens)
     }
 
     @Test
     fun errorEnvelopesBecomeFailures() {
-        val nested = parseAntigravityChunk(
-            "{\"response\":{\"error\":{\"code\":429,\"message\":\"quota\"}}}"
+        val quota = parseAntigravityChunk(
+            """{"error":{"code":429,"message":"Quota exhausted for the model"}}"""
         )
-        val topLevel = parseAntigravityChunk("{\"error\":{\"code\":500,\"message\":\"boom\"}}")
+        assertEquals(FailureKind.TERMINAL, quota.firstFailure()?.kind)
+        assertEquals(429, quota.firstFailure()?.statusCode)
 
-        assertNotNull(nested.firstFailure())
-        assertNotNull(topLevel.firstFailure())
-        assertTrue(parseAntigravityChunk("[]").isEmpty())
+        val nested = parseAntigravityChunk(
+            """{"response":{"error":{"code":503,"message":"backend unavailable"}}}"""
+        )
+        assertEquals(FailureKind.RETRYABLE, nested.firstFailure()?.kind)
+
+        val codeless = parseAntigravityChunk("""{"error":{"message":"unknown"}}""")
+        assertEquals(FailureKind.RETRYABLE, codeless.firstFailure()?.kind)
+        assertEquals(500, codeless.firstFailure()?.statusCode)
+
+        assertTrue(parseAntigravityChunk("not json").isEmpty())
+        assertTrue(parseAntigravityChunk("""{"response":{"candidates":[]}}""").isEmpty())
     }
 
-    @Test
-    fun modelAliasesCollapseTheEffortSuffixes() {
-        assertEquals("gemini-3.7-flash-tiered", resolveAntigravityModelId("gemini-3.7-flash"))
-        assertEquals("gemini-3.7-flash-tiered", resolveAntigravityModelId("gemini-3.7-flash-low"))
-        assertEquals("gemini-3.7-flash-tiered", resolveAntigravityModelId("gemini-3.7-flash-medium"))
-        assertEquals("gemini-3.7-flash-tiered", resolveAntigravityModelId("gemini-3.7-flash-high"))
-        assertEquals("gemini-pro-agent", resolveAntigravityModelId("gemini-3.1-pro-high"))
-        assertEquals("gpt-oss-120b-medium", resolveAntigravityModelId("gpt-oss-120b"))
-        assertEquals("claude-sonnet-4-6", resolveAntigravityModelId("claude-sonnet-4-6"))
-    }
-
-    @Test
-    fun thinkingBudgetFollowsTheLevelAndTheModelCap() {
-        assertEquals(1_024, antigravityThinkingBudget("gemini-pro-agent", ReasoningEffort.LOW))
-        assertEquals(10_240, antigravityThinkingBudget("gemini-pro-agent", ReasoningEffort.MEDIUM))
-        assertEquals(32_768, antigravityThinkingBudget("gemini-pro-agent", ReasoningEffort.HIGH))
-        assertEquals(32_768, antigravityThinkingBudget("gemini-pro-agent", ReasoningEffort.MAX))
-        assertEquals(24_576, antigravityThinkingBudget("gemini-3.7-flash-tiered", ReasoningEffort.HIGH))
-        assertEquals(1_024, antigravityThinkingBudget("gemini-3.7-flash-tiered", ReasoningEffort.LOW))
-        assertEquals(16_000, antigravityThinkingBudget("gemini-3.1-pro-low", ReasoningEffort.XHIGH))
-        assertEquals(131_072, antigravityThinkingBudget("gemini-3.9-unknown", ReasoningEffort.XHIGH))
-        assertNull(antigravityThinkingBudget("gemini-pro-agent", null))
-    }
-
-    @Test
-    fun modelsWithoutThinkingGetNoBudget() {
-        assertNull(antigravityThinkingBudget("claude-opus-4-6-thinking", ReasoningEffort.MAX))
-        assertNull(antigravityThinkingBudget("gpt-oss-120b-medium", ReasoningEffort.HIGH))
-        assertNull(antigravityThinkingBudget("tab_flash_lite_preview", ReasoningEffort.LOW))
-    }
-
-    @Test
-    fun theOutputCeilingClearsTheThinkingBudget() {
-        assertEquals(512, antigravityMaxOutputTokens(512, null))
-        assertEquals(512, antigravityMaxOutputTokens(512, 0))
-        assertEquals(1_025, antigravityMaxOutputTokens(512, 1_024))
-        assertEquals(1_025, antigravityMaxOutputTokens(1_024, 1_024))
-        assertEquals(2_048, antigravityMaxOutputTokens(2_048, 1_024))
+    private companion object {
+        const val LAUNCH_MILLIS = 1_700_000_000_000L
+        const val IDE_USER_AGENT = "antigravity/ide/2.1.1 darwin/arm64"
+        const val EMPTY_CHUNK = """{"response":{"candidates":[]}}"""
+        val IDE_REQUEST_ID = Regex("^agent/[^/]+/\\d+/[^/]+/\\d+$")
+        val UUID_SHAPE =
+            Regex("^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     }
 }

@@ -56,7 +56,10 @@ internal fun Request.Builder.applyAuth(candidate: Candidate, apiKey: String?): R
 }
 
 internal fun Request.Builder.applyExtraHeaders(candidate: Candidate): Request.Builder {
-    candidate.provider.extraHeaders.forEach { (name, value) -> header(name, value) }
+    val extras = candidate.provider.extraHeaders
+    if (extras.isEmpty()) return this
+    val tokens = HeaderTokens(candidate.connection.id)
+    extras.forEach { (name, value) -> header(name, tokens.expand(value)) }
     return this
 }
 

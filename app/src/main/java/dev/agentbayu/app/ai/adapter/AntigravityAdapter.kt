@@ -3,9 +3,8 @@ package dev.agentbayu.app.ai.adapter
 import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
-import dev.agentbayu.app.ai.ReasoningEffort
+import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.RouteFailure
-import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +17,10 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-class AntigravityAdapter(private val client: OkHttpClient) : ChatAdapter {
+class AntigravityAdapter(
+    private val client: OkHttpClient,
+    private val launchMillis: Long = System.currentTimeMillis()
+) : ChatAdapter {
 
     override fun stream(
         candidate: Candidate,
@@ -32,17 +34,13 @@ class AntigravityAdapter(private val client: OkHttpClient) : ChatAdapter {
             candidate = candidate,
             request = request,
             projectId = projectId,
-            requestId = antigravityRequestId(
-                nowMillis = System.currentTimeMillis(),
-                nonce = Random.nextInt()
-            ),
-            sessionId = antigravitySessionId(Random.nextLong())
+            sessionId = antigravitySessionId(candidate.connection.id, launchMillis),
+            nowMillis = System.currentTimeMillis()
         )
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, STREAM_PATH))
             .header("Accept", "text/event-stream")
             .header("Content-Type", "application/json")
-            .header(USER_PROJECT_HEADER, projectId)
             .applyAuth(candidate, apiKey)
             .applyExtraHeaders(candidate)
             .applyAuthHeaders(authHeaders)
@@ -68,12 +66,21 @@ internal fun antigravityBody(
     candidate: Candidate,
     request: ChatRequest,
     projectId: String,
-    requestId: String,
-    sessionId: String
+    sessionId: String,
+    nowMillis: Long
 ): JsonObject = buildJsonObject {
-    val upstreamModel = resolveAntigravityModelId(candidate.model.id)
+    val upstreamModel = resolveAntigravityModelId(candidate.model)
+    val contents = antigravityTurns(request.turns)
     put(PROJECT, projectId)
-    put(REQUEST_ID, requestId)
+    put(
+        REQUEST_ID,
+        antigravityRequestId(
+            sessionId = sessionId,
+            upstreamModel = upstreamModel,
+            contentCount = contents.size,
+            nowMillis = nowMillis
+        )
+    )
     put(MODEL, upstreamModel)
     put(USER_AGENT, USER_AGENT_VALUE)
     put(REQUEST_TYPE, REQUEST_TYPE_VALUE)
@@ -87,7 +94,7 @@ internal fun antigravityBody(
             }
         }
         putJsonArray("contents") {
-            antigravityTurns(request.turns).forEach { turn ->
+            contents.forEach { turn ->
                 add(
                     buildJsonObject {
                         put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
@@ -99,27 +106,11 @@ internal fun antigravityBody(
             }
         }
         putJsonObject("generationConfig") {
-            val budget = if (WireParams.supports(candidate, WireParams.REASONING)) {
-                antigravityThinkingBudget(
-                    upstreamModel = upstreamModel,
-                    effort = request.effort ?: antigravityTierEffort(candidate.model.id)
-                )
-            } else {
-                null
-            }
             val requestedMax = request.maxOutputTokens ?: candidate.model.maxOutputTokens
-            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax, budget))
-            put("topK", DEFAULT_TOP_K)
-            put("topP", DEFAULT_TOP_P)
+            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax))
             val temperature = request.temperature
             if (temperature != null && WireParams.supports(candidate, WireParams.TEMPERATURE)) {
                 put("temperature", temperature)
-            }
-            if (budget != null) {
-                putJsonObject("thinkingConfig") {
-                    put("thinkingBudget", budget)
-                    put("includeThoughts", true)
-                }
             }
         }
     }
@@ -142,34 +133,39 @@ internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
 internal fun resolveAntigravityModelId(modelId: String): String =
     MODEL_ALIASES[modelId] ?: modelId
 
-internal fun antigravityRequestId(nowMillis: Long, nonce: Int): String {
-    val hex = (nonce.toLong() and INT_MASK).toString(16).padStart(HEX_WIDTH, '0')
-    return REQUEST_ID_PREFIX + nowMillis + "/" + hex
+internal fun resolveAntigravityModelId(model: ModelEntry): String {
+    val upstream = model.upstreamId?.takeIf { it.isNotBlank() }
+    return upstream ?: resolveAntigravityModelId(model.id)
 }
 
-internal fun antigravitySessionId(seed: Long): String =
-    "-" + (seed and Long.MAX_VALUE) % SESSION_ID_MODULUS
-
-internal fun antigravityTierEffort(modelId: String): ReasoningEffort? =
-    MODEL_TIER_EFFORTS.firstOrNull { modelId.endsWith(it.first, ignoreCase = true) }?.second
-
-internal fun antigravityThinkingBudget(upstreamModel: String, effort: ReasoningEffort?): Int? {
-    if (effort == null) return null
-    val unsupported = THINKING_UNSUPPORTED_PREFIXES.any {
-        upstreamModel.startsWith(it, ignoreCase = true)
-    }
-    if (unsupported) return null
-    val budget = THINKING_BUDGETS[effort] ?: return null
-    val cap = THINKING_BUDGET_CAPS
-        .firstOrNull { upstreamModel.startsWith(it.first, ignoreCase = true) }
-        ?.second
-    return if (cap != null && budget > cap) cap else budget
+internal fun antigravityUuidFromSeed(seed: String): String {
+    val bytes = sha256(seed).copyOf(UUID_BYTES)
+    bytes[VERSION_INDEX] = ((bytes[VERSION_INDEX].toInt() and 0x0f) or VERSION_BITS).toByte()
+    bytes[VARIANT_INDEX] = ((bytes[VARIANT_INDEX].toInt() and 0x3f) or VARIANT_BITS).toByte()
+    val hex = hexOf(bytes)
+    return hex.substring(0, 8) + "-" + hex.substring(8, 12) + "-" + hex.substring(12, 16) +
+        "-" + hex.substring(16, 20) + "-" + hex.substring(20)
 }
 
-internal fun antigravityMaxOutputTokens(requested: Int, budget: Int?): Int {
-    if (budget == null || budget <= 0) return requested
-    return if (requested <= budget) budget + 1 else requested
+internal fun antigravitySessionId(connectionId: String, launchMillis: Long): String =
+    antigravityUuidFromSeed(SESSION_SEED + connectionId + ":" + launchMillis) + launchMillis
+
+internal fun antigravityRequestId(
+    sessionId: String,
+    upstreamModel: String,
+    contentCount: Int,
+    nowMillis: Long
+): String {
+    val conversationId = antigravityUuidFromSeed(CONVERSATION_SEED + sessionId)
+    val trajectoryId = antigravityUuidFromSeed(
+        TRAJECTORY_SEED + sessionId + ":" + upstreamModel + ":" + REQUEST_TYPE_VALUE
+    )
+    val step = (contentCount * 2 - 1).coerceAtLeast(1)
+    return REQUEST_ID_PREFIX + conversationId + "/" + nowMillis + "/" + trajectoryId + "/" + step
 }
+
+internal fun antigravityMaxOutputTokens(requested: Int): Int =
+    requested.coerceIn(1, MAX_OUTPUT_TOKENS)
 
 internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
     val envelope = parseJsonObject(raw) ?: return emptyList()
@@ -203,45 +199,31 @@ internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
 }
 
 private val MODEL_ALIASES = mapOf(
-    "gemini-3.7-flash" to "gemini-3.7-flash-tiered",
-    "gemini-3.7-flash-high" to "gemini-3.7-flash-tiered",
-    "gemini-3.7-flash-medium" to "gemini-3.7-flash-tiered",
-    "gemini-3.7-flash-low" to "gemini-3.7-flash-tiered",
+    "gemini-3.7-flash" to "gemini-3.7-flash-tiered(high)",
+    "gemini-3.7-flash-tiered" to "gemini-3.7-flash-tiered(high)",
+    "gemini-3.7-flash-high" to "gemini-3.7-flash-tiered(high)",
+    "gemini-3.7-flash-medium" to "gemini-3.7-flash-tiered(medium)",
+    "gemini-3.7-flash-low" to "gemini-3.7-flash-tiered(low)",
+    "gemini-3.6-flash-high" to "gemini-3.6-flash-tiered(high)",
+    "gemini-3.6-flash-medium" to "gemini-3.6-flash-tiered(medium)",
+    "gemini-3.6-flash-low" to "gemini-3.6-flash-tiered(low)",
     "gemini-3.1-pro-high" to "gemini-pro-agent",
     "gpt-oss-120b" to "gpt-oss-120b-medium"
-)
-
-private val THINKING_UNSUPPORTED_PREFIXES = listOf("claude-", "gpt-oss-", "tab_")
-
-private val MODEL_TIER_EFFORTS = listOf(
-    "-low" to ReasoningEffort.LOW,
-    "-medium" to ReasoningEffort.MEDIUM,
-    "-high" to ReasoningEffort.HIGH
-)
-
-private val THINKING_BUDGETS = mapOf(
-    ReasoningEffort.LOW to 1_024,
-    ReasoningEffort.MEDIUM to 10_240,
-    ReasoningEffort.HIGH to 32_768,
-    ReasoningEffort.XHIGH to 131_072,
-    ReasoningEffort.MAX to 131_072
-)
-
-private val THINKING_BUDGET_CAPS = listOf(
-    "gemini-3.7-flash" to 24_576,
-    "gemini-3.1-pro-low" to 16_000,
-    "gemini-3.1-pro" to 32_768,
-    "gemini-pro-agent" to 32_768
 )
 
 private const val PROJECT = "project"
 private const val REQUEST_ID = "requestId"
 private const val REQUEST_ID_PREFIX = "agent/"
 private const val SESSION_ID = "sessionId"
-private const val USER_PROJECT_HEADER = "x-goog-user-project"
-private const val SESSION_ID_MODULUS = 9_000_000_000_000_000_000L
-private const val INT_MASK = 0xffffffffL
-private const val HEX_WIDTH = 8
+private const val SESSION_SEED = "antigravity:session:"
+private const val CONVERSATION_SEED = "antigravity:conversation:"
+private const val TRAJECTORY_SEED = "antigravity:trajectory:"
+private const val UUID_BYTES = 16
+private const val VERSION_INDEX = 6
+private const val VERSION_BITS = 0x50
+private const val VARIANT_INDEX = 8
+private const val VARIANT_BITS = 0x80
+private const val MAX_OUTPUT_TOKENS = 64_000
 private const val MODEL = "model"
 private const val USER_AGENT = "userAgent"
 private const val USER_AGENT_VALUE = "antigravity"
@@ -251,6 +233,4 @@ private const val REQUEST = "request"
 private const val RESPONSE = "response"
 private const val THOUGHT = "thought"
 private const val THOUGHT_SIGNATURE = "thoughtSignature"
-private const val DEFAULT_TOP_K = 40
-private const val DEFAULT_TOP_P = 1.0
 private const val STREAM_ERROR_STATUS = 500

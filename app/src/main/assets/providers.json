@@ -8,6 +8,7 @@
       "baseUrl": "https://opencode.ai/zen/v1",
       "authKind": "none",
       "optionalKey": true,
+      "anonymousKey": "public",
       "authHeader": "bearer",
       "tier": "free",
       "risk": "fragile",
@@ -16,6 +17,13 @@
       "supportsStreamUsage": true,
       "allowCustomModel": true,
       "effortMode": "request_field",
+      "extraHeaders": {
+        "User-Agent": "opencode",
+        "x-opencode-client": "desktop",
+        "x-opencode-project": "global",
+        "x-opencode-session": "ses_{session}",
+        "x-opencode-request": "msg_{request}"
+      },
       "models": [
         { "id": "nemotron-3.5-lightning-free", "label": "Nemotron 3.5 Lightning", "contextLength": 262144, "maxOutputTokens": 262144, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
         { "id": "ling-3.0-flash-fin-free", "label": "Ling 3.0 Flash Fin", "contextLength": 262144, "maxOutputTokens": 32768, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
@@ -23,7 +31,7 @@
         { "id": "mimo-v2.5-free", "label": "MiMo v2.5", "contextLength": 200000, "maxOutputTokens": 32000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
         { "id": "nemotron-3-ultra-free", "label": "Nemotron 3 Ultra", "contextLength": 1000000, "maxOutputTokens": 128000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
         { "id": "deepseek-v4-flash-free", "label": "DeepSeek V4 Flash", "contextLength": 200000, "maxOutputTokens": 128000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "efforts": ["low", "high", "max"], "free": true },
-        { "id": "muse-spark-1.2-contributor-free", "label": "Muse Spark 1.2 Contributor", "contextLength": 1048576, "maxOutputTokens": 131072, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "efforts": ["low", "medium", "high", "xhigh"], "free": true }
+        { "id": "muse-spark-1.2-contributor-free", "label": "Muse Spark 1.2 Contributor", "wireFormat": "openai_responses", "contextLength": 1048576, "maxOutputTokens": 131072, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "efforts": ["low", "medium", "high", "xhigh"], "free": true }
       ]
     },
     {
@@ -39,6 +47,13 @@
       "allowCustomModel": true,
       "effortMode": "request_field",
       "timeoutMillis": 120000,
+      "extraHeaders": {
+        "Version": "0.149.0",
+        "Openai-Beta": "responses=experimental",
+        "originator": "codex_cli_rs",
+        "session_id": "{uuid}",
+        "User-Agent": "codex-cli/0.149.0 (Android; aarch64) agent-bayu"
+      },
       "oauth": {
         "flow": "device_code",
         "clientId": "app_EMoamEEZ73f0CkXaXp7hrann",
@@ -61,7 +76,8 @@
       "id": "agy",
       "label": "Antigravity CLI",
       "wireFormat": "antigravity",
-      "baseUrl": "https://cloudcode-pa.googleapis.com",
+      "baseUrl": "https://daily-cloudcode-pa.googleapis.com",
+      "controlBaseUrl": "https://cloudcode-pa.googleapis.com",
       "authKind": "oauth_pkce",
       "authHeader": "bearer",
       "tier": "subscription",
@@ -73,7 +89,7 @@
       "modelsPath": "/v1internal:fetchAvailableModels",
       "modelsMethod": "POST",
       "extraHeaders": {
-        "User-Agent": "antigravity/cli/1.1.5 (aidev_client; os_type=darwin; arch=arm64; auth_method=consumer)"
+        "User-Agent": "antigravity/ide/2.1.1 darwin/arm64"
       },
       "oauth": {
         "flow": "authorization_code",
@@ -93,15 +109,21 @@
         ]
       },
       "models": [
-        { "id": "gemini-3.7-flash-high", "label": "Gemini 3.7 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "gemini-3.7-flash-tiered", "label": "Gemini 3.7 Flash (Tiered)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 65535 },
-        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 65535 },
-        { "id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash Lite", "contextLength": 1048576, "maxOutputTokens": 65535 },
-        { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-3.7-flash-high", "label": "Gemini 3.7 Flash (High)", "upstreamId": "gemini-3.7-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "upstreamId": "gemini-3.7-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "upstreamId": "gemini-3.7-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.6-flash-high", "label": "Gemini 3.6 Flash (High)", "upstreamId": "gemini-3.6-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.6-flash-medium", "label": "Gemini 3.6 Flash (Medium)", "upstreamId": "gemini-3.6-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.6-flash-low", "label": "Gemini 3.6 Flash (Low)", "upstreamId": "gemini-3.6-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.5-flash-high", "label": "Gemini 3.5 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3-flash-agent", "label": "Gemini 3.5 Flash Agent", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.5-flash-low", "label": "Gemini 3.5 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.5-flash-extra-low", "label": "Gemini 3.5 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3-flash", "label": "Gemini 3 Flash", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 64000 },
+        { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 200000, "maxOutputTokens": 64000 },
+        { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 200000, "maxOutputTokens": 64000 },
         { "id": "gpt-oss-120b-medium", "label": "GPT-OSS 120B (Medium)", "contextLength": 131072, "maxOutputTokens": 32768 }
       ]
     },

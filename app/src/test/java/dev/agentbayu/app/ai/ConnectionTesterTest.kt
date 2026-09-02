@@ -125,6 +125,40 @@ class ConnectionTesterTest {
     }
 
     @Test
+    fun `discovery posts an empty body to the control host`() {
+        server.enqueue(
+            jsonResponse(
+                "{\"models\":[{\"id\":\"gemini-3.7-flash-high\",\"displayName\":\"Flash\"}," +
+                    "{\"model\":\"gemini-pro-agent\"}]}"
+            )
+        )
+        val provider = testProvider(
+            id = "agy",
+            wireFormat = WireFormat.ANTIGRAVITY,
+            baseUrl = "https://daily.example.test",
+            controlBaseUrl = server.url("/").toString(),
+            authKind = AuthKind.OAUTH_PKCE,
+            tier = ProviderTier.SUBSCRIPTION,
+            modelsPath = "/v1internal:fetchAvailableModels",
+            models = listOf(ModelEntry(id = "gemini-3.7-flash-high")),
+            extraHeaders = mapOf("User-Agent" to "antigravity/ide/2.1.1 darwin/arm64")
+        ).copy(modelsMethod = "POST")
+        val connection = testConnection(providerId = "agy", model = "gemini-3.7-flash-high")
+
+        val result = runBlocking { tester(provider).fetchModels(connection) }
+
+        assertEquals(
+            listOf("gemini-3.7-flash-high", "gemini-pro-agent"),
+            (result as ModelFetchResult.Success).models
+        )
+        val recorded = server.takeRequest()
+        assertEquals("POST", recorded.method)
+        assertEquals("/v1internal:fetchAvailableModels", recorded.path)
+        assertEquals("{}", recorded.body.readUtf8())
+        assertEquals("antigravity/ide/2.1.1 darwin/arm64", recorded.getHeader("User-Agent"))
+    }
+
+    @Test
     fun `probeModels returns one result per model including the dead ones`() {
         server.enqueue(sseResponse("{\"choices\":[{\"delta\":{\"content\":\"pong\"}}]}", "[DONE]"))
         server.enqueue(MockResponse().setResponseCode(400).setBody("model unavailable"))

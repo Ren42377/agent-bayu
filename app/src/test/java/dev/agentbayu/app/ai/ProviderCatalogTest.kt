@@ -56,6 +56,44 @@ class ProviderCatalogTest {
     }
 
     @Test
+    fun `agy streams from the daily host and discovers from the control host`() {
+        val provider = catalog.find("agy")!!
+
+        assertEquals("https://daily-cloudcode-pa.googleapis.com", provider.baseUrl)
+        assertEquals("https://cloudcode-pa.googleapis.com", provider.controlUrl)
+        assertEquals("/v1internal:fetchAvailableModels", provider.modelsPath)
+        assertEquals(
+            "antigravity/ide/2.1.1 darwin/arm64",
+            provider.extraHeaders["User-Agent"]
+        )
+        assertEquals(1, provider.extraHeaders.size)
+        assertEquals(120_000L, provider.timeoutMillis)
+    }
+
+    @Test
+    fun `agy tiered models carry the parenthesized upstream id`() {
+        val provider = catalog.find("agy")!!
+
+        assertEquals(
+            "gemini-3.7-flash-tiered(high)",
+            provider.model("gemini-3.7-flash-high")?.wireId
+        )
+        assertEquals(
+            "gemini-3.7-flash-tiered(medium)",
+            provider.model("gemini-3.7-flash-medium")?.wireId
+        )
+        assertEquals(
+            "gemini-3.6-flash-tiered(low)",
+            provider.model("gemini-3.6-flash-low")?.wireId
+        )
+        assertEquals("gemini-pro-agent", provider.model("gemini-pro-agent")?.wireId)
+        provider.models.forEach { model ->
+            assertEquals(model.id, WireFormat.ANTIGRAVITY, provider.wireFormat)
+            assertNull(model.id, model.wireFormat)
+        }
+    }
+
+    @Test
     fun `opencode stays keyless and filters models down to the free ones`() {
         val provider = catalog.find("opencode")!!
 
@@ -65,7 +103,7 @@ class ProviderCatalogTest {
         assertEquals(RiskLevel.FRAGILE, provider.risk)
         assertFalse(provider.requiresKey)
         assertTrue(provider.acceptsKey)
-        assertNull(provider.anonymousKey)
+        assertEquals("public", provider.anonymousKey)
         assertEquals("/models", provider.modelsPath)
         assertEquals("-free", provider.modelIdFilter)
         assertTrue(provider.supportsStreamUsage)
@@ -77,6 +115,41 @@ class ProviderCatalogTest {
             assertTrue(model.id, model.free)
             assertEquals(model.id, 0.0, model.costUsd(1_000, 1_000)!!, 0.0)
         }
+    }
+
+    @Test
+    fun `opencode sends the desktop client headers`() {
+        val headers = catalog.find("opencode")!!.extraHeaders
+
+        assertEquals("opencode", headers["User-Agent"])
+        assertEquals("desktop", headers["x-opencode-client"])
+        assertEquals("global", headers["x-opencode-project"])
+        assertEquals("ses_{session}", headers["x-opencode-session"])
+        assertEquals("msg_{request}", headers["x-opencode-request"])
+    }
+
+    @Test
+    fun `only the muse model speaks the responses wire inside opencode`() {
+        val provider = catalog.find("opencode")!!
+
+        assertEquals(
+            WireFormat.OPENAI_RESPONSES,
+            provider.model("muse-spark-1.2-contributor-free")?.wireFormat
+        )
+        provider.models
+            .filter { it.id != "muse-spark-1.2-contributor-free" }
+            .forEach { model -> assertNull(model.id, model.wireFormat) }
+    }
+
+    @Test
+    fun `codex sends the cli headers with a per request session id`() {
+        val headers = catalog.find("codex")!!.extraHeaders
+
+        assertEquals("0.149.0", headers["Version"])
+        assertEquals("responses=experimental", headers["Openai-Beta"])
+        assertEquals("codex_cli_rs", headers["originator"])
+        assertEquals("{uuid}", headers["session_id"])
+        assertTrue(headers["User-Agent"].orEmpty().startsWith("codex-cli/"))
     }
 
     @Test
@@ -173,10 +246,13 @@ class ProviderCatalogTest {
             "gemini-3.7-flash-high",
             "gemini-3.7-flash-medium",
             "gemini-3.7-flash-low",
-            "gemini-3.7-flash-tiered"
+            "gemini-3.6-flash-high",
+            "claude-opus-4-6-thinking",
+            "gpt-oss-120b-medium"
         ).forEach { id ->
             assertNotNull(id, provider.model(id))
         }
+        assertNull(provider.model("gemini-3.7-flash-tiered"))
     }
 
     @Test

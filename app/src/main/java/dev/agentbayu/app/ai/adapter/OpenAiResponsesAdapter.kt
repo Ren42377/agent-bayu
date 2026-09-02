@@ -2,7 +2,6 @@ package dev.agentbayu.app.ai.adapter
 
 import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureClassifier
-import java.util.UUID
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
@@ -14,10 +13,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
-class OpenAiResponsesAdapter(
-    private val client: OkHttpClient,
-    private val sessionIdFactory: () -> String = { UUID.randomUUID().toString() }
-) : ChatAdapter {
+class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
 
     override fun stream(
         candidate: Candidate,
@@ -29,11 +25,6 @@ class OpenAiResponsesAdapter(
             .url(joinUrl(candidate.baseUrl, RESPONSES_PATH))
             .header("Accept", "text/event-stream")
             .header("Content-Type", "application/json")
-            .header(VERSION_HEADER, CLIENT_VERSION)
-            .header(BETA_HEADER, BETA_VALUE)
-            .header(ORIGINATOR_HEADER, ORIGINATOR_VALUE)
-            .header(SESSION_HEADER, sessionIdFactory())
-            .header("User-Agent", USER_AGENT)
             .applyAuth(candidate, apiKey)
             .applyExtraHeaders(candidate)
             .applyAuthHeaders(authHeaders)
@@ -46,7 +37,7 @@ class OpenAiResponsesAdapter(
     }
 
     private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
-        put("model", candidate.model.id)
+        put("model", candidate.model.wireId)
         put("instructions", instructionsOf(request))
         putJsonArray("input") {
             request.turns.filter { it.role != ChatRole.SYSTEM }.forEach { turn ->
@@ -72,6 +63,7 @@ class OpenAiResponsesAdapter(
         if (effort != null && WireParams.supports(candidate, WireParams.REASONING)) {
             putJsonObject("reasoning") {
                 put("effort", effort.wireValue)
+                put("summary", REASONING_SUMMARY)
             }
         }
     }
@@ -135,14 +127,7 @@ class OpenAiResponsesAdapter(
 
     companion object {
         const val RESPONSES_PATH = "responses"
-        const val VERSION_HEADER = "Version"
-        const val CLIENT_VERSION = "0.149.0"
-        const val BETA_HEADER = "Openai-Beta"
-        const val BETA_VALUE = "responses=experimental"
-        const val ORIGINATOR_HEADER = "originator"
-        const val ORIGINATOR_VALUE = "codex_cli_rs"
-        const val SESSION_HEADER = "session_id"
-        const val USER_AGENT = "codex-cli/0.149.0 (Android; aarch64) agent-bayu"
+        const val REASONING_SUMMARY = "auto"
         const val INPUT_TEXT = "input_text"
         const val OUTPUT_TEXT = "output_text"
         const val DELTA_TYPE = "response.output_text.delta"

@@ -49,7 +49,7 @@ class AiClient(
     ) {
         val detail = detailOf(candidate)
         val route = candidate.provider.id + " " + candidate.model.id
-        val adapter = adapters[candidate.provider.wireFormat]
+        val adapter = adapters[candidate.wireFormat]
         if (adapter == null) {
             logStore.error(SOURCE, "Unsupported wire format", route)
             emit(ReplyEvent.Failed(unsupportedWireFormat(), detail))
@@ -101,8 +101,8 @@ class AiClient(
                     }
                 }
 
-            val pending = failure
-            if (outputChars > 0 || pending == null) break
+            if (outputChars > 0) break
+            val pending = failure ?: emptyReply()
             val wait = retryDelayFor(pending, attempt) ?: break
             logStore.warning(SOURCE, "Retrying request", route + " " + pending.logLabel)
             pause(wait)

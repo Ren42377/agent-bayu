@@ -3,6 +3,7 @@ package dev.agentbayu.app.ai.adapter
 import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureKind
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +19,7 @@ import org.junit.Test
 class OpenAiResponsesAdapterTest {
 
     private lateinit var server: MockWebServer
-    private val adapter = OpenAiResponsesAdapter(adapterTestClient) { "session-1" }
+    private val adapter = OpenAiResponsesAdapter(adapterTestClient)
 
     @Before
     fun setUp() {
@@ -31,11 +32,18 @@ class OpenAiResponsesAdapterTest {
         server.shutdown()
     }
 
-    private fun candidate(): Candidate = testCandidate(
+    private fun candidate(
+        modelId: String = "gpt-5.6-sol",
+        upstreamModelId: String? = null,
+        unsupportedParams: List<String> = emptyList()
+    ): Candidate = testCandidate(
         baseUrl = server.url("/backend-api/codex").toString(),
-        modelId = "gpt-5.6-sol",
+        modelId = modelId,
+        upstreamModelId = upstreamModelId,
         wireFormat = WireFormat.OPENAI_RESPONSES,
-        authKind = AuthKind.OAUTH_DEVICE
+        authKind = AuthKind.OAUTH_DEVICE,
+        modelUnsupportedParams = unsupportedParams,
+        extraHeaders = CODEX_HEADERS
     )
 
     private fun request(): ChatRequest = ChatRequest(
@@ -78,20 +86,11 @@ class OpenAiResponsesAdapterTest {
         assertEquals("Bearer token-1", recorded.getHeader("Authorization"))
         assertEquals("text/event-stream", recorded.getHeader("Accept"))
         assertEquals("acc-1", recorded.getHeader("chatgpt-account-id"))
-        assertEquals(
-            OpenAiResponsesAdapter.CLIENT_VERSION,
-            recorded.getHeader(OpenAiResponsesAdapter.VERSION_HEADER)
-        )
-        assertEquals(
-            OpenAiResponsesAdapter.BETA_VALUE,
-            recorded.getHeader(OpenAiResponsesAdapter.BETA_HEADER)
-        )
-        assertEquals(
-            OpenAiResponsesAdapter.ORIGINATOR_VALUE,
-            recorded.getHeader(OpenAiResponsesAdapter.ORIGINATOR_HEADER)
-        )
-        assertEquals("session-1", recorded.getHeader(OpenAiResponsesAdapter.SESSION_HEADER))
-        assertEquals(OpenAiResponsesAdapter.USER_AGENT, recorded.getHeader("User-Agent"))
+        assertEquals("0.149.0", recorded.getHeader("Version"))
+        assertEquals("responses=experimental", recorded.getHeader("Openai-Beta"))
+        assertEquals("codex_cli_rs", recorded.getHeader("originator"))
+        assertEquals(CODEX_USER_AGENT, recorded.getHeader("User-Agent"))
+        assertTrue(UUID_SHAPE.matches(recorded.getHeader("session_id").orEmpty()))
     }
 
     @Test
@@ -116,6 +115,69 @@ class OpenAiResponsesAdapterTest {
         assertFalse(body.containsKey("max_output_tokens"))
         assertFalse(body.containsKey(WireParams.MAX_TOKENS))
         assertFalse(body.containsKey(WireParams.TEMPERATURE))
+        assertFalse(body.containsKey("reasoning"))
+    }
+
+    @Test
+    fun theEffortRidesTheReasoningBlockWithAnAutoSummary() {
+        server.enqueue(sseResponse("{\"type\":\"response.completed\",\"response\":{}}"))
+
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "token-1",
+                ChatRequest(
+                    turns = listOf(ChatTurn(ChatRole.USER, "halo")),
+                    effort = ReasoningEffort.XHIGH
+                )
+            )
+        )
+
+        val reasoning = parseJsonObject(server.takeRequest().body.readUtf8())
+            ?.objectField("reasoning")
+        assertEquals("xhigh", reasoning?.stringField("effort"))
+        assertEquals(
+            OpenAiResponsesAdapter.REASONING_SUMMARY,
+            reasoning?.stringField("summary")
+        )
+    }
+
+    @Test
+    fun aModelThatRejectsReasoningNeverSeesTheEffort() {
+        server.enqueue(sseResponse("{\"type\":\"response.completed\",\"response\":{}}"))
+
+        collectEvents(
+            adapter.stream(
+                candidate(unsupportedParams = listOf(WireParams.REASONING)),
+                "token-1",
+                ChatRequest(
+                    turns = listOf(ChatTurn(ChatRole.USER, "halo")),
+                    effort = ReasoningEffort.HIGH
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())!!
+        assertFalse(body.containsKey("reasoning"))
+    }
+
+    @Test
+    fun theCatalogUpstreamIdIsSentInsteadOfTheLocalId() {
+        server.enqueue(sseResponse("{\"type\":\"response.completed\",\"response\":{}}"))
+
+        collectEvents(
+            adapter.stream(
+                candidate(
+                    modelId = "muse-spark-1.2-contributor-free",
+                    upstreamModelId = "muse-spark"
+                ),
+                "token-1",
+                request()
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())!!
+        assertEquals("muse-spark", body.stringField("model"))
     }
 
     @Test
@@ -261,5 +323,18 @@ class OpenAiResponsesAdapterTest {
         )
 
         assertNull(server.takeRequest().getHeader("chatgpt-account-id"))
+    }
+
+    private companion object {
+        const val CODEX_USER_AGENT = "codex-cli/0.149.0 (Android; aarch64) agent-bayu"
+        val CODEX_HEADERS = mapOf(
+            "Version" to "0.149.0",
+            "Openai-Beta" to "responses=experimental",
+            "originator" to "codex_cli_rs",
+            "session_id" to "{uuid}",
+            "User-Agent" to CODEX_USER_AGENT
+        )
+        val UUID_SHAPE =
+            Regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$")
     }
 }
