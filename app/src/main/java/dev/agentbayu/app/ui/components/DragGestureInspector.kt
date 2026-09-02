@@ -11,6 +11,7 @@ import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.util.fastFirstOrNull
+import kotlin.math.abs
 
 internal suspend fun PointerInputScope.inspectDragGestures(
     onDragStart: (down: PointerInputChange) -> Unit = {},
@@ -26,7 +27,7 @@ internal suspend fun PointerInputScope.inspectDragGestures(
         onDrag(initialDown, Offset.Zero)
         val upEvent = awaitDrag(
             pointerId = initialDown.id,
-            onDrag = { change -> onDrag(change, change.positionChange()) }
+            onDrag = onDrag
         )
         if (upEvent == null) {
             onDragCancel()
@@ -38,13 +39,17 @@ internal suspend fun PointerInputScope.inspectDragGestures(
 
 private suspend inline fun AwaitPointerEventScope.awaitDrag(
     pointerId: PointerId,
-    onDrag: (PointerInputChange) -> Unit
+    onDrag: (PointerInputChange, Offset) -> Unit
 ): PointerInputChange? {
     val isPointerUp = currentEvent.changes.fastFirstOrNull { it.id == pointerId }?.pressed != true
     if (isPointerUp) {
         return null
     }
+    val touchSlop = viewConfiguration.touchSlop
     var pointer = pointerId
+    var claimed = false
+    var totalX = 0f
+    var totalY = 0f
     while (true) {
         val change = awaitDragOrUp(pointer) ?: return null
         if (change.isConsumed) {
@@ -53,7 +58,21 @@ private suspend inline fun AwaitPointerEventScope.awaitDrag(
         if (change.changedToUpIgnoreConsumed()) {
             return change
         }
-        onDrag(change)
+        val delta = change.positionChange()
+        if (!claimed) {
+            totalX += delta.x
+            totalY += delta.y
+            if (abs(totalY) > touchSlop && abs(totalY) > abs(totalX)) {
+                return null
+            }
+            if (abs(totalX) > touchSlop) {
+                claimed = true
+            }
+        }
+        onDrag(change, delta)
+        if (claimed) {
+            change.consume()
+        }
         pointer = change.id
     }
 }
