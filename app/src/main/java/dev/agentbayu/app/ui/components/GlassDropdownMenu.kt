@@ -27,7 +27,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -39,7 +38,6 @@ import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.liquidGlass
-import kotlin.math.roundToInt
 
 @Composable
 fun GlassDropdownMenuHost(
@@ -53,14 +51,13 @@ fun GlassDropdownMenuHost(
     Box(modifier = modifier.onSizeChanged { size -> anchorHeight = size.height }) {
         trigger()
         if (expanded) {
-            val density = LocalDensity.current
             val progress = remember { Animatable(0f) }
             LaunchedEffect(Unit) {
                 progress.animateTo(1f, AgentBayuMotion.snappySpring)
             }
             Popup(
                 alignment = Alignment.BottomStart,
-                offset = IntOffset(0, with(density) { anchorHeight.roundToInt() }),
+                offset = IntOffset(0, anchorHeight),
                 onDismissRequest = { onExpandedChange(false) },
                 properties = PopupProperties(focusable = true)
             ) {
