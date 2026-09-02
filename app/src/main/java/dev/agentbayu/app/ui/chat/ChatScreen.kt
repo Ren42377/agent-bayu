@@ -134,16 +134,6 @@ fun ChatScreen(
             )
 
             Column(modifier = footerModifier) {
-                if (messages.isNotEmpty()) {
-                    SuggestionChips(
-                        suggestions = emptyList(),
-                        onSelect = onSuggestionClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
-                    )
-                }
-
                 PromptBar(
                     value = input,
                     onValueChange = onInputChange,

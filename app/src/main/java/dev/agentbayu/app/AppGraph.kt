@@ -36,17 +36,45 @@ import dev.agentbayu.app.platform.SecureStore
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 object AppGraph {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val warmUpDispatcher = Dispatchers.IO.limitedParallelism(1)
     private val conversation = ConversationRepository()
     private val clock: Clock = RealClock
+    private val readinessState = MutableStateFlow(false)
+
+    val readiness: StateFlow<Boolean> = readinessState.asStateFlow()
 
     @Volatile
     private var container: Container? = null
+
+    fun warmUp(context: Context) {
+        if (container != null) {
+            readinessState.value = true
+            return
+        }
+        scope.launch(warmUpDispatcher) {
+            synchronized(this@AppGraph) {
+                if (container == null) {
+                    settings(context.applicationContext)
+                    container = build(context.applicationContext)
+                }
+            }
+            container?.credentialStore?.preload()
+            readinessState.value = true
+        }
+    }
 
     private class Container(
         val chatController: ChatController,
@@ -101,7 +129,10 @@ object AppGraph {
     private fun container(context: Context): Container {
         container?.let { return it }
         return synchronized(this) {
-            container ?: build(context.applicationContext).also { container = it }
+            container ?: build(context.applicationContext).also {
+                container = it
+                readinessState.value = true
+            }
         }
     }
 

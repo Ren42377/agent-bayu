@@ -48,10 +48,14 @@ internal class InteractiveHighlight(
             null
         }
 
+    private val shaderBrush = shader?.let { ShaderBrush(it.asComposeShader()) }
+
     val modifier: Modifier = Modifier.drawWithContent {
         val progress = pressProgressAnimation.value
         if (progress > 0f) {
-            if (shader != null) {
+            val shader = this@InteractiveHighlight.shader
+            val brush = this@InteractiveHighlight.shaderBrush
+            if (shader != null && brush != null) {
                 drawRect(Color.White.copy(alpha = 0.08f * progress), blendMode = BlendMode.Plus)
                 shader.apply {
                     val center = position(size, positionAnimation.value)
@@ -64,7 +68,7 @@ internal class InteractiveHighlight(
                         center.y.fastCoerceIn(0f, size.height)
                     )
                 }
-                drawRect(ShaderBrush(shader.asComposeShader()), blendMode = BlendMode.Plus)
+                drawRect(brush, blendMode = BlendMode.Plus)
             } else {
                 drawRect(Color.White.copy(alpha = 0.25f * progress), blendMode = BlendMode.Plus)
             }

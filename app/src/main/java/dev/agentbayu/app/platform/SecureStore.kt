@@ -17,12 +17,16 @@ class SecureStore(context: Context) : EncryptedStorage {
     private val directory = File(context.filesDir, DIRECTORY_NAME)
     private val lock = Any()
 
+    @Volatile
+    private var cachedKey: SecretKey? = null
+
     override fun read(name: String): String? = synchronized(lock) {
         val file = File(directory, name)
         if (!file.exists()) return null
         return try {
             decrypt(file.readBytes())
         } catch (error: GeneralSecurityException) {
+            cachedKey = null
             Log.e(TAG, "Unable to decrypt " + name)
             file.delete()
             null
@@ -75,9 +79,15 @@ class SecureStore(context: Context) : EncryptedStorage {
     }
 
     private fun secretKey(): SecretKey {
+        cachedKey?.let { return it }
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         val existing = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
-        if (existing != null) return existing.secretKey
+        val key = existing?.secretKey ?: generateKey()
+        cachedKey = key
+        return key
+    }
+
+    private fun generateKey(): SecretKey {
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         generator.init(
             KeyGenParameterSpec.Builder(

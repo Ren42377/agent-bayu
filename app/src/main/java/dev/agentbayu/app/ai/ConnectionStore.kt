@@ -1,9 +1,13 @@
 package dev.agentbayu.app.ai
 
 import dev.agentbayu.app.platform.EncryptedStorage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 
 class ConnectionStore(
@@ -11,6 +15,8 @@ class ConnectionStore(
     private val clock: Clock = RealClock
 ) : ConnectionSource {
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val persistScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val restored = load()
     private val state = MutableStateFlow(restored.connections)
@@ -80,7 +86,7 @@ class ConnectionStore(
     fun clear() {
         state.value = emptyList()
         activeState.value = null
-        storage.delete(FILE_NAME)
+        persistScope.launch { storage.delete(FILE_NAME) }
     }
 
     private fun load(): ConnectionFile {
@@ -94,16 +100,14 @@ class ConnectionStore(
 
     private fun persist(connections: List<Connection>, activeConnectionId: String?) {
         if (connections.isEmpty()) {
-            storage.delete(FILE_NAME)
+            persistScope.launch { storage.delete(FILE_NAME) }
             return
         }
-        storage.write(
-            FILE_NAME,
-            json.encodeToString(
-                ConnectionFile.serializer(),
-                ConnectionFile(connections = connections, activeConnectionId = activeConnectionId)
-            )
+        val payload = json.encodeToString(
+            ConnectionFile.serializer(),
+            ConnectionFile(connections = connections, activeConnectionId = activeConnectionId)
         )
+        persistScope.launch { storage.write(FILE_NAME, payload) }
     }
 
     companion object {

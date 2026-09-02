@@ -59,13 +59,18 @@ import kotlinx.coroutines.flow.MutableStateFlow
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        splashScreen.setKeepOnScreenCondition { !AppGraph.readiness.value }
+        AppGraph.warmUp(applicationContext)
         setContent {
-            AgentBayuAppTheme {
-                SystemBarAppearance()
-                AgentBayuApp()
+            val ready by AppGraph.readiness.collectAsState()
+            if (ready) {
+                AgentBayuAppTheme {
+                    SystemBarAppearance()
+                    AgentBayuApp()
+                }
             }
         }
     }

@@ -64,6 +64,12 @@ class CredentialStore(private val storage: EncryptedStorage) : KeySource {
         return Credential.hintOf(value)
     }
 
+    fun preload() {
+        synchronized(entries) {
+            ensureLoaded()
+        }
+    }
+
     private fun ensureLoaded() {
         if (loaded) return
         loaded = true

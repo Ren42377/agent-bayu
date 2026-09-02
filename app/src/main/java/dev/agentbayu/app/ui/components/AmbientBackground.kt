@@ -144,7 +144,7 @@ private fun driftCenter(
 private const val PRIMARY_CYCLE_MILLIS = 45_000f
 private const val SECONDARY_CYCLE_MILLIS = 60_000f
 private const val TERTIARY_CYCLE_MILLIS = 48_000f
-private const val DRIFT_STEP_MILLIS = 200L
+private const val DRIFT_STEP_MILLIS = 500L
 private const val DRIFT_WRAP_MILLIS = 3_600_000f
 private const val DRIFT_AMPLITUDE = 0.08f
 private val TWO_PI = (PI * 2.0).toFloat()
