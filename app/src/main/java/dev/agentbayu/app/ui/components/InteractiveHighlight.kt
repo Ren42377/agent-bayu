@@ -98,7 +98,14 @@ internal class InteractiveHighlight(
             launch { positionAnimation.animateTo(startPosition, positionAnimationSpec) }
         }
     }
+
+    suspend fun prewarm() {
+        pressProgressAnimation.snapTo(PREWARM_PROGRESS)
+        pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec)
+    }
 }
+
+private const val PREWARM_PROGRESS = 0.05f
 
 private const val HIGHLIGHT_SHADER = """
 uniform float2 size;

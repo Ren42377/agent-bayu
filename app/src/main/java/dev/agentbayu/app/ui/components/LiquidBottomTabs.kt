@@ -31,6 +31,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -201,6 +202,11 @@ fun GlassBottomTabs(
                     )
                 }
             )
+        }
+        LaunchedEffect(dampedDragAnimation) {
+            withFrameNanos { }
+            dampedDragAnimation.prewarm()
+            interactiveHighlight.prewarm()
         }
 
         Row(
