@@ -123,7 +123,8 @@ class ProviderAgentEngineTest {
             adapters = mapOf(WireFormat.OPENAI to adapter),
             usageTracker = UsageTracker(clock),
             logStore = LogStore(clock),
-            clock = clock
+            clock = clock,
+            pause = {}
         )
         return ProviderAgentEngine(
             client = client,
@@ -182,7 +183,7 @@ class ProviderAgentEngineTest {
         val events = drain(engine().reply(AgentRequest(prompt = "halo")))
 
         assertEquals(listOf(AgentEvent.Failed(copy.serverError)), events)
-        assertEquals(1, adapter.requests.size)
+        assertEquals(3, adapter.requests.size)
     }
 
     @Test

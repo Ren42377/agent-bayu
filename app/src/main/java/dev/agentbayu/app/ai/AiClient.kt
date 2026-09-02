@@ -28,7 +28,8 @@ class AiClient(
     private val adapters: Map<WireFormat, ChatAdapter>,
     private val usageTracker: UsageTracker,
     private val logStore: LogStore,
-    private val clock: Clock = RealClock
+    private val clock: Clock = RealClock,
+    private val pause: suspend (Long) -> Unit = { delay(it) }
 ) {
 
     fun stream(request: ChatRequest): Flow<ReplyEvent> = flow {
@@ -104,7 +105,7 @@ class AiClient(
             if (outputChars > 0 || pending == null) break
             val wait = retryDelayFor(pending, attempt) ?: break
             logStore.warning(SOURCE, "Retrying request", route + " " + pending.logLabel)
-            delay(wait)
+            pause(wait)
         }
 
         val reported = failure ?: if (outputChars == 0) emptyReply() else null
