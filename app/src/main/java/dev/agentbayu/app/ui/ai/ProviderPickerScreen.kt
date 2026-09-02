@@ -29,6 +29,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.MIN_EFFORT_FAMILY_SIZE
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassOverlay
 import dev.agentbayu.app.ui.theme.AppleGreenLight
@@ -41,6 +43,8 @@ data class ProviderOption(
     val providerLabel: String,
     val model: String,
     val models: List<String>,
+    val efforts: List<ReasoningEffort>,
+    val effort: ReasoningEffort?,
     val authKind: AuthKind,
     val isActive: Boolean,
     val ready: Boolean
@@ -51,6 +55,7 @@ fun ProviderPickerDialog(
     options: List<ProviderOption>,
     onSelect: (String) -> Unit,
     onSelectModel: (String, String) -> Unit,
+    onSelectEffort: (String, ReasoningEffort) -> Unit,
     onManage: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -59,6 +64,7 @@ fun ProviderPickerDialog(
             options = options,
             onSelect = onSelect,
             onSelectModel = onSelectModel,
+            onSelectEffort = onSelectEffort,
             onManage = onManage,
             onDismiss = onDismiss
         )
@@ -70,6 +76,7 @@ private fun PickerContent(
     options: List<ProviderOption>,
     onSelect: (String) -> Unit,
     onSelectModel: (String, String) -> Unit,
+    onSelectEffort: (String, ReasoningEffort) -> Unit,
     onManage: () -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -114,6 +121,10 @@ private fun PickerContent(
                         onSelectModel(option.connectionId, modelId)
                         onDismiss()
                     }
+                )
+                EffortRow(
+                    option = option,
+                    onSelectEffort = { effort -> onSelectEffort(option.connectionId, effort) }
                 )
             }
             HorizontalDivider(
@@ -262,6 +273,33 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun EffortRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) -> Unit) {
+    if (option.efforts.size < MIN_EFFORT_FAMILY_SIZE) return
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(start = 12.dp, bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.picker_effort_title),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary
+        )
+        EffortSelector(
+            options = option.efforts,
+            selected = option.effort,
+            onSelect = onSelectEffort
+        )
+        Text(
+            text = stringResource(R.string.picker_effort_hint),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+        )
     }
 }
 

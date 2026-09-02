@@ -12,13 +12,11 @@ class ContextBuilderTest {
     private val screenTemplate = "Screen: %s"
 
     private fun builder(
-        historyLimit: Int = ContextBuilder.DEFAULT_HISTORY_LIMIT,
-        tokenBudget: Int = ContextBuilder.DEFAULT_TOKEN_BUDGET
+        historyLimit: Int = ContextBuilder.DEFAULT_HISTORY_LIMIT
     ): ContextBuilder = ContextBuilder(
         systemPrompt = systemPrompt,
         screenContextTemplate = screenTemplate,
-        historyLimit = historyLimit,
-        tokenBudget = tokenBudget
+        historyLimit = historyLimit
     )
 
     private var nextId = 0L
@@ -109,9 +107,9 @@ class ContextBuilderTest {
     }
 
     @Test
-    fun theBudgetDropsTheOldestTurnsFirst() {
-        val long = "x".repeat(4_000)
-        val request = builder(tokenBudget = 500).build(
+    fun longTurnsAreLeftForTheModelWindowToTrim() {
+        val long = "x".repeat(40_000)
+        val request = builder().build(
             AgentRequest(
                 prompt = "sekarang",
                 history = listOf(
@@ -121,27 +119,7 @@ class ContextBuilderTest {
                 )
             )
         )
-        assertEquals(listOf("singkat", "sekarang"), request.turns.map { it.content })
-    }
-
-    @Test
-    fun anOversizedPromptStillGoesOutAlone() {
-        val request = builder(tokenBudget = 10).build(
-            AgentRequest(
-                prompt = "y".repeat(1_000),
-                history = listOf(message(MessageAuthor.USER, "lama"))
-            )
-        )
-        assertEquals(1, request.turns.size)
-        assertEquals(ChatRole.USER, request.turns.single().role)
-    }
-
-    @Test
-    fun aFittingConversationIsKeptWhole() {
-        val request = builder(tokenBudget = 6_000).build(
-            AgentRequest(prompt = "sekarang", history = history(6))
-        )
-        assertEquals(7, request.turns.size)
-        assertTrue(request.turns.first().content == "turn 1")
+        assertEquals(4, request.turns.size)
+        assertTrue(request.turns.first().content == long)
     }
 }

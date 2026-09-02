@@ -23,7 +23,9 @@ import androidx.core.content.ContextCompat
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.availableEfforts
 import dev.agentbayu.app.ai.resolveActiveConnection
+import dev.agentbayu.app.ai.resolveEffort
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.components.GlassDialog
 import dev.agentbayu.app.ui.components.defaultSuggestions
@@ -64,6 +66,9 @@ fun ChatRoute(
             val provider = catalog.find(connection.providerId)
             val hasCredential = provider?.requiresCredential != true ||
                 credentials.hasKey(connection.id)
+            val efforts = provider
+                ?.let { availableEfforts(it, connection.model, connection.discoveredModels) }
+                .orEmpty()
             ProviderOption(
                 connectionId = connection.id,
                 label = connection.label,
@@ -71,6 +76,8 @@ fun ChatRoute(
                 model = connection.model,
                 models = (provider?.models?.map { it.id }.orEmpty() + connection.discoveredModels)
                     .distinct(),
+                efforts = efforts,
+                effort = resolveEffort(efforts, connection.effort, connection.model),
                 authKind = provider?.authKind ?: AuthKind.API_KEY,
                 isActive = connection.id == active?.id,
                 ready = provider != null && hasCredential
@@ -105,6 +112,9 @@ fun ChatRoute(
         },
         onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
         onSelectModel = { connectionId, model -> connectionStore.setModel(connectionId, model) },
+        onSelectEffort = { connectionId, effort ->
+            connectionStore.setEffort(connectionId, effort)
+        },
         onManageProviders = onOpenProviders,
         onStop = chat::cancel,
         modifier = modifier

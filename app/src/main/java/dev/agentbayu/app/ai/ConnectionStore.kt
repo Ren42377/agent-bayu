@@ -51,6 +51,12 @@ class ConnectionStore(
         upsert(target.copy(model = trimmed))
     }
 
+    fun setEffort(connectionId: String, effort: ReasoningEffort?) {
+        val target = find(connectionId) ?: return
+        if (target.effort == effort) return
+        upsert(target.copy(effort = effort))
+    }
+
     fun setProjectId(connectionId: String, projectId: String?) {
         val target = find(connectionId) ?: return
         val trimmed = projectId?.trim()?.takeIf { it.isNotEmpty() }

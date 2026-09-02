@@ -165,6 +165,8 @@
     <string name="picker_not_ready">Belum siap dipakai</string>
     <string name="picker_model_title">Model koneksi aktif</string>
     <string name="picker_model_selected">Model terpilih</string>
+    <string name="picker_effort_title">Tingkat reasoning</string>
+    <string name="picker_effort_hint">Geser atau tekan untuk memilih tingkat berpikir model.</string>
     <string name="picker_manage">Atur penyedia</string>
     <string name="picker_close">Tutup</string>
     <string name="connection_new_title">Koneksi baru</string>
@@ -203,8 +205,6 @@
     <string name="connection_model_context">Konteks %1$s token</string>
     <string name="connection_model_price">USD %1$s per juta token masuk, USD %2$s keluar</string>
     <string name="connection_model_free">Gratis</string>
-    <string name="connection_effort_label">Tingkat reasoning</string>
-    <string name="connection_effort_hint">Geser atau tekan untuk memilih tingkat berpikir model.</string>
     <string name="connection_login">Login perangkat</string>
     <string name="connection_login_again">Login ulang</string>
     <string name="connection_login_saved">Sudah login. Token tersimpan di perangkat ini.</string>

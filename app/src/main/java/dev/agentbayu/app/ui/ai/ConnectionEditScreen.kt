@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderEntry
-import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
@@ -55,8 +54,6 @@ data class ConnectionEditState(
     val model: String,
     val modelOptions: List<String>,
     val modelProbes: Map<String, String>,
-    val efforts: List<ReasoningEffort> = emptyList(),
-    val effort: ReasoningEffort? = null,
     val baseUrl: String,
     val isNew: Boolean,
     val loggedIn: Boolean = false,
@@ -73,7 +70,6 @@ data class ConnectionEditActions(
     val onLabelChange: (String) -> Unit,
     val onKeyChange: (String) -> Unit,
     val onModelChange: (String) -> Unit,
-    val onEffortChange: (ReasoningEffort) -> Unit,
     val onBaseUrlChange: (String) -> Unit,
     val onRefreshModels: () -> Unit,
     val onProbeModels: () -> Unit,
@@ -337,7 +333,6 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        EffortFields(state = state, actions = actions)
         state.modelEntry?.let { entry ->
             Text(
                 text = stringResource(R.string.connection_model_context, formatTokens(entry.contextLength)),
@@ -401,26 +396,6 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
         }
         ModelProbeList(state = state)
     }
-}
-
-@Composable
-private fun EffortFields(state: ConnectionEditState, actions: ConnectionEditActions) {
-    if (state.efforts.size < MIN_EFFORT_CHOICES) return
-    Text(
-        text = stringResource(R.string.connection_effort_label),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    EffortSelector(
-        options = state.efforts,
-        selected = state.effort,
-        onSelect = actions.onEffortChange
-    )
-    Text(
-        text = stringResource(R.string.connection_effort_hint),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-    )
 }
 
 @Composable
@@ -564,5 +539,3 @@ fun AiDropdown(
         }
     }
 }
-
-private const val MIN_EFFORT_CHOICES = 2

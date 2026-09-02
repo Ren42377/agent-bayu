@@ -41,6 +41,7 @@ import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.ai.ProviderPickerDialog
@@ -67,6 +68,7 @@ fun ChatScreen(
     onMicClick: () -> Unit,
     onSelectProvider: (String) -> Unit,
     onSelectModel: (String, String) -> Unit,
+    onSelectEffort: (String, ReasoningEffort) -> Unit,
     onManageProviders: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier
@@ -176,6 +178,7 @@ fun ChatScreen(
             options = providerOptions,
             onSelect = onSelectProvider,
             onSelectModel = onSelectModel,
+            onSelectEffort = onSelectEffort,
             onManage = {
                 pickerVisible = false
                 onManageProviders()

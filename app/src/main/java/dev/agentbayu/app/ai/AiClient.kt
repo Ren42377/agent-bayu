@@ -55,6 +55,7 @@ class AiClient(
         }
 
         val effective = request.copy(
+            turns = fitToContext(request, candidate.model),
             maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens),
             effort = candidate.effort
         )

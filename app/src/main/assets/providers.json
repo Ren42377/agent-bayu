@@ -15,14 +15,15 @@
       "modelIdFilter": "-free",
       "supportsStreamUsage": true,
       "allowCustomModel": true,
+      "effortMode": "request_field",
       "models": [
-        { "id": "nemotron-3.5-lightning-free", "label": "Nemotron 3.5 Lightning", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
-        { "id": "ling-3.0-flash-fin-free", "label": "Ling 3.0 Flash Fin", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
-        { "id": "laguna-s-2.1-free", "label": "Laguna S 2.1", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
-        { "id": "mimo-v2.5-free", "label": "MiMo v2.5", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
-        { "id": "nemotron-3-ultra-free", "label": "Nemotron 3 Ultra", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
-        { "id": "deepseek-v4-flash-free", "label": "DeepSeek V4 Flash", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
-        { "id": "muse-spark-1.2-contributor-free", "label": "Muse Spark 1.2 Contributor", "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true }
+        { "id": "nemotron-3.5-lightning-free", "label": "Nemotron 3.5 Lightning", "contextLength": 262144, "maxOutputTokens": 262144, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "ling-3.0-flash-fin-free", "label": "Ling 3.0 Flash Fin", "contextLength": 262144, "maxOutputTokens": 32768, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "laguna-s-2.1-free", "label": "Laguna S 2.1", "contextLength": 256000, "maxOutputTokens": 32000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "efforts": ["low", "medium", "high"], "free": true },
+        { "id": "mimo-v2.5-free", "label": "MiMo v2.5", "contextLength": 200000, "maxOutputTokens": 32000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "nemotron-3-ultra-free", "label": "Nemotron 3 Ultra", "contextLength": 1000000, "maxOutputTokens": 128000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "free": true },
+        { "id": "deepseek-v4-flash-free", "label": "DeepSeek V4 Flash", "contextLength": 200000, "maxOutputTokens": 128000, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "efforts": ["low", "high", "max"], "free": true },
+        { "id": "muse-spark-1.2-contributor-free", "label": "Muse Spark 1.2 Contributor", "contextLength": 1048576, "maxOutputTokens": 131072, "inputPricePerMillion": 0.0, "outputPricePerMillion": 0.0, "efforts": ["low", "medium", "high", "xhigh"], "free": true }
       ]
     },
     {
@@ -51,9 +52,9 @@
         "accountHeader": "chatgpt-account-id"
       },
       "models": [
-        { "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol", "efforts": ["low", "medium", "high", "xhigh"] },
-        { "id": "gpt-5.6-terra", "label": "GPT-5.6 Terra", "efforts": ["low", "medium", "high", "xhigh"] },
-        { "id": "gpt-5.6-luna", "label": "GPT-5.6 Luna", "efforts": ["low", "medium", "high", "xhigh"] }
+        { "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"] },
+        { "id": "gpt-5.6-terra", "label": "GPT-5.6 Terra", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"] },
+        { "id": "gpt-5.6-luna", "label": "GPT-5.6 Luna", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"] }
       ]
     },
     {
@@ -96,11 +97,11 @@
         { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 65536 },
         { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 65536 },
         { "id": "gemini-3.7-flash-tiered", "label": "Gemini 3.7 Flash (Tiered)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 65535 },
-        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 65535 },
-        { "id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash Lite", "contextLength": 1048576, "maxOutputTokens": 65535 },
-        { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 1048576, "maxOutputTokens": 65536 },
-        { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "gemini-3.1-flash-lite", "label": "Gemini 3.1 Flash Lite", "contextLength": 1048576, "maxOutputTokens": 65536 },
+        { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 1000000, "maxOutputTokens": 65536 },
+        { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 1000000, "maxOutputTokens": 65536 },
         { "id": "gpt-oss-120b-medium", "label": "GPT-OSS 120B (Medium)", "contextLength": 131072, "maxOutputTokens": 32768 }
       ]
     },

@@ -126,6 +126,68 @@ class ProviderCatalogTest {
     }
 
     @Test
+    fun `opencode carries the reasoning ladder as a request field`() {
+        val provider = catalog.find("opencode")!!
+
+        assertEquals(EffortMode.REQUEST_FIELD, provider.effortMode)
+        assertEquals(
+            listOf(ReasoningEffort.LOW, ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
+            availableEfforts(provider, "laguna-s-2.1-free")
+        )
+        assertEquals(
+            listOf(ReasoningEffort.LOW, ReasoningEffort.HIGH, ReasoningEffort.MAX),
+            availableEfforts(provider, "deepseek-v4-flash-free")
+        )
+        assertEquals(
+            listOf(
+                ReasoningEffort.LOW,
+                ReasoningEffort.MEDIUM,
+                ReasoningEffort.HIGH,
+                ReasoningEffort.XHIGH
+            ),
+            availableEfforts(provider, "muse-spark-1.2-contributor-free")
+        )
+        assertTrue(availableEfforts(provider, "mimo-v2.5-free").isEmpty())
+    }
+
+    @Test
+    fun `codex offers every level on each model`() {
+        val provider = catalog.find("codex")!!
+
+        assertEquals(EffortMode.REQUEST_FIELD, provider.effortMode)
+        provider.models.forEach { model ->
+            assertEquals(model.id, ReasoningEffort.entries.toList(), model.efforts)
+        }
+    }
+
+    @Test
+    fun `agy reads the ladder from model id suffixes`() {
+        val provider = catalog.find("agy")!!
+
+        assertEquals(EffortMode.MODEL_SUFFIX, provider.effortMode)
+        assertEquals(
+            listOf(ReasoningEffort.LOW, ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
+            availableEfforts(provider, "gemini-3.7-flash-medium")
+        )
+        assertTrue(availableEfforts(provider, "gemini-3.7-flash-tiered").isEmpty())
+        assertTrue(availableEfforts(provider, "gemini-3.1-pro-low").isEmpty())
+        assertTrue(availableEfforts(provider, "gemini-3.1-flash-lite").isEmpty())
+    }
+
+    @Test
+    fun `every bundled model declares its own limits`() {
+        val models = catalog.providers.flatMap { it.models }
+
+        assertTrue(models.isNotEmpty())
+        models.forEach { model ->
+            assertTrue(model.id, model.contextLength != ModelEntry.DEFAULT_CONTEXT_LENGTH)
+            assertTrue(model.id, model.maxOutputTokens != ModelEntry.DEFAULT_MAX_OUTPUT_TOKENS)
+            assertTrue(model.id, model.maxOutputTokens <= model.contextLength)
+            assertTrue(model.id, inputTokenBudget(model) > MIN_INPUT_BUDGET)
+        }
+    }
+
+    @Test
     fun `anonymous key stands in when no key is stored`() {
         val provider = testProvider(id = "anon", anonymousKey = "0000000000")
         val connection = testConnection(providerId = provider.id)
