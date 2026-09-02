@@ -5,7 +5,7 @@ import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.RouteFailure
-import java.util.UUID
+import kotlin.random.Random
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.JsonObject
@@ -32,12 +32,17 @@ class AntigravityAdapter(private val client: OkHttpClient) : ChatAdapter {
             candidate = candidate,
             request = request,
             projectId = projectId,
-            requestId = UUID.randomUUID().toString()
+            requestId = antigravityRequestId(
+                nowMillis = System.currentTimeMillis(),
+                nonce = Random.nextInt()
+            ),
+            sessionId = antigravitySessionId(Random.nextLong())
         )
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, STREAM_PATH))
             .header("Accept", "text/event-stream")
             .header("Content-Type", "application/json")
+            .header(USER_PROJECT_HEADER, projectId)
             .applyAuth(candidate, apiKey)
             .applyExtraHeaders(candidate)
             .applyAuthHeaders(authHeaders)
@@ -63,7 +68,8 @@ internal fun antigravityBody(
     candidate: Candidate,
     request: ChatRequest,
     projectId: String,
-    requestId: String
+    requestId: String,
+    sessionId: String
 ): JsonObject = buildJsonObject {
     val upstreamModel = resolveAntigravityModelId(candidate.model.id)
     put(PROJECT, projectId)
@@ -72,6 +78,7 @@ internal fun antigravityBody(
     put(USER_AGENT, USER_AGENT_VALUE)
     put(REQUEST_TYPE, REQUEST_TYPE_VALUE)
     putJsonObject(REQUEST) {
+        put(SESSION_ID, sessionId)
         request.systemPrompt?.takeIf { it.isNotBlank() }?.let { prompt ->
             putJsonObject("systemInstruction") {
                 putJsonArray("parts") {
@@ -93,7 +100,10 @@ internal fun antigravityBody(
         }
         putJsonObject("generationConfig") {
             val budget = if (WireParams.supports(candidate, WireParams.REASONING)) {
-                antigravityThinkingBudget(upstreamModel, request.effort)
+                antigravityThinkingBudget(
+                    upstreamModel = upstreamModel,
+                    effort = request.effort ?: antigravityTierEffort(candidate.model.id)
+                )
             } else {
                 null
             }
@@ -131,6 +141,17 @@ internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
 
 internal fun resolveAntigravityModelId(modelId: String): String =
     MODEL_ALIASES[modelId] ?: modelId
+
+internal fun antigravityRequestId(nowMillis: Long, nonce: Int): String {
+    val hex = (nonce.toLong() and INT_MASK).toString(16).padStart(HEX_WIDTH, '0')
+    return REQUEST_ID_PREFIX + nowMillis + "/" + hex
+}
+
+internal fun antigravitySessionId(seed: Long): String =
+    "-" + (seed and Long.MAX_VALUE) % SESSION_ID_MODULUS
+
+internal fun antigravityTierEffort(modelId: String): ReasoningEffort? =
+    MODEL_TIER_EFFORTS.firstOrNull { modelId.endsWith(it.first, ignoreCase = true) }?.second
 
 internal fun antigravityThinkingBudget(upstreamModel: String, effort: ReasoningEffort?): Int? {
     if (effort == null) return null
@@ -192,6 +213,12 @@ private val MODEL_ALIASES = mapOf(
 
 private val THINKING_UNSUPPORTED_PREFIXES = listOf("claude-", "gpt-oss-", "tab_")
 
+private val MODEL_TIER_EFFORTS = listOf(
+    "-low" to ReasoningEffort.LOW,
+    "-medium" to ReasoningEffort.MEDIUM,
+    "-high" to ReasoningEffort.HIGH
+)
+
 private val THINKING_BUDGETS = mapOf(
     ReasoningEffort.LOW to 1_024,
     ReasoningEffort.MEDIUM to 10_240,
@@ -209,6 +236,12 @@ private val THINKING_BUDGET_CAPS = listOf(
 
 private const val PROJECT = "project"
 private const val REQUEST_ID = "requestId"
+private const val REQUEST_ID_PREFIX = "agent/"
+private const val SESSION_ID = "sessionId"
+private const val USER_PROJECT_HEADER = "x-goog-user-project"
+private const val SESSION_ID_MODULUS = 9_000_000_000_000_000_000L
+private const val INT_MASK = 0xffffffffL
+private const val HEX_WIDTH = 8
 private const val MODEL = "model"
 private const val USER_AGENT = "userAgent"
 private const val USER_AGENT_VALUE = "antigravity"

@@ -36,6 +36,28 @@ class AiClientTest {
         }
     }
 
+    private class FlakyAdapter(
+        private val failure: RouteFailure,
+        private val failures: Int
+    ) : ChatAdapter {
+        var calls = 0
+
+        override fun stream(
+            candidate: Candidate,
+            apiKey: String?,
+            request: ChatRequest,
+            authHeaders: Map<String, String>
+        ): Flow<WireEvent> = flow {
+            calls += 1
+            if (calls <= failures) {
+                emit(WireEvent.Failure(failure))
+            } else {
+                emit(WireEvent.Delta("ok"))
+            }
+            emit(WireEvent.Done)
+        }
+    }
+
     private val storedKeys = FakeKeys(mapOf("conn-1" to "key-1234"))
 
     private val request = ChatRequest(
@@ -262,6 +284,66 @@ class AiClientTest {
         val failed = events.single() as ReplyEvent.Failed
         assertEquals(FailureKind.RETRYABLE, failed.failure.kind)
         assertTrue(connections.healthCalls.isEmpty())
+    }
+
+    @Test
+    fun `retries a server error and reports the later success`() = runTest {
+        val candidate = testCandidate()
+        val adapter = FlakyAdapter(
+            RouteFailure(kind = FailureKind.RETRYABLE, message = "server error", statusCode = 500),
+            failures = 1
+        )
+        val tracker = UsageTracker(FakeClock())
+
+        val events = clientFor(candidate, adapter, tracker = tracker).stream(request).toList()
+
+        assertEquals(2, adapter.calls)
+        assertEquals(listOf("ok"), events.filterIsInstance<ReplyEvent.Delta>().map { it.text })
+        assertTrue(events.last() is ReplyEvent.Completed)
+        assertEquals(1, tracker.statsFor("conn-1").successes)
+        assertEquals(0, tracker.statsFor("conn-1").failures)
+    }
+
+    @Test
+    fun `stops retrying at the attempt ceiling`() = runTest {
+        val candidate = testCandidate()
+        val failure = RouteFailure(
+            kind = FailureKind.RETRYABLE,
+            message = "server error",
+            statusCode = 500
+        )
+        val adapter = FlakyAdapter(failure, failures = 9)
+
+        val events = clientFor(candidate, adapter).stream(request).toList()
+
+        assertEquals(3, adapter.calls)
+        assertEquals(failure, (events.single() as ReplyEvent.Failed).failure)
+    }
+
+    @Test
+    fun `retries a cooldown only when the wait is known`() = runTest {
+        val candidate = testCandidate()
+        val burst = FlakyAdapter(
+            RouteFailure(
+                kind = FailureKind.COOLDOWN,
+                message = "burst limited",
+                statusCode = 429,
+                retryAfterMillis = 2_000L
+            ),
+            failures = 1
+        )
+        val blind = FlakyAdapter(
+            RouteFailure(kind = FailureKind.COOLDOWN, message = "rate limited", statusCode = 429),
+            failures = 1
+        )
+
+        val retried = clientFor(candidate, burst).stream(request).toList()
+        val abandoned = clientFor(candidate, blind).stream(request).toList()
+
+        assertEquals(2, burst.calls)
+        assertTrue(retried.last() is ReplyEvent.Completed)
+        assertEquals(1, blind.calls)
+        assertTrue(abandoned.single() is ReplyEvent.Failed)
     }
 
     @Test

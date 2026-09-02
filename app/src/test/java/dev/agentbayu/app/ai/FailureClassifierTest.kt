@@ -47,6 +47,37 @@ class FailureClassifierTest {
     }
 
     @Test
+    fun antigravityQuotaWordingsAreTerminal() {
+        assertEquals(FailureKind.TERMINAL, kind(429, "Individual quota exhausted, resets after 12m"))
+        assertEquals(FailureKind.TERMINAL, kind(429, "You have exhausted your capacity"))
+        assertEquals(FailureKind.TERMINAL, kind(429, "Enable overages to keep going"))
+        assertEquals(FailureKind.TERMINAL, kind(429, "Free tier daily limit reached"))
+    }
+
+    @Test
+    fun aZeroResetHintIsATransientBurst() {
+        val failure = FailureClassifier.classifyHttp(429, "Quota exhausted, reset after 0s")
+        assertEquals(FailureKind.COOLDOWN, failure.kind)
+        assertEquals(2_000L, failure.retryAfterMillis)
+    }
+
+    @Test
+    fun aRateLimitBodyCanCarryTheWait() {
+        val failure = FailureClassifier.classifyHttp(429, "Too many requests, resets in 45s")
+        assertEquals(FailureKind.COOLDOWN, failure.kind)
+        assertEquals(45_000L, failure.retryAfterMillis)
+    }
+
+    @Test
+    fun resetHintsParseHoursMinutesAndSeconds() {
+        assertEquals(3_723_000L, FailureClassifier.parseResetHint("resets after 1h2m3s"))
+        assertEquals(600_000L, FailureClassifier.parseResetHint("reset in 10 m"))
+        assertEquals(0L, FailureClassifier.parseResetHint("reset after 0s"))
+        assertNull(FailureClassifier.parseResetHint("rate limit reached"))
+        assertNull(FailureClassifier.parseResetHint("reset after a while"))
+    }
+
+    @Test
     fun timeoutRetriesAndTripsTheBreaker() {
         val failure = FailureClassifier.classifyHttp(408, "timeout")
         assertEquals(FailureKind.RETRYABLE, failure.kind)

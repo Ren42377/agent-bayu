@@ -90,16 +90,18 @@ class AntigravityAdapterTest {
         assertEquals("/v1internal:streamGenerateContent?alt=sse", recorded.path)
         assertEquals("text/event-stream", recorded.getHeader("Accept"))
         assertEquals("Bearer token-x", recorded.getHeader("Authorization"))
+        assertEquals("projects/42", recorded.getHeader("x-goog-user-project"))
 
         val body = parseJsonObject(recorded.body.readUtf8())
         assertEquals("projects/42", body?.stringField("project"))
         assertEquals("gemini-3.7-flash-tiered", body?.stringField("model"))
         assertEquals("antigravity", body?.stringField("userAgent"))
         assertEquals("agent", body?.stringField("requestType"))
-        assertFalse(body?.stringField("requestId").isNullOrBlank())
+        assertTrue(body?.stringField("requestId").orEmpty().startsWith("agent/"))
         assertNull(body?.get("generationConfig"))
 
         val inner = body?.objectField("request")
+        assertTrue(inner?.stringField("sessionId").orEmpty().startsWith("-"))
         val instruction = inner?.objectField("systemInstruction")
             ?.arrayField("parts")
             ?.firstOrNull() as? JsonObject
@@ -149,7 +151,13 @@ class AntigravityAdapterTest {
     @Test
     fun noEffortAndUnsupportedReasoningLeaveThinkingOut() {
         server.enqueue(sseResponse(textDelta("hi")))
-        collectEvents(adapter.stream(candidate(), "token-x", request(effort = null)))
+        collectEvents(
+            adapter.stream(
+                candidate(modelId = "gemini-3.7-flash-tiered"),
+                "token-x",
+                request(effort = null)
+            )
+        )
         val plain = parseJsonObject(server.takeRequest().body.readUtf8())
             ?.objectField("request")
             ?.objectField("generationConfig")
@@ -169,6 +177,45 @@ class AntigravityAdapterTest {
             ?.objectField("generationConfig")
         assertFalse(blocked?.containsKey("thinkingConfig") == true)
         assertEquals(512, blocked?.intField("maxOutputTokens"))
+    }
+
+    @Test
+    fun theModelIdTierDrivesTheBudgetWhenNoLevelIsRequested() {
+        server.enqueue(sseResponse(textDelta("hi")))
+        collectEvents(
+            adapter.stream(
+                candidate(modelId = "gemini-3.7-flash-low"),
+                "token-x",
+                request(effort = null)
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals("gemini-3.7-flash-tiered", body?.stringField("model"))
+        val config = body?.objectField("request")?.objectField("generationConfig")
+        assertEquals(1_024, config?.objectField("thinkingConfig")?.intField("thinkingBudget"))
+        assertEquals(1_025, config?.intField("maxOutputTokens"))
+    }
+
+    @Test
+    fun theRequestIdAndSessionIdFollowTheCliShape() {
+        assertEquals("agent/1700000000000/0000002a", antigravityRequestId(1_700_000_000_000L, 42))
+        assertEquals("agent/1700000000000/ffffffff", antigravityRequestId(1_700_000_000_000L, -1))
+
+        val session = antigravitySessionId(-7L)
+        assertTrue(session.startsWith("-"))
+        assertTrue(session.drop(1).all { it.isDigit() })
+        assertEquals("-0", antigravitySessionId(0L))
+    }
+
+    @Test
+    fun onlyTheLevelSuffixesCountAsATier() {
+        assertEquals(ReasoningEffort.LOW, antigravityTierEffort("gemini-3.7-flash-low"))
+        assertEquals(ReasoningEffort.MEDIUM, antigravityTierEffort("gemini-3.7-flash-medium"))
+        assertEquals(ReasoningEffort.HIGH, antigravityTierEffort("gemini-3.7-flash-high"))
+        assertNull(antigravityTierEffort("gemini-3.7-flash-tiered"))
+        assertNull(antigravityTierEffort("gemini-pro-agent"))
+        assertNull(antigravityTierEffort("claude-sonnet-4-6"))
     }
 
     @Test

@@ -4,6 +4,7 @@ import android.util.Log
 import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.WireEvent
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
@@ -69,23 +70,41 @@ class AiClient(
         var outputChars = 0
         var wireUsage: WireEvent.Usage? = null
         var failure: RouteFailure? = null
+        var attempt = 0
 
-        adapter.stream(candidate, credential.token, effective, credential.headers).collect { event ->
-            when (event) {
-                is WireEvent.Delta -> {
-                    if (firstTokenMillis == 0L) {
-                        firstTokenMillis = (clock.nowMillis() - startedAt).coerceAtLeast(1L)
-                        usageTracker.recordFirstToken(connectionId, firstTokenMillis)
-                        emit(ReplyEvent.Started(detail.copy(firstTokenMillis = firstTokenMillis)))
+        while (true) {
+            attempt += 1
+            failure = null
+            wireUsage = null
+            adapter.stream(candidate, credential.token, effective, credential.headers)
+                .collect { event ->
+                    when (event) {
+                        is WireEvent.Delta -> {
+                            if (firstTokenMillis == 0L) {
+                                firstTokenMillis =
+                                    (clock.nowMillis() - startedAt).coerceAtLeast(1L)
+                                usageTracker.recordFirstToken(connectionId, firstTokenMillis)
+                                emit(
+                                    ReplyEvent.Started(
+                                        detail.copy(firstTokenMillis = firstTokenMillis)
+                                    )
+                                )
+                            }
+                            outputChars += event.text.length
+                            emit(ReplyEvent.Delta(event.text))
+                        }
+
+                        is WireEvent.Usage -> wireUsage = event
+                        is WireEvent.Failure -> failure = event.failure
+                        WireEvent.Done -> Unit
                     }
-                    outputChars += event.text.length
-                    emit(ReplyEvent.Delta(event.text))
                 }
 
-                is WireEvent.Usage -> wireUsage = event
-                is WireEvent.Failure -> failure = event.failure
-                WireEvent.Done -> Unit
-            }
+            val pending = failure
+            if (outputChars > 0 || pending == null) break
+            val wait = retryDelayFor(pending, attempt) ?: break
+            logStore.warning(SOURCE, "Retrying request", route + " " + pending.logLabel)
+            delay(wait)
         }
 
         val reported = failure ?: if (outputChars == 0) emptyReply() else null
@@ -122,6 +141,23 @@ class AiClient(
                 usage.outputTokens + " output tokens"
         )
         emit(ReplyEvent.Completed(complete, usage))
+    }
+
+    private fun retryDelayFor(failure: RouteFailure, attempt: Int): Long? {
+        if (attempt >= MAX_ATTEMPTS) return null
+        return when (failure.kind) {
+            FailureKind.RETRYABLE -> failure.retryAfterMillis
+                ?.coerceIn(0L, MAX_RETRY_DELAY_MILLIS)
+                ?: (BASE_RETRY_DELAY_MILLIS shl (attempt - 1))
+
+            FailureKind.COOLDOWN -> if (attempt >= MAX_COOLDOWN_ATTEMPTS) {
+                null
+            } else {
+                failure.retryAfterMillis?.takeIf { it in 0L..MAX_RETRY_DELAY_MILLIS }
+            }
+
+            else -> null
+        }
     }
 
     private fun detailOf(candidate: Candidate): ReplyDetail = ReplyDetail(
@@ -176,5 +212,9 @@ class AiClient(
         private const val TAG = "AgentBayu"
         private const val SOURCE = "AiClient"
         private const val UNAUTHORIZED_STATUS = 401
+        private const val MAX_ATTEMPTS = 3
+        private const val MAX_COOLDOWN_ATTEMPTS = 2
+        private const val BASE_RETRY_DELAY_MILLIS = 1_000L
+        private const val MAX_RETRY_DELAY_MILLIS = 8_000L
     }
 }

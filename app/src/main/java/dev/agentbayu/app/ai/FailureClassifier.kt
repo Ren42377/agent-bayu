@@ -37,7 +37,20 @@ object FailureClassifier {
         "billing",
         "credit",
         "payment",
-        "balance"
+        "balance",
+        "quota_exhausted",
+        "quota exhausted",
+        "quota reached",
+        "individual quota",
+        "enable overages",
+        "free tier",
+        "daily limit",
+        "exhausted your capacity"
+    )
+
+    private val RESET_HINT = Regex(
+        "reset(?:s)?\\s+(?:after|in)\\s+(?:(\\d+)\\s*h)?(?:(\\d+)\\s*m)?(?:(\\d+)\\s*s)?",
+        RegexOption.IGNORE_CASE
     )
 
     fun classifyHttp(statusCode: Int, body: String, retryAfterHeader: String? = null): RouteFailure {
@@ -55,6 +68,13 @@ object FailureClassifier {
                 statusCode = statusCode
             )
 
+            statusCode == 429 && parseResetHint(body) == 0L -> RouteFailure(
+                kind = FailureKind.COOLDOWN,
+                message = "burst limited",
+                statusCode = statusCode,
+                retryAfterMillis = BURST_BACKOFF_MILLIS
+            )
+
             statusCode == 429 && QUOTA_HINTS.any { lower.contains(it) } -> RouteFailure(
                 kind = FailureKind.TERMINAL,
                 message = "quota exhausted",
@@ -66,6 +86,7 @@ object FailureClassifier {
                 message = "rate limited",
                 statusCode = statusCode,
                 retryAfterMillis = parseRetryAfter(retryAfterHeader)
+                    ?: parseResetHint(body)?.takeIf { it > 0L }
             )
 
             statusCode == 408 -> RouteFailure(
@@ -138,4 +159,17 @@ object FailureClassifier {
         if (fractional < 0.0) return null
         return (fractional * 1000.0).toLong()
     }
+
+    fun parseResetHint(body: String): Long? {
+        val match = RESET_HINT.find(body) ?: return null
+        val hours = match.groupValues[1].toLongOrNull() ?: 0L
+        val minutes = match.groupValues[2].toLongOrNull() ?: 0L
+        val seconds = match.groupValues[3].toLongOrNull() ?: 0L
+        if (hours == 0L && minutes == 0L && seconds == 0L && match.value.none { it.isDigit() }) {
+            return null
+        }
+        return ((hours * 3_600L) + (minutes * 60L) + seconds) * 1000L
+    }
+
+    private const val BURST_BACKOFF_MILLIS = 2_000L
 }

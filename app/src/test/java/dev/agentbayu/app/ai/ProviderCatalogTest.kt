@@ -161,17 +161,22 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `agy reads the ladder from model id suffixes`() {
+    fun `agy keeps the level inside the model id and offers no effort ladder`() {
         val provider = catalog.find("agy")!!
 
-        assertEquals(EffortMode.MODEL_SUFFIX, provider.effortMode)
-        assertEquals(
-            listOf(ReasoningEffort.LOW, ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
-            availableEfforts(provider, "gemini-3.7-flash-medium")
-        )
-        assertTrue(availableEfforts(provider, "gemini-3.7-flash-tiered").isEmpty())
-        assertTrue(availableEfforts(provider, "gemini-3.1-pro-low").isEmpty())
-        assertTrue(availableEfforts(provider, "gemini-3.1-flash-lite").isEmpty())
+        assertEquals(EffortMode.NONE, provider.effortMode)
+        provider.models.forEach { model ->
+            assertTrue(model.id, model.efforts.isEmpty())
+            assertTrue(model.id, availableEfforts(provider, model.id).isEmpty())
+        }
+        listOf(
+            "gemini-3.7-flash-high",
+            "gemini-3.7-flash-medium",
+            "gemini-3.7-flash-low",
+            "gemini-3.7-flash-tiered"
+        ).forEach { id ->
+            assertNotNull(id, provider.model(id))
+        }
     }
 
     @Test
