@@ -1,5 +1,7 @@
 package dev.agentbayu.app.ui.components
 
+import android.os.Build
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -33,12 +36,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -56,6 +62,8 @@ import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
 import dev.agentbayu.app.ui.theme.liquidGlass
 import dev.agentbayu.app.ui.theme.solidGlassStyle
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun AssistantPanel(
@@ -75,18 +83,24 @@ fun AssistantPanel(
 ) {
     val progress by animateFloatAsState(
         targetValue = if (visible) 1f else 0f,
-        animationSpec = AgentBayuMotion.panelSpring,
+        animationSpec = AgentBayuMotion.assistantPanelSpring,
         label = "assistantPanel",
-        finishedListener = { value -> if (value < HIDDEN_THRESHOLD) onHidden() }
+        finishedListener = { value -> if (!visible && value < HIDDEN_THRESHOLD) onHidden() }
     )
     if (!visible && progress < HIDDEN_THRESHOLD) {
         return
     }
     val panelHeight = remember { mutableStateOf(0) }
-    val dragOffset = remember { mutableStateOf(0f) }
+    val dragOffset = remember { Animatable(0f) }
+    val dragScope = rememberCoroutineScope()
+    val inputFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
     LaunchedEffect(visible) {
         if (visible) {
-            dragOffset.value = 0f
+            dragOffset.snapTo(0f)
+            delay(FOCUS_DELAY_MILLIS)
+            inputFocus.requestFocus()
+            keyboard?.show()
         }
     }
     CompositionLocalProvider(
@@ -116,13 +130,21 @@ fun AssistantPanel(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .windowInsetsPadding(
-                            WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                        .then(
+                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
+                                Modifier.navigationBarsPadding()
+                            } else {
+                                Modifier.windowInsetsPadding(
+                                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
+                                )
+                            }
                         )
                 ) {
                     DragHandle(
                         onDrag = { amount ->
-                            dragOffset.value = (dragOffset.value + amount).coerceAtLeast(0f)
+                            dragScope.launch {
+                                dragOffset.snapTo((dragOffset.value + amount).coerceAtLeast(0f))
+                            }
                         },
                         onDragStopped = {
                             val threshold =
@@ -130,7 +152,9 @@ fun AssistantPanel(
                             if (dragOffset.value > threshold) {
                                 onDismiss()
                             } else {
-                                dragOffset.value = 0f
+                                dragScope.launch {
+                                    dragOffset.animateTo(0f, AgentBayuMotion.snappySpring)
+                                }
                             }
                         }
                     )
@@ -159,7 +183,8 @@ fun AssistantPanel(
                         onValueChange = onInputChange,
                         onSend = onSend,
                         onMicClick = onMicClick,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        focusRequester = inputFocus
                     )
                     TextButton(
                         onClick = onOpenApp,
@@ -180,6 +205,7 @@ fun AssistantPanel(
 }
 
 private const val HIDDEN_THRESHOLD = 0.01f
+private const val FOCUS_DELAY_MILLIS = 220L
 
 @Composable
 private fun DragHandle(onDrag: (Float) -> Unit, onDragStopped: () -> Unit) {

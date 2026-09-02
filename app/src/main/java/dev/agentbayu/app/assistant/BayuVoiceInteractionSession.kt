@@ -4,6 +4,7 @@ import android.app.assist.AssistContent
 import android.app.assist.AssistStructure
 import android.content.Context
 import android.content.Intent
+import android.os.Build
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import android.util.Log
@@ -77,7 +78,13 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         super.onPrepareShow(args, showFlags)
         window.window?.let { sessionWindow ->
             WindowCompat.setDecorFitsSystemWindows(sessionWindow, false)
-            sessionWindow.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+            sessionWindow.setSoftInputMode(
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+                } else {
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                }
+            )
         }
     }
 
