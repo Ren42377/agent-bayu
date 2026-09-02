@@ -7,7 +7,12 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -48,6 +53,19 @@ internal fun EffortSelector(
         ),
         label = "effortStarPhase"
     )
+    val drift = remember { mutableFloatStateOf(0f) }
+    val boost = remember { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(Unit) {
+        var lastFrame = withFrameNanos { it }
+        while (true) {
+            val frame = withFrameNanos { it }
+            val deltaSeconds = ((frame - lastFrame) / NANOS_PER_SECOND).fastCoerceIn(0f, 0.1f)
+            lastFrame = frame
+            drift.floatValue += (STAR_DRIFT_SPEED + boost.floatValue) * deltaSeconds
+        }
+    }
+
     GlassSegmentedSelector(
         labels = options.map { it.label },
         selectedIndex = selectedIndex,
@@ -55,7 +73,10 @@ internal fun EffortSelector(
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
-        decoration = { value -> drawStars(stars, phase.value, value) }
+        decoration = { value, velocity ->
+            boost.floatValue = velocity.fastCoerceIn(-MAX_STAR_SPEED, MAX_STAR_SPEED)
+            drawStars(stars, phase.value, value, drift.floatValue)
+        }
     )
 }
 
@@ -96,11 +117,12 @@ private fun starField(): List<Star> {
     }
 }
 
-private fun DrawScope.drawStars(stars: List<Star>, phase: Float, value: Float) {
+private fun DrawScope.drawStars(stars: List<Star>, phase: Float, value: Float, drift: Float) {
+    val normalizedDrift = drift / size.width
     stars.forEach { star ->
         val twinkle = (sin(phase + star.offset) + 1f) * 0.5f
         val alpha = STAR_MIN_ALPHA + twinkle * (STAR_MAX_ALPHA - STAR_MIN_ALPHA)
-        val shifted = (star.x + value * STAR_PARALLAX) % 1f
+        val shifted = (star.x + value * STAR_PARALLAX + normalizedDrift) % 1f
         val x = if (shifted < 0f) shifted + 1f else shifted
         drawCircle(
             color = Color.White,
@@ -113,6 +135,7 @@ private fun DrawScope.drawStars(stars: List<Star>, phase: Float, value: Float) {
 
 private const val MIN_EFFORT_OPTIONS = 2
 private const val TWO_PI = 6.2831855f
+private const val NANOS_PER_SECOND = 1_000_000_000f
 private const val STAR_SEED = 20260901L
 private const val STAR_COUNT = 24
 private const val STAR_CYCLE_MILLIS = 4200
@@ -122,3 +145,5 @@ private const val STAR_MIN_ALPHA = 0.12f
 private const val STAR_MAX_ALPHA = 0.85f
 private const val STAR_MARGIN = 0.12f
 private const val STAR_PARALLAX = 0.14f
+private const val STAR_DRIFT_SPEED = 16f
+private const val MAX_STAR_SPEED = 4000f

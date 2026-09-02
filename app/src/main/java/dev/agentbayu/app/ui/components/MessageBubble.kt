@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -23,7 +24,6 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
-import dev.agentbayu.app.ui.theme.AgentBubbleShape
 import dev.agentbayu.app.ui.theme.AppleBlueDark
 import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
@@ -59,39 +59,31 @@ fun MessageBubble(
                 )
             }
         } else {
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 320.dp)
-                    .glassSurface(shape = AgentBubbleShape)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-            ) {
-                Column {
+            MarkdownMessage(
+                content = message.text,
+                modifier = Modifier.fillMaxWidth()
+            )
+            if (message.detail != null && onShowDetail != null) {
+                Row(
+                    modifier = Modifier
+                        .padding(top = 8.dp)
+                        .clip(MaterialTheme.shapes.small)
+                        .clickable { onShowDetail(message) }
+                        .padding(horizontal = 6.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = stringResource(R.string.route_show),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
-                    if (message.detail != null && onShowDetail != null) {
-                        Row(
-                            modifier = Modifier
-                                .padding(top = 8.dp)
-                                .clickable { onShowDetail(message) },
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = stringResource(R.string.route_show),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Icon(
-                                painter = painterResource(R.drawable.ic_chevron),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(12.dp)
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.width(2.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(12.dp)
+                    )
                 }
             }
         }
