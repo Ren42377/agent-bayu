@@ -34,6 +34,7 @@ import dev.agentbayu.app.ui.components.defaultSuggestions
 fun ChatRoute(
     onMessage: (String) -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -116,6 +117,7 @@ fun ChatRoute(
             connectionStore.setEffort(connectionId, effort)
         },
         onManageProviders = onOpenProviders,
+        onOpenHistory = onOpenHistory,
         onStop = chat::cancel,
         modifier = modifier
     )

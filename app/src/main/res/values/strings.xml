@@ -56,11 +56,13 @@
     <string name="settings_about">Tentang</string>
     <string name="settings_version">Versi %1$s</string>
     <string name="settings_about_body">Asisten pribadi yang berjalan di perangkat kamu. Kunci provider dan riwayat disimpan terenkripsi di perangkat, dan permintaan hanya dikirim ke provider yang kamu pilih sendiri.</string>
-    <string name="settings_conversation">Percakapan</string>
-    <string name="settings_clear_title">Hapus riwayat percakapan</string>
-    <string name="settings_clear_body">Riwayat disimpan terenkripsi di penyimpanan internal, maksimal 200 pesan terakhir.</string>
-    <string name="settings_clear_action">Hapus</string>
-    <string name="settings_cleared">Riwayat percakapan dihapus.</string>
+    <string name="history_title">Riwayat</string>
+    <string name="history_new">Sesi baru</string>
+    <string name="history_empty">Belum ada percakapan.</string>
+    <string name="history_untitled">Percakapan baru</string>
+    <string name="history_open">Riwayat chat</string>
+    <string name="history_delete">Hapus sesi</string>
+    <string name="history_deleted">Sesi dihapus.</string>
 
     <string name="settings_assistant">Asisten</string>
     <string name="settings_appearance">Tampilan</string>

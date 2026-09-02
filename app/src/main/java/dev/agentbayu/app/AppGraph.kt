@@ -28,6 +28,7 @@ import dev.agentbayu.app.ai.oauth.TokenRefresher
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.domain.ContextBuilder
 import dev.agentbayu.app.domain.ConversationRepository
+import dev.agentbayu.app.domain.ConversationSessionManager
 import dev.agentbayu.app.domain.ConversationStore
 import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
@@ -78,7 +79,7 @@ object AppGraph {
 
     private class Container(
         val chatController: ChatController,
-        val conversationStore: ConversationStore,
+        val sessionManager: ConversationSessionManager,
         val connectionStore: ConnectionStore,
         val credentialStore: CredentialStore,
         val catalog: ProviderCatalog,
@@ -95,6 +96,9 @@ object AppGraph {
     private var appSettings: AppSettings? = null
 
     fun chat(context: Context): ChatController = container(context).chatController
+
+    fun sessions(context: Context): ConversationSessionManager =
+        container(context).sessionManager
 
     fun connections(context: Context): ConnectionStore = container(context).connectionStore
 
@@ -116,8 +120,6 @@ object AppGraph {
     fun usage(context: Context): UsageTracker = container(context).usageTracker
 
     fun logs(context: Context): LogStore = container(context).logStore
-
-    fun conversationStore(context: Context): ConversationStore = container(context).conversationStore
 
     fun settings(context: Context): AppSettings {
         appSettings?.let { return it }
@@ -184,7 +186,12 @@ object AppGraph {
             copy = providerCopy(context)
         )
         val conversationStore = ConversationStore(secureStore)
-        conversationStore.attach(scope, conversation)
+        val sessionManager = ConversationSessionManager(
+            store = conversationStore,
+            repository = conversation,
+            clock = clock
+        )
+        sessionManager.attach(scope)
         val chatController = ChatController(
             repository = conversation,
             engine = engine,
@@ -192,9 +199,10 @@ object AppGraph {
             logStore = logStore,
             scope = scope
         )
+        sessionManager.bindCancel(chatController::cancel)
         return Container(
             chatController = chatController,
-            conversationStore = conversationStore,
+            sessionManager = sessionManager,
             connectionStore = connectionStore,
             credentialStore = credentialStore,
             catalog = catalog,

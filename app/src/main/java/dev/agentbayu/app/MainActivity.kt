@@ -171,6 +171,7 @@ private fun AgentBayuApp() {
                                     AgentBayuDestination.CHAT -> ChatRoute(
                                         onMessage = onMessage,
                                         onOpenProviders = { pageController.openProviders() },
+                                        onOpenHistory = { pageController.openHistory() },
                                         modifier = Modifier.fillMaxSize()
                                     )
 

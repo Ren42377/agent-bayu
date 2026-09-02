@@ -101,11 +101,6 @@ class ChatController(
         activeJob = null
     }
 
-    fun clear() {
-        cancel()
-        repository.clear()
-    }
-
     private companion object {
         const val TAG = "AgentBayu"
         const val SOURCE = "Chat"
