@@ -138,7 +138,9 @@ fun ChatScreen(
                     hint = providerHint,
                     isResponding = isResponding,
                     onOpenPicker = { pickerVisible = true },
-                    modifier = Modifier.align(Alignment.Center)
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = HEADER_ACTION_RESERVE)
                 )
                 GlassButton(
                     onClick = onOpenHistory,
@@ -238,7 +240,8 @@ private fun ProviderCapsule(
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
             )
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
@@ -292,3 +295,5 @@ private fun EmptyState(
         )
     }
 }
+
+private val HEADER_ACTION_RESERVE = 48.dp

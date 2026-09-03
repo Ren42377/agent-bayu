@@ -253,7 +253,7 @@ private fun TaskNotice(
             Text(
                 text = action,
                 style = MaterialTheme.typography.labelMedium,
-                color = Color.White
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
     }

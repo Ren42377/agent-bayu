@@ -370,7 +370,7 @@ private fun ActionBar(
             Text(
                 text = stringResource(R.string.tasks_detail_save),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
     }

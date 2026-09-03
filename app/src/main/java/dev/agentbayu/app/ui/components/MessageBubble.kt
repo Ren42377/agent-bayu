@@ -5,12 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -81,25 +80,19 @@ fun MessageBubble(
                 modifier = Modifier.fillMaxWidth()
             )
             if (message.detail != null && onShowDetail != null) {
-                Row(
+                Box(
                     modifier = Modifier
-                        .padding(top = 8.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .clickable { onShowDetail(message) }
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(top = 2.dp)
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .clickable { onShowDetail(message) },
+                    contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(
-                        text = stringResource(R.string.route_show),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
                     Icon(
-                        painter = painterResource(R.drawable.ic_chevron),
-                        contentDescription = null,
+                        painter = painterResource(R.drawable.ic_open_in_app),
+                        contentDescription = stringResource(R.string.route_show),
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(12.dp)
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
