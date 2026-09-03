@@ -62,6 +62,8 @@
     <string name="history_untitled">Percakapan baru</string>
     <string name="history_open">Riwayat chat</string>
     <string name="history_delete">Hapus sesi</string>
+    <string name="history_delete_mode">Mode hapus</string>
+    <string name="history_delete_confirm_body">Percakapan ini akan dihapus dari perangkat dan tidak bisa dikembalikan.</string>
     <string name="history_deleted">Sesi dihapus.</string>
 
     <string name="settings_assistant">Asisten</string>
@@ -101,6 +103,7 @@
 
     <string name="dialog_later">Nanti</string>
     <string name="dialog_close">Tutup</string>
+    <string name="dialog_cancel">Batal</string>
     <string name="dialog_mic_title">Izin mikrofon</string>
     <string name="dialog_mic_body">Perintah suara butuh izin mikrofon. Izinkan sekarang?</string>
     <string name="dialog_mic_allow">Izinkan</string>

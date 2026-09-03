@@ -19,6 +19,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,6 +36,7 @@ import android.text.format.DateUtils
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatSessionMeta
 import dev.agentbayu.app.ui.ai.AiScreenHeader
+import dev.agentbayu.app.ui.components.GlassDialog
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -47,6 +53,8 @@ fun HistoryScreen(
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
+    var deleteMode by rememberSaveable { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<ChatSessionMeta?>(null) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -56,6 +64,17 @@ fun HistoryScreen(
             title = stringResource(R.string.history_title),
             onBack = onBack,
             action = {
+                IconButton(onClick = { deleteMode = !deleteMode }) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_delete),
+                        contentDescription = stringResource(R.string.history_delete_mode),
+                        tint = if (deleteMode) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
                 IconButton(onClick = onNew) {
                     Icon(
                         painter = painterResource(R.drawable.ic_add),
@@ -91,18 +110,34 @@ fun HistoryScreen(
                 SessionCard(
                     session = session,
                     isActive = session.id == activeSessionId,
+                    showDelete = deleteMode,
                     onOpen = { onOpen(session.id) },
-                    onDelete = { onDelete(session.id) }
+                    onDelete = { pendingDelete = session }
                 )
             }
         }
     }
+
+    val pending = pendingDelete
+    GlassDialog(
+        visible = pending != null,
+        title = stringResource(R.string.history_delete),
+        body = stringResource(R.string.history_delete_confirm_body),
+        confirmLabel = stringResource(R.string.history_delete),
+        onConfirm = {
+            pendingDelete = null
+            pending?.let { onDelete(it.id) }
+        },
+        dismissLabel = stringResource(R.string.dialog_cancel),
+        onDismiss = { pendingDelete = null }
+    )
 }
 
 @Composable
 private fun SessionCard(
     session: ChatSessionMeta,
     isActive: Boolean,
+    showDelete: Boolean,
     onOpen: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -112,7 +147,12 @@ private fun SessionCard(
             .glassSurface(shape = GlassCardShape)
             .clip(GlassCardShape)
             .clickable(onClick = onOpen)
-            .padding(start = 16.dp, end = 4.dp, top = 10.dp, bottom = 10.dp),
+            .padding(
+                start = 16.dp,
+                end = if (showDelete) 4.dp else 16.dp,
+                top = 10.dp,
+                bottom = 10.dp
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -154,12 +194,14 @@ private fun SessionCard(
             }
             Spacer(modifier = Modifier.width(4.dp))
         }
-        IconButton(onClick = onDelete) {
-            Icon(
-                painter = painterResource(R.drawable.ic_delete),
-                contentDescription = stringResource(R.string.history_delete),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        if (showDelete) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_delete),
+                    contentDescription = stringResource(R.string.history_delete),
+                    tint = MaterialTheme.colorScheme.error
+                )
+            }
         }
     }
 }
