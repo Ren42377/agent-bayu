@@ -34,7 +34,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
 import java.time.format.TextStyle
-import java.util.Locale
 
 @Composable
 internal fun TaskDatePickerDialog(
@@ -110,9 +109,10 @@ private fun MonthHeader(
     onPrevious: () -> Unit,
     onNext: () -> Unit
 ) {
-    val label = remember(month) {
+    val locale = currentLocale()
+    val label = remember(month, locale) {
         month.atDay(1).format(
-            DateTimeFormatter.ofPattern(MONTH_PATTERN, Locale.getDefault())
+            DateTimeFormatter.ofPattern(MONTH_PATTERN, locale)
         )
     }
     Row(
@@ -148,10 +148,11 @@ private fun MonthHeader(
 
 @Composable
 private fun WeekdayHeader() {
+    val locale = currentLocale()
     Row(modifier = Modifier.fillMaxWidth()) {
         WEEK_DAYS.forEach { day ->
             Text(
-                text = day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                text = day.getDisplayName(TextStyle.NARROW, locale),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,

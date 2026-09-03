@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.tasks
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalLocale
 import androidx.compose.ui.res.stringResource
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.RepeatUnit
@@ -13,6 +14,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+
+@Composable
+internal fun currentLocale(): Locale = LocalLocale.current.platformLocale
 
 @Composable
 internal fun taskScheduleLabel(task: TaskItem): String? {
@@ -40,7 +44,7 @@ internal fun dayLabel(atMillis: Long): String {
         today.minusDays(1) -> stringResource(R.string.tasks_due_yesterday)
         else -> {
             val pattern = if (date.year == today.year) DAY_PATTERN else DAY_YEAR_PATTERN
-            date.format(DateTimeFormatter.ofPattern(pattern, Locale.getDefault()))
+            date.format(DateTimeFormatter.ofPattern(pattern, currentLocale()))
         }
     }
 }

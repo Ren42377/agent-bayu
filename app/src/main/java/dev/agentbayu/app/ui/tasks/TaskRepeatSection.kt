@@ -29,7 +29,6 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.TextStyle
-import java.util.Locale
 
 @Composable
 internal fun TaskRepeatSection(
@@ -208,6 +207,7 @@ private fun endsLabel(repeat: TaskRepeat): String {
 
 @Composable
 private fun WeekdayPicker(selected: List<Int>, onToggle: (Int) -> Unit) {
+    val locale = currentLocale()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp)
@@ -229,7 +229,7 @@ private fun WeekdayPicker(selected: List<Int>, onToggle: (Int) -> Unit) {
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = day.getDisplayName(TextStyle.NARROW, Locale.getDefault()),
+                    text = day.getDisplayName(TextStyle.NARROW, locale),
                     style = MaterialTheme.typography.labelMedium,
                     color = if (active) Color.White else MaterialTheme.colorScheme.onSurface
                 )
