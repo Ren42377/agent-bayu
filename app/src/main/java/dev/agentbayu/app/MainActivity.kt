@@ -8,8 +8,12 @@ import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -160,6 +164,12 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                     }
                 }
             ) { innerPadding ->
+                val pageTopInset = innerPadding.calculateTopPadding()
+                val pageBottomInset =
+                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                val pageInsets = remember(pageTopInset, pageBottomInset) {
+                    PaddingValues(top = pageTopInset, bottom = pageBottomInset)
+                }
                 CompositionLocalProvider(
                     LocalGlassBackdrop provides ambientBackdrop,
                     LocalScreenInsets provides innerPadding
@@ -215,14 +225,16 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                             }
                         }
 
-                        AppPageHost(
-                            controller = pageController,
-                            progress = pageProgress,
-                            onboardingVisible = onboardingVisible,
-                            onOnboardingFinish = settings::completeOnboarding,
-                            onMessage = onMessage,
-                            modifier = Modifier.fillMaxSize()
-                        )
+                        CompositionLocalProvider(LocalScreenInsets provides pageInsets) {
+                            AppPageHost(
+                                controller = pageController,
+                                progress = pageProgress,
+                                onboardingVisible = onboardingVisible,
+                                onOnboardingFinish = settings::completeOnboarding,
+                                onMessage = onMessage,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
                 }
             }
