@@ -1,5 +1,6 @@
 package dev.agentbayu.app
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -37,6 +38,7 @@ import androidx.core.view.WindowCompat
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import dev.agentbayu.app.platform.tasks.EXTRA_TASK_ID
 import dev.agentbayu.app.ui.chat.ChatRoute
 import dev.agentbayu.app.ui.components.AmbientBackground
 import dev.agentbayu.app.ui.components.CardPager
@@ -50,6 +52,7 @@ import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
 import dev.agentbayu.app.ui.nav.AppPageHost
 import dev.agentbayu.app.ui.settings.SettingsRoute
+import dev.agentbayu.app.ui.tasks.TasksRoute
 import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
@@ -58,16 +61,25 @@ import kotlinx.coroutines.flow.MutableStateFlow
 
 class MainActivity : ComponentActivity() {
 
+    private val pendingTaskId = MutableStateFlow<String?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        pendingTaskId.value = intent?.getStringExtra(EXTRA_TASK_ID)
         setContent {
             AgentBayuAppTheme {
                 SystemBarAppearance()
-                AgentBayuApp()
+                AgentBayuApp(pendingTaskId = pendingTaskId)
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra(EXTRA_TASK_ID)?.let { pendingTaskId.value = it }
     }
 }
 
@@ -86,13 +98,14 @@ private fun SystemBarAppearance() {
 }
 
 @Composable
-private fun AgentBayuApp() {
+private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
     val context = LocalContext.current
     val settings = remember(context) { AppGraph.settings(context) }
     val onboardingVisible by settings.onboardingVisible.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     val messages = remember { MutableStateFlow<String?>(null) }
     val pendingMessage by messages.collectAsState()
+    val taskDeepLink by pendingTaskId.collectAsState()
     val ambientBackdrop = rememberLayerBackdrop()
     val contentBackdrop = rememberLayerBackdrop()
     val chromeBackdrop = rememberCombinedBackdrop(ambientBackdrop, contentBackdrop)
@@ -109,6 +122,15 @@ private fun AgentBayuApp() {
             snackbarHostState.showSnackbar(message)
             messages.value = null
         }
+    }
+
+    LaunchedEffect(taskDeepLink) {
+        val taskId = taskDeepLink ?: return@LaunchedEffect
+        pendingTaskId.value = null
+        val task = AppGraph.tasks(context).find(taskId) ?: return@LaunchedEffect
+        selectedTab = destinations.indexOf(AgentBayuDestination.TASKS)
+        pageController.closeAll()
+        pageController.openTaskDetail(task.id, task.listId, task.parentId)
     }
 
     BackHandler(enabled = selectedTab != 0) { selectedTab = 0 }
@@ -175,6 +197,14 @@ private fun AgentBayuApp() {
                                     AgentBayuDestination.CHAT -> ChatRoute(
                                         onMessage = onMessage,
                                         onOpenProviders = { pageController.openProviders() },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+
+                                    AgentBayuDestination.TASKS -> TasksRoute(
+                                        onMessage = onMessage,
+                                        onOpenTask = { taskId, listId, parentId ->
+                                            pageController.openTaskDetail(taskId, listId, parentId)
+                                        },
                                         modifier = Modifier.fillMaxSize()
                                     )
 

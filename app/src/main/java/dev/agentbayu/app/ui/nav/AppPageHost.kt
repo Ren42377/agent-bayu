@@ -10,6 +10,7 @@ import dev.agentbayu.app.ui.ai.AiProvidersRoute
 import dev.agentbayu.app.ui.components.PageStackHost
 import dev.agentbayu.app.ui.components.PageStackProgress
 import dev.agentbayu.app.ui.onboarding.OnboardingRoute
+import dev.agentbayu.app.ui.tasks.TaskDetailRoute
 
 @Composable
 fun AppPageHost(
@@ -73,6 +74,14 @@ fun AppPageHost(
                 connectionId = page.connectionId,
                 onBack = controller::back,
                 onMessage = onMessage
+            )
+
+            is AppPage.TaskDetail -> TaskDetailRoute(
+                taskId = page.taskId,
+                listId = page.listId,
+                parentId = page.parentId,
+                onMessage = onMessage,
+                onBack = controller::back
             )
         }
     }

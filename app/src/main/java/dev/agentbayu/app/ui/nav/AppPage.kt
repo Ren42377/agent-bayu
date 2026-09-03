@@ -16,6 +16,9 @@ sealed interface AppPage {
     data class DeviceCode(val connectionId: String) : AppPage
 
     data class BrowserLogin(val connectionId: String) : AppPage
+
+    data class TaskDetail(val taskId: String?, val listId: String, val parentId: String? = null) :
+        AppPage
 }
 
 @Stable
@@ -49,6 +52,10 @@ class AppPageController {
             stack.removeAt(stack.lastIndex)
         }
         stack.add(AppPage.BrowserLogin(connectionId))
+    }
+
+    fun openTaskDetail(taskId: String?, listId: String, parentId: String? = null) {
+        stack.add(AppPage.TaskDetail(taskId, listId, parentId))
     }
 
     fun back() {

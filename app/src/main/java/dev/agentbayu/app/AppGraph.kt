@@ -31,12 +31,15 @@ import dev.agentbayu.app.domain.ConversationRepository
 import dev.agentbayu.app.domain.ConversationStore
 import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
+import dev.agentbayu.app.domain.tasks.TaskStore
 import dev.agentbayu.app.platform.AppSettings
 import dev.agentbayu.app.platform.SecureStore
+import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 object AppGraph {
@@ -65,6 +68,11 @@ object AppGraph {
 
     @Volatile
     private var appSettings: AppSettings? = null
+
+    @Volatile
+    private var taskHub: TaskHub? = null
+
+    private class TaskHub(val store: TaskStore, val alarms: TaskAlarms)
 
     fun chat(context: Context): ChatController = container(context).chatController
 
@@ -96,6 +104,24 @@ object AppGraph {
         return synchronized(this) {
             appSettings ?: AppSettings(context).also { appSettings = it }
         }
+    }
+
+    fun tasks(context: Context): TaskStore = taskHub(context).store
+
+    fun taskAlarms(context: Context): TaskAlarms = taskHub(context).alarms
+
+    private fun taskHub(context: Context): TaskHub {
+        taskHub?.let { return it }
+        return synchronized(this) {
+            taskHub ?: buildTasks(context.applicationContext).also { taskHub = it }
+        }
+    }
+
+    private fun buildTasks(context: Context): TaskHub {
+        val store = TaskStore(SecureStore(context), clock)
+        val alarms = TaskAlarms(context, clock)
+        scope.launch { store.tasks.collect { alarms.sync(it) } }
+        return TaskHub(store, alarms)
     }
 
     private fun container(context: Context): Container {
