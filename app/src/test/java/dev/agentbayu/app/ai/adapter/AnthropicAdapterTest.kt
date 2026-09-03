@@ -195,4 +195,50 @@ class AnthropicAdapterTest {
 
         assertEquals(FailureKind.MODEL_LOCK, failure?.kind)
     }
+
+    @Test
+    fun imagesBecomeBase64SourceBlocks() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "apa ini", listOf(testImage))))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        val items = body?.contentItems("messages", 0).orEmpty()
+        assertEquals(listOf("image", "text"), items.types())
+
+        val source = items.first().objectField("source")
+        assertEquals("base64", source?.stringField("type"))
+        assertEquals(testImage.mimeType, source?.stringField("media_type"))
+        assertEquals(testImage.data, source?.stringField("data"))
+        assertEquals("apa ini", items.last().stringField("text"))
+    }
+
+    @Test
+    fun mergedUserTurnsKeepEveryImage() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(ChatRole.USER, "satu", listOf(testImage)),
+                        ChatTurn(ChatRole.USER, "dua", listOf(testImage))
+                    )
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals(1, body?.arrayField("messages")?.size)
+        assertEquals(
+            listOf("image", "image", "text"),
+            body?.contentItems("messages", 0).orEmpty().types()
+        )
+    }
 }

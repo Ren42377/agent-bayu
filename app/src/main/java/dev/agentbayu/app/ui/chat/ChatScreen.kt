@@ -39,6 +39,7 @@ import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.domain.ChatMessage
+import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.ai.ProviderPickerDialog
 import dev.agentbayu.app.ui.ai.ReplyDetailSheet
@@ -67,7 +68,11 @@ fun ChatScreen(
     onSelectEffort: (String, ReasoningEffort) -> Unit,
     onManageProviders: () -> Unit,
     onStop: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    attachments: List<MessageAttachment> = emptyList(),
+    canAttach: Boolean = false,
+    onAttachClick: () -> Unit = {},
+    onRemoveAttachment: (MessageAttachment) -> Unit = {}
 ) {
     var detailMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var pickerVisible by remember { mutableStateOf(false) }
@@ -151,6 +156,10 @@ fun ChatScreen(
                     onMicClick = onMicClick,
                     isResponding = isResponding,
                     onStop = onStop,
+                    attachments = attachments,
+                    canAttach = canAttach,
+                    onAttachClick = onAttachClick,
+                    onRemoveAttachment = onRemoveAttachment,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }

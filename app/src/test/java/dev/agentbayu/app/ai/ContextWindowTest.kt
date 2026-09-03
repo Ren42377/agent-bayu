@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ai
 
+import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
@@ -64,4 +65,28 @@ class ContextWindowTest {
     fun `an empty conversation stays empty`() {
         assertEquals(emptyList<ChatTurn>(), fitToContext(request(), model(8_192, 4_096)))
     }
+
+    @Test
+    fun `every image adds a fixed cost on top of the text`() {
+        val plain = ChatTurn(ChatRole.USER, "apa ini")
+        val withImages = plain.copy(images = listOf(image(), image()))
+
+        assertEquals(
+            turnTokenCost(plain) + 2 * ChatImage.TOKEN_COST,
+            turnTokenCost(withImages)
+        )
+    }
+
+    @Test
+    fun `images push older turns out of a small window`() {
+        val heavy = ChatTurn(ChatRole.USER, "gambar", List(8) { image() })
+        val turns = fitToContext(
+            ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "lama"), heavy)),
+            model(4_096, 1_024)
+        )
+
+        assertEquals(listOf("gambar"), turns.map { it.content })
+    }
+
+    private fun image(): ChatImage = ChatImage("image/jpeg", "QUJD")
 }

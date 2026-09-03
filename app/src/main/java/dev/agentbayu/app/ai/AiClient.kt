@@ -57,7 +57,7 @@ class AiClient(
         }
 
         val effective = request.copy(
-            turns = fitToContext(request, candidate.model),
+            turns = fitToContext(visionAware(candidate, request), candidate.model),
             maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens),
             effort = candidate.effort
         )
@@ -189,9 +189,15 @@ class AiClient(
         )
     }
 
+    private fun visionAware(candidate: Candidate, request: ChatRequest): ChatRequest {
+        if (candidate.supportsVision) return request
+        if (request.turns.none { it.images.isNotEmpty() }) return request
+        return request.copy(turns = request.turns.map { it.copy(images = emptyList()) })
+    }
+
     private fun estimateInputTokens(request: ChatRequest): Int =
         TokenUsage.estimateTokens(request.systemPrompt.orEmpty()) +
-            request.turns.sumOf { TokenUsage.estimateTokens(it.content) }
+            request.turns.sumOf { turnTokenCost(it) }
 
     private fun healthFor(failure: RouteFailure): ConnectionHealth? = when {
         failure.statusCode == UNAUTHORIZED_STATUS -> ConnectionHealth.NEEDS_KEY

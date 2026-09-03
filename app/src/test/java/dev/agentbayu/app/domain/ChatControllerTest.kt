@@ -172,6 +172,27 @@ class ChatControllerTest {
     }
 
     @Test
+    fun anImageAloneIsEnoughToSend() = runTest {
+        val picture = MessageAttachment(id = "img-1", mimeType = "image/jpeg")
+        var sent: List<MessageAttachment> = emptyList()
+        val chat = controller(
+            engine { request ->
+                sent = request.attachments
+                listOf(AgentEvent.Delta("ok"))
+            }
+        )
+
+        chat.send("   ", attachments = listOf(picture))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val messages = repository.messages.value
+        assertEquals(2, messages.size)
+        assertEquals("", messages.first().text)
+        assertEquals(listOf(picture), messages.first().attachments)
+        assertEquals(listOf(picture), sent)
+    }
+
+    @Test
     fun secondSendIsIgnoredWhileResponding() = runTest {
         val chat = controller(
             engine {

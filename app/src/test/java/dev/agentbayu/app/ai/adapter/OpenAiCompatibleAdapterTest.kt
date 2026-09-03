@@ -250,4 +250,45 @@ class OpenAiCompatibleAdapterTest {
         )
         assertEquals("/local/v1/chat/completions", server.takeRequest().path)
     }
+
+    @Test
+    fun imagesBecomeDataUrlContentParts() {
+        server.enqueue(sseResponse("[DONE]"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(baseUrl = baseUrl(), vision = true),
+                "key",
+                ChatRequest(
+                    systemPrompt = "You are Bayu.",
+                    turns = listOf(ChatTurn(ChatRole.USER, "apa ini", listOf(testImage)))
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals(listOf("system" to "You are Bayu.", "user" to null), body?.turns("messages"))
+
+        val items = body?.contentItems("messages", 1).orEmpty()
+        assertEquals(listOf("image_url", "text"), items.types())
+        assertEquals(testImage.dataUrl, items.first().objectField("image_url")?.stringField("url"))
+        assertEquals("apa ini", items.last().stringField("text"))
+    }
+
+    @Test
+    fun anImageOnlyTurnCarriesNoTextPart() {
+        server.enqueue(sseResponse("[DONE]"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(baseUrl = baseUrl(), vision = true),
+                "key",
+                ChatRequest(
+                    systemPrompt = null,
+                    turns = listOf(ChatTurn(ChatRole.USER, "", listOf(testImage)))
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals(listOf("image_url"), body?.contentItems("messages", 0).orEmpty().types())
+    }
 }

@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ai
 
 import dev.agentbayu.app.ai.adapter.ChatAdapter
+import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
@@ -459,5 +460,34 @@ class AiClientTest {
         assertEquals(40L, completed.detail.firstTokenMillis)
         assertEquals(100L, completed.detail.totalMillis)
         assertEquals(40L, tracker.statsFor("conn-1").p95FirstTokenMillis)
+    }
+
+    @Test
+    fun `images only reach a model that can see`() = runTest {
+        val picture = ChatImage("image/jpeg", "QUJD")
+        val illustrated = ChatRequest(
+            systemPrompt = "you are bayu",
+            turns = listOf(ChatTurn(ChatRole.USER, "apa ini", listOf(picture)))
+        )
+
+        val blindAdapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        clientFor(testCandidate(), blindAdapter).stream(illustrated).toList()
+
+        assertEquals(
+            listOf("apa ini"),
+            blindAdapter.lastRequest?.turns?.map { it.content }
+        )
+        assertTrue(blindAdapter.lastRequest?.turns?.single()?.images.orEmpty().isEmpty())
+
+        val seeingAdapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        val events = clientFor(testCandidate(vision = true), seeingAdapter)
+            .stream(illustrated)
+            .toList()
+
+        assertEquals(listOf(picture), seeingAdapter.lastRequest?.turns?.single()?.images)
+
+        val usage = (events.last() as ReplyEvent.Completed).usage
+        assertTrue(usage.estimated)
+        assertTrue(usage.inputTokens > ChatImage.TOKEN_COST)
     }
 }

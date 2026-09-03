@@ -8,6 +8,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -83,7 +84,32 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
                 add(
                     buildJsonObject {
                         put("role", if (turn.role == ChatRole.ASSISTANT) "assistant" else "user")
-                        put("content", turn.content)
+                        if (turn.images.isEmpty()) {
+                            put("content", turn.content)
+                        } else {
+                            putJsonArray("content") {
+                                turn.images.forEach { image ->
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "image")
+                                            putJsonObject("source") {
+                                                put("type", "base64")
+                                                put("media_type", image.mimeType)
+                                                put("data", image.data)
+                                            }
+                                        }
+                                    )
+                                }
+                                if (turn.content.isNotEmpty()) {
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "text")
+                                            put("text", turn.content)
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 )
             }
@@ -101,7 +127,10 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
         trimmed.forEach { turn ->
             val last = merged.lastOrNull()
             if (last != null && last.role == turn.role) {
-                merged[merged.lastIndex] = last.copy(content = last.content + "\n\n" + turn.content)
+                merged[merged.lastIndex] = last.copy(
+                    content = last.content + "\n\n" + turn.content,
+                    images = last.images + turn.images
+                )
             } else {
                 merged += turn
             }

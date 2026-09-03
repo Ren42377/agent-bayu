@@ -8,12 +8,15 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -26,9 +29,13 @@ import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.availableEfforts
 import dev.agentbayu.app.ai.resolveActiveConnection
 import dev.agentbayu.app.ai.resolveEffort
+import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.ui.ai.ProviderOption
+import dev.agentbayu.app.ui.components.AttachmentThumbnails
 import dev.agentbayu.app.ui.components.GlassDialog
+import dev.agentbayu.app.ui.components.LocalAttachmentLoader
 import dev.agentbayu.app.ui.components.defaultSuggestions
+import kotlinx.coroutines.launch
 
 @Composable
 fun ChatRoute(
@@ -41,15 +48,23 @@ fun ChatRoute(
     val catalog = remember(context) { AppGraph.catalog(context) }
     val credentials = remember(context) { AppGraph.credentials(context) }
     val connectionStore = remember(context) { AppGraph.connections(context) }
+    val attachmentStore = remember(context) { AppGraph.attachments(context) }
+    val thumbnails = remember(attachmentStore) {
+        AttachmentThumbnails { id, edge -> attachmentStore.thumbnail(id, edge) }
+    }
+    val scope = rememberCoroutineScope()
     val messages by chat.messages.collectAsState()
     val isResponding by chat.isResponding.collectAsState()
     val connections by connectionStore.connections.collectAsState()
     val activeId by connectionStore.activeConnectionId.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
+    var pending by remember { mutableStateOf<List<MessageAttachment>>(emptyList()) }
     var micPrompt by remember { mutableStateOf(MicPrompt.NONE) }
     val micPendingMessage = stringResource(R.string.mic_pending_message)
     val micGrantedMessage = stringResource(R.string.mic_granted_message)
     val settingsUnavailable = stringResource(R.string.dialog_settings_unavailable)
+    val attachFailed = stringResource(R.string.chat_attach_failed)
+    val attachLimit = stringResource(R.string.chat_attach_limit, MAX_ATTACHMENTS)
 
     val microphoneLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -60,7 +75,30 @@ fun ChatRoute(
         }
     }
 
+    val imageLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickMultipleVisualMedia(MAX_ATTACHMENTS)
+    ) { picked ->
+        if (picked.isEmpty()) return@rememberLauncherForActivityResult
+        val room = MAX_ATTACHMENTS - pending.size
+        if (room <= 0) {
+            onMessage(attachLimit)
+            return@rememberLauncherForActivityResult
+        }
+        if (picked.size > room) onMessage(attachLimit)
+        scope.launch {
+            picked.take(room).forEach { uri ->
+                val accepted = attachmentStore.accept(uri)
+                if (accepted == null) onMessage(attachFailed) else pending = pending + accepted
+            }
+        }
+    }
+
     val active = remember(connections, activeId) { resolveActiveConnection(connections, activeId) }
+    val canAttach = remember(active) {
+        val connection = active ?: return@remember false
+        val provider = catalog.find(connection.providerId) ?: return@remember false
+        provider.vision || provider.modelOrFallback(connection.model).vision
+    }
     val options = remember(connections, activeId) {
         connections.map { connection ->
             val provider = catalog.find(connection.providerId)
@@ -90,35 +128,51 @@ fun ChatRoute(
         stringResource(R.string.chat_provider_hint, active.label, active.model)
     }
 
-    ChatScreen(
-        messages = messages,
-        input = input,
-        isResponding = isResponding,
-        suggestions = defaultSuggestions(),
-        providerHint = providerHint,
-        providerOptions = options,
-        onInputChange = { value -> input = value },
-        onSend = {
-            chat.send(input)
-            input = ""
-        },
-        onSuggestionClick = { text -> chat.send(text) },
-        onMicClick = {
-            if (hasMicrophonePermission(context)) {
-                onMessage(micPendingMessage)
-            } else {
-                micPrompt = MicPrompt.REQUEST
+    CompositionLocalProvider(LocalAttachmentLoader provides thumbnails) {
+        ChatScreen(
+            messages = messages,
+            input = input,
+            isResponding = isResponding,
+            suggestions = defaultSuggestions(),
+            providerHint = providerHint,
+            providerOptions = options,
+            onInputChange = { value -> input = value },
+            onSend = {
+                chat.send(input, attachments = pending)
+                input = ""
+                pending = emptyList()
+            },
+            onSuggestionClick = { text -> chat.send(text) },
+            onMicClick = {
+                if (hasMicrophonePermission(context)) {
+                    onMessage(micPendingMessage)
+                } else {
+                    micPrompt = MicPrompt.REQUEST
+                }
+            },
+            onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
+            onSelectModel = { connectionId, model ->
+                connectionStore.setModel(connectionId, model)
+            },
+            onSelectEffort = { connectionId, effort ->
+                connectionStore.setEffort(connectionId, effort)
+            },
+            onManageProviders = onOpenProviders,
+            onStop = chat::cancel,
+            modifier = modifier,
+            attachments = pending,
+            canAttach = canAttach,
+            onAttachClick = {
+                imageLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            onRemoveAttachment = { attachment ->
+                pending = pending - attachment
+                attachmentStore.discard(attachment.id)
             }
-        },
-        onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
-        onSelectModel = { connectionId, model -> connectionStore.setModel(connectionId, model) },
-        onSelectEffort = { connectionId, effort ->
-            connectionStore.setEffort(connectionId, effort)
-        },
-        onManageProviders = onOpenProviders,
-        onStop = chat::cancel,
-        modifier = modifier
-    )
+        )
+    }
 
     GlassDialog(
         visible = micPrompt == MicPrompt.REQUEST,
@@ -148,6 +202,8 @@ fun ChatRoute(
         onDismiss = { micPrompt = MicPrompt.NONE }
     )
 }
+
+private const val MAX_ATTACHMENTS = 4
 
 private enum class MicPrompt { NONE, REQUEST, DENIED }
 

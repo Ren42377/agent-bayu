@@ -26,20 +26,29 @@ class ChatController(
     val messages: StateFlow<List<ChatMessage>> = repository.messages
     val isResponding: StateFlow<Boolean> = respondingState.asStateFlow()
 
-    fun send(text: String, screenContext: String? = null) {
+    fun send(
+        text: String,
+        screenContext: String? = null,
+        attachments: List<MessageAttachment> = emptyList()
+    ) {
         val prompt = text.trim()
-        if (prompt.isEmpty() || respondingState.value) {
+        if ((prompt.isEmpty() && attachments.isEmpty()) || respondingState.value) {
             return
         }
         val history = repository.messages.value
-        repository.append(MessageAuthor.USER, prompt)
+        repository.append(MessageAuthor.USER, prompt, attachments = attachments)
         val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
         respondingState.value = true
         activeJob = scope.launch {
             var streamed = false
             try {
                 engine.reply(
-                    AgentRequest(prompt = prompt, screenContext = screenContext, history = history)
+                    AgentRequest(
+                        prompt = prompt,
+                        screenContext = screenContext,
+                        history = history,
+                        attachments = attachments
+                    )
                 ).collect { event ->
                     when (event) {
                         is AgentEvent.Delta -> {

@@ -201,4 +201,25 @@ class GeminiAdapterTest {
         assertEquals("", events.deltaText())
         assertTrue(events.completed())
     }
+
+    @Test
+    fun imagesBecomeInlineDataParts() {
+        server.enqueue(sseResponse("{\"candidates\":[]}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "apa ini", listOf(testImage))))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        val parts = body?.parts("contents", 0).orEmpty()
+        assertEquals(2, parts.size)
+
+        val inline = parts.first().objectField("inlineData")
+        assertEquals(testImage.mimeType, inline?.stringField("mimeType"))
+        assertEquals(testImage.data, inline?.stringField("data"))
+        assertEquals("apa ini", parts.last().stringField("text"))
+    }
 }

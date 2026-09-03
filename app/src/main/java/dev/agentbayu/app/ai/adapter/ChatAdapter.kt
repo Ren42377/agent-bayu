@@ -12,7 +12,8 @@ enum class ChatRole {
 
 data class ChatTurn(
     val role: ChatRole,
-    val content: String
+    val content: String,
+    val images: List<ChatImage> = emptyList()
 )
 
 data class ChatRequest(

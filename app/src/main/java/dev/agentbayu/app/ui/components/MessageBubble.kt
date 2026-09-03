@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.components
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,17 +47,33 @@ fun MessageBubble(
         horizontalAlignment = if (fromUser) Alignment.End else Alignment.Start
     ) {
         if (fromUser) {
-            Box(
-                modifier = Modifier
-                    .widthIn(max = 300.dp)
-                    .glassSurface(shape = UserBubbleShape, tint = userTint)
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            ) {
-                Text(
-                    text = message.text,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
-                )
+            if (message.attachments.isNotEmpty()) {
+                Row(
+                    modifier = Modifier.padding(bottom = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    message.attachments.forEach { attachment ->
+                        AttachmentThumbnail(
+                            attachment = attachment,
+                            size = 96.dp,
+                            shape = UserBubbleShape
+                        )
+                    }
+                }
+            }
+            if (message.text.isNotEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .widthIn(max = 300.dp)
+                        .glassSurface(shape = UserBubbleShape, tint = userTint)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                ) {
+                    Text(
+                        text = message.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = Color.White
+                    )
+                }
             }
         } else {
             Box(

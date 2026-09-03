@@ -325,6 +325,35 @@ class OpenAiResponsesAdapterTest {
         assertNull(server.takeRequest().getHeader("chatgpt-account-id"))
     }
 
+    @Test
+    fun imagesBecomeInputImageItems() {
+        server.enqueue(sseResponse("{\"type\":\"response.completed\",\"response\":{}}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "token-1",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(ChatRole.USER, "apa ini", listOf(testImage)),
+                        ChatTurn(ChatRole.ASSISTANT, "sebuah gambar", listOf(testImage))
+                    )
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        val asked = body?.contentItems("input", 0).orEmpty()
+        assertEquals(
+            listOf(OpenAiResponsesAdapter.INPUT_IMAGE, OpenAiResponsesAdapter.INPUT_TEXT),
+            asked.types()
+        )
+        assertEquals(testImage.dataUrl, asked.first().stringField("image_url"))
+        assertEquals("apa ini", asked.last().stringField("text"))
+
+        val answered = body?.contentItems("input", 1).orEmpty()
+        assertEquals(listOf(OpenAiResponsesAdapter.OUTPUT_TEXT), answered.types())
+    }
+
     private companion object {
         const val CODEX_USER_AGENT = "codex-cli/0.149.0 (Android; aarch64) agent-bayu"
         val CODEX_HEADERS = mapOf(

@@ -52,7 +52,30 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
                 add(
                     buildJsonObject {
                         put("role", roleName(turn.role))
-                        put("content", turn.content)
+                        if (turn.images.isEmpty()) {
+                            put("content", turn.content)
+                        } else {
+                            putJsonArray("content") {
+                                turn.images.forEach { image ->
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "image_url")
+                                            putJsonObject("image_url") {
+                                                put("url", image.dataUrl)
+                                            }
+                                        }
+                                    )
+                                }
+                                if (turn.content.isNotEmpty()) {
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "text")
+                                            put("text", turn.content)
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 )
             }

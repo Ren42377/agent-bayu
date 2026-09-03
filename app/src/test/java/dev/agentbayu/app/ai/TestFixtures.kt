@@ -70,6 +70,7 @@ fun testProvider(
     unsupportedParams: List<String> = emptyList(),
     effortMode: EffortMode = EffortMode.NONE,
     extraHeaders: Map<String, String> = emptyMap(),
+    vision: Boolean = false,
     oauth: OAuthConfig? = null
 ): ProviderEntry = ProviderEntry(
     id = id,
@@ -92,6 +93,7 @@ fun testProvider(
     unsupportedParams = unsupportedParams,
     effortMode = effortMode,
     extraHeaders = extraHeaders,
+    vision = vision,
     oauth = oauth,
     models = models
 )
@@ -148,6 +150,8 @@ fun testCandidate(
     providerUnsupportedParams: List<String> = emptyList(),
     modelUnsupportedParams: List<String> = emptyList(),
     extraHeaders: Map<String, String> = emptyMap(),
+    vision: Boolean = false,
+    providerVision: Boolean = false,
     oauth: OAuthConfig? = null
 ): Candidate {
     val model = ModelEntry(
@@ -159,7 +163,8 @@ fun testCandidate(
         inputPricePerMillion = inputPrice,
         outputPricePerMillion = outputPrice,
         unsupportedParams = modelUnsupportedParams,
-        free = free
+        free = free,
+        vision = vision
     )
     return Candidate(
         connection = testConnection(
@@ -187,6 +192,7 @@ fun testCandidate(
             timeoutMillis = timeoutMillis,
             unsupportedParams = providerUnsupportedParams,
             extraHeaders = extraHeaders,
+            vision = providerVision,
             oauth = oauth
         ),
         model = model

@@ -8,7 +8,10 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-class ConversationStore(private val storage: EncryptedStorage) {
+class ConversationStore(
+    private val storage: EncryptedStorage,
+    private val attachments: Attachments? = null
+) {
 
     fun load(): List<ChatMessage> {
         val raw = storage.read(FILE_NAME) ?: return emptyList()
@@ -17,6 +20,9 @@ class ConversationStore(private val storage: EncryptedStorage) {
 
     fun save(messages: List<ChatMessage>) {
         val trimmed = ConversationCodec.trim(messages.filter { !it.streaming || it.text.isNotBlank() })
+        attachments?.keep(
+            trimmed.flatMap { message -> message.attachments.map { it.id } }.toSet()
+        )
         if (trimmed.isEmpty()) {
             storage.delete(FILE_NAME)
             return
@@ -26,6 +32,7 @@ class ConversationStore(private val storage: EncryptedStorage) {
 
     fun clear() {
         storage.delete(FILE_NAME)
+        attachments?.keep(emptySet())
     }
 
     fun attach(scope: CoroutineScope, repository: ConversationRepository) {

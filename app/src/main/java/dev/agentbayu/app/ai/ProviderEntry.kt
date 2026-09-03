@@ -29,6 +29,7 @@ data class ProviderEntry(
     val unsupportedParams: List<String> = emptyList(),
     val effortMode: EffortMode = EffortMode.NONE,
     val extraHeaders: Map<String, String> = emptyMap(),
+    val vision: Boolean = false,
     val oauth: OAuthConfig? = null,
     val models: List<ModelEntry> = emptyList()
 ) {

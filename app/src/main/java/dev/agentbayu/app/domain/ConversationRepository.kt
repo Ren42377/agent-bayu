@@ -15,12 +15,18 @@ class ConversationRepository {
 
     val messages: StateFlow<List<ChatMessage>> = state.asStateFlow()
 
-    fun append(author: MessageAuthor, text: String, streaming: Boolean = false): ChatMessage {
+    fun append(
+        author: MessageAuthor,
+        text: String,
+        streaming: Boolean = false,
+        attachments: List<MessageAttachment> = emptyList()
+    ): ChatMessage {
         val message = ChatMessage(
             id = nextId.getAndIncrement(),
             author = author,
             text = text,
-            streaming = streaming
+            streaming = streaming,
+            attachments = attachments
         )
         state.update { current -> current + message }
         return message

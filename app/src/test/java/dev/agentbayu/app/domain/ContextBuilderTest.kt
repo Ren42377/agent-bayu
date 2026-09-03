@@ -1,5 +1,6 @@
 package dev.agentbayu.app.domain
 
+import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.ChatRole
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -19,10 +20,29 @@ class ContextBuilderTest {
         historyLimit = historyLimit
     )
 
+    private fun seeingBuilder(
+        historyLimit: Int = ContextBuilder.DEFAULT_HISTORY_LIMIT
+    ): ContextBuilder = ContextBuilder(
+        systemPrompt = systemPrompt,
+        screenContextTemplate = screenTemplate,
+        historyLimit = historyLimit,
+        images = { list -> list.map { ChatImage("image/jpeg", it.id) } }
+    )
+
     private var nextId = 0L
 
     private fun message(author: MessageAuthor, text: String): ChatMessage =
         ChatMessage(id = nextId++, author = author, text = text)
+
+    private fun picture(name: String): MessageAttachment =
+        MessageAttachment(id = name, mimeType = "image/jpeg")
+
+    private fun message(
+        author: MessageAuthor,
+        text: String,
+        attachments: List<MessageAttachment>
+    ): ChatMessage =
+        ChatMessage(id = nextId++, author = author, text = text, attachments = attachments)
 
     private fun history(size: Int): List<ChatMessage> = (1..size).map { index ->
         message(
@@ -121,5 +141,56 @@ class ContextBuilderTest {
         )
         assertEquals(4, request.turns.size)
         assertTrue(request.turns.first().content == long)
+    }
+
+    @Test
+    fun imageOnlyHistoryEntriesSurviveTheBlankFilter() {
+        val request = seeingBuilder().build(
+            AgentRequest(
+                prompt = "lanjut",
+                history = listOf(
+                    message(MessageAuthor.USER, "", listOf(picture("a"))),
+                    message(MessageAuthor.AGENT, "   ")
+                )
+            )
+        )
+
+        assertEquals(listOf("", "lanjut"), request.turns.map { it.content })
+        assertEquals(listOf("a"), request.turns.first().images.map { it.data })
+    }
+
+    @Test
+    fun currentAttachmentsRideTheLastTurn() {
+        val request = seeingBuilder().build(
+            AgentRequest(prompt = "apa ini", attachments = listOf(picture("a"), picture("b")))
+        )
+
+        assertEquals(listOf("a", "b"), request.turns.last().images.map { it.data })
+    }
+
+    @Test
+    fun onlyTheNewestHistoryImagesAreSentAgain() {
+        val request = seeingBuilder().build(
+            AgentRequest(
+                prompt = "sekarang",
+                history = (1..6).map { index ->
+                    message(MessageAuthor.USER, "turn " + index, listOf(picture("img" + index)))
+                }
+            )
+        )
+
+        assertEquals(
+            listOf(emptyList(), emptyList(), listOf("img3"), listOf("img4"), listOf("img5"), listOf("img6")),
+            request.turns.dropLast(1).map { turn -> turn.images.map { it.data } }
+        )
+    }
+
+    @Test
+    fun imagesStayOutOfTheRequestWithoutALoader() {
+        val request = builder().build(
+            AgentRequest(prompt = "apa ini", attachments = listOf(picture("a")))
+        )
+
+        assertTrue(request.turns.last().images.isEmpty())
     }
 }

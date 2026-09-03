@@ -44,3 +44,19 @@ internal fun JsonObject.turns(field: String): List<Pair<String?, String?>> {
         turn.stringField("role") to turn.stringField("content")
     }
 }
+
+internal val testImage = ChatImage(mimeType = "image/jpeg", data = "QUJDRA==")
+
+internal fun JsonObject.contentItems(field: String, index: Int): List<JsonObject> =
+    itemsOf(field, index, "content")
+
+internal fun JsonObject.parts(field: String, index: Int): List<JsonObject> =
+    itemsOf(field, index, "parts")
+
+internal fun List<JsonObject>.types(): List<String?> = map { it.stringField("type") }
+
+private fun JsonObject.itemsOf(field: String, index: Int, key: String): List<JsonObject> {
+    val array = arrayField(field) ?: return emptyList()
+    val turn = array.getOrNull(index) as? JsonObject ?: return emptyList()
+    return turn.arrayField(key).orEmpty().filterIsInstance<JsonObject>()
+}

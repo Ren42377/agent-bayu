@@ -132,6 +132,33 @@ class ConversationCodecTest {
     }
 
     @Test
+    fun attachmentsSurviveARoundTrip() {
+        val picture = MessageAttachment(
+            id = "img-1",
+            mimeType = "image/jpeg",
+            fileName = "photo.jpg",
+            width = 1_024,
+            height = 768
+        )
+        val decoded = ConversationCodec.decode(
+            ConversationCodec.encode(
+                listOf(ChatMessage(1L, MessageAuthor.USER, "", attachments = listOf(picture)))
+            )
+        )
+
+        assertEquals(listOf(picture), decoded.single().attachments)
+    }
+
+    @Test
+    fun conversationsWrittenBeforeAttachmentsStillDecode() {
+        val decoded = ConversationCodec.decode(
+            """{"version":1,"messages":[{"id":1,"author":"USER","text":"halo"}]}"""
+        )
+
+        assertTrue(decoded.single().attachments.isEmpty())
+    }
+
+    @Test
     fun theDefaultLimitsMatchThePlan() {
         assertEquals(200, ConversationCodec.MAX_MESSAGES)
         assertEquals(512 * 1024, ConversationCodec.MAX_CHARS)

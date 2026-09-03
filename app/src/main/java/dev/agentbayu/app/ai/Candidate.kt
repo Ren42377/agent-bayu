@@ -23,6 +23,9 @@ data class Candidate(
     val isLocal: Boolean
         get() = LOOPBACK_HOSTS.any { baseUrl.contains(it, ignoreCase = true) }
 
+    val supportsVision: Boolean
+        get() = model.vision || provider.vision
+
     val inputPricePerMillion: Double
         get() = model.inputPricePerMillion ?: ModelEntry.UNKNOWN_PRICE_PER_MILLION
 

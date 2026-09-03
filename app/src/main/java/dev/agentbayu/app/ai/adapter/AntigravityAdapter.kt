@@ -99,6 +99,16 @@ internal fun antigravityBody(
                     buildJsonObject {
                         put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
                         putJsonArray("parts") {
+                            turn.images.forEach { image ->
+                                add(
+                                    buildJsonObject {
+                                        putJsonObject("inlineData") {
+                                            put("mimeType", image.mimeType)
+                                            put("data", image.data)
+                                        }
+                                    }
+                                )
+                            }
                             add(buildJsonObject { put("text", turn.content) })
                         }
                     }
@@ -122,7 +132,10 @@ internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
     conversation.forEach { turn ->
         val last = merged.lastOrNull()
         if (last != null && last.role == turn.role) {
-            merged[merged.lastIndex] = last.copy(content = last.content + "\n\n" + turn.content)
+            merged[merged.lastIndex] = last.copy(
+                content = last.content + "\n\n" + turn.content,
+                images = last.images + turn.images
+            )
         } else {
             merged += turn
         }

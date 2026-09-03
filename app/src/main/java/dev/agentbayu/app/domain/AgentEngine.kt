@@ -7,7 +7,8 @@ import kotlinx.coroutines.flow.Flow
 data class AgentRequest(
     val prompt: String,
     val screenContext: String? = null,
-    val history: List<ChatMessage> = emptyList()
+    val history: List<ChatMessage> = emptyList(),
+    val attachments: List<MessageAttachment> = emptyList()
 )
 
 sealed interface AgentEvent {

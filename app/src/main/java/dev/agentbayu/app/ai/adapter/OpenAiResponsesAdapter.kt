@@ -46,6 +46,16 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
                         put("type", "message")
                         put("role", roleName(turn.role))
                         putJsonArray("content") {
+                            if (turn.role != ChatRole.ASSISTANT) {
+                                turn.images.forEach { image ->
+                                    add(
+                                        buildJsonObject {
+                                            put("type", INPUT_IMAGE)
+                                            put("image_url", image.dataUrl)
+                                        }
+                                    )
+                                }
+                            }
                             add(
                                 buildJsonObject {
                                     put("type", contentType(turn.role))
@@ -130,6 +140,7 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
         const val REASONING_SUMMARY = "auto"
         const val INPUT_TEXT = "input_text"
         const val OUTPUT_TEXT = "output_text"
+        const val INPUT_IMAGE = "input_image"
         const val DELTA_TYPE = "response.output_text.delta"
         const val COMPLETED_TYPE = "response.completed"
         const val FAILED_TYPE = "response.failed"

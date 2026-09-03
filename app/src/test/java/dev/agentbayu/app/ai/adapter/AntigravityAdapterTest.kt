@@ -324,6 +324,21 @@ class AntigravityAdapterTest {
         assertTrue(parseAntigravityChunk("""{"response":{"candidates":[]}}""").isEmpty())
     }
 
+    @Test
+    fun imagesBecomeInlineDataParts() {
+        val body = bodyOf(
+            request = chat(turns = listOf(ChatTurn(ChatRole.USER, "apa ini", listOf(testImage))))
+        )
+
+        val parts = body.objectField("request")?.parts("contents", 0).orEmpty()
+        assertEquals(2, parts.size)
+
+        val inline = parts.first().objectField("inlineData")
+        assertEquals(testImage.mimeType, inline?.stringField("mimeType"))
+        assertEquals(testImage.data, inline?.stringField("data"))
+        assertEquals("apa ini", parts.last().stringField("text"))
+    }
+
     private companion object {
         const val LAUNCH_MILLIS = 1_700_000_000_000L
         const val IDE_USER_AGENT = "antigravity/ide/2.1.1 darwin/arm64"

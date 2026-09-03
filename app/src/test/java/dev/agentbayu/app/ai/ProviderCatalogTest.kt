@@ -269,6 +269,66 @@ class ProviderCatalogTest {
     }
 
     @Test
+    fun `multimodal models declare vision and the rest stay text only`() {
+        val vision = catalog.providers
+            .flatMap { provider -> provider.models.map { provider.id to it } }
+            .filter { it.second.vision }
+            .map { it.first + "/" + it.second.id }
+
+        assertEquals(
+            listOf(
+                "codex/gpt-5.6-sol",
+                "codex/gpt-5.6-terra",
+                "codex/gpt-5.6-luna",
+                "agy/gemini-3.7-flash-high",
+                "agy/gemini-3.7-flash-medium",
+                "agy/gemini-3.7-flash-low",
+                "agy/gemini-3.6-flash-high",
+                "agy/gemini-3.6-flash-medium",
+                "agy/gemini-3.6-flash-low",
+                "agy/gemini-3.5-flash-high",
+                "agy/gemini-3-flash-agent",
+                "agy/gemini-3.5-flash-low",
+                "agy/gemini-3.5-flash-extra-low",
+                "agy/gemini-3-flash",
+                "agy/gemini-pro-agent",
+                "agy/gemini-3.1-pro-low",
+                "agy/claude-opus-4-6-thinking",
+                "agy/claude-sonnet-4-6"
+            ),
+            vision
+        )
+    }
+
+    @Test
+    fun `no provider claims vision for every model it hosts`() {
+        catalog.providers.forEach { provider -> assertFalse(provider.id, provider.vision) }
+    }
+
+    @Test
+    fun `vision follows the model and the provider default`() {
+        val provider = testProvider(
+            id = "eyes",
+            models = listOf(ModelEntry(id = "seeing", vision = true), ModelEntry(id = "blind"))
+        )
+        val seeing = Candidate(
+            connection = testConnection(providerId = provider.id, model = "seeing"),
+            provider = provider,
+            model = provider.modelOrFallback("seeing")
+        )
+        val blind = seeing.copy(model = provider.modelOrFallback("blind"))
+        val custom = Candidate(
+            connection = testConnection(providerId = provider.id, model = "unlisted"),
+            provider = provider.copy(vision = true),
+            model = provider.modelOrFallback("unlisted")
+        )
+
+        assertTrue(seeing.supportsVision)
+        assertFalse(blind.supportsVision)
+        assertTrue(custom.supportsVision)
+    }
+
+    @Test
     fun `anonymous key stands in when no key is stored`() {
         val provider = testProvider(id = "anon", anonymousKey = "0000000000")
         val connection = testConnection(providerId = provider.id)

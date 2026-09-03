@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ai
 
+import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatTurn
 
@@ -12,17 +13,19 @@ fun inputTokenBudget(model: ModelEntry): Int {
     return (usable * INPUT_BUDGET_SHARE).toInt().coerceAtLeast(MIN_INPUT_BUDGET)
 }
 
+fun turnTokenCost(turn: ChatTurn): Int =
+    TokenUsage.estimateTokens(turn.content) + turn.images.size * ChatImage.TOKEN_COST
+
 fun fitToContext(request: ChatRequest, model: ModelEntry): List<ChatTurn> {
     val turns = request.turns
     if (turns.isEmpty()) return turns
     val budget = inputTokenBudget(model)
     val last = turns.last()
-    var used = TokenUsage.estimateTokens(request.systemPrompt.orEmpty()) +
-        TokenUsage.estimateTokens(last.content)
+    var used = TokenUsage.estimateTokens(request.systemPrompt.orEmpty()) + turnTokenCost(last)
     val kept = ArrayDeque<ChatTurn>()
     for (index in turns.lastIndex - 1 downTo 0) {
         val turn = turns[index]
-        val cost = TokenUsage.estimateTokens(turn.content)
+        val cost = turnTokenCost(turn)
         if (used + cost > budget) break
         used += cost
         kept.addFirst(turn)

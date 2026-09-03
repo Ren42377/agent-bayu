@@ -25,6 +25,7 @@ import dev.agentbayu.app.ai.oauth.AntigravityProjectBootstrap
 import dev.agentbayu.app.ai.oauth.CodexDeviceFlow
 import dev.agentbayu.app.ai.oauth.GoogleCodeFlow
 import dev.agentbayu.app.ai.oauth.TokenRefresher
+import dev.agentbayu.app.domain.Attachments
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.domain.ContextBuilder
 import dev.agentbayu.app.domain.ConversationRepository
@@ -33,6 +34,8 @@ import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
 import dev.agentbayu.app.domain.tasks.TaskStore
 import dev.agentbayu.app.platform.AppSettings
+import dev.agentbayu.app.platform.FileStorage
+import dev.agentbayu.app.platform.ImagePipeline
 import dev.agentbayu.app.platform.SecureStore
 import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
@@ -63,7 +66,8 @@ object AppGraph {
         val codeFlow: GoogleCodeFlow,
         val projectBootstrap: AntigravityProjectBootstrap,
         val usageTracker: UsageTracker,
-        val logStore: LogStore
+        val logStore: LogStore,
+        val attachments: Attachments
     )
 
     @Volatile
@@ -98,6 +102,8 @@ object AppGraph {
     fun logs(context: Context): LogStore = container(context).logStore
 
     fun conversationStore(context: Context): ConversationStore = container(context).conversationStore
+
+    fun attachments(context: Context): Attachments = container(context).attachments
 
     fun settings(context: Context): AppSettings {
         appSettings?.let { return it }
@@ -170,15 +176,21 @@ object AppGraph {
             logStore = logStore,
             clock = clock
         )
+        val attachments = Attachments(
+            pipeline = ImagePipeline(context),
+            storage = FileStorage(context, ATTACHMENT_DIRECTORY),
+            clock = clock
+        )
         val engine = ProviderAgentEngine(
             client = aiClient,
             contextBuilder = ContextBuilder(
                 systemPrompt = context.getString(R.string.agent_system_prompt),
-                screenContextTemplate = context.getString(R.string.agent_screen_context_prompt)
+                screenContextTemplate = context.getString(R.string.agent_screen_context_prompt),
+                images = { list -> list.mapNotNull(attachments::image) }
             ),
             copy = providerCopy(context)
         )
-        val conversationStore = ConversationStore(secureStore)
+        val conversationStore = ConversationStore(secureStore, attachments)
         conversationStore.attach(scope, conversation)
         val chatController = ChatController(
             repository = conversation,
@@ -199,7 +211,8 @@ object AppGraph {
             codeFlow = GoogleCodeFlow(client, clock),
             projectBootstrap = AntigravityProjectBootstrap(client),
             usageTracker = usageTracker,
-            logStore = logStore
+            logStore = logStore,
+            attachments = attachments
         )
     }
 
@@ -251,5 +264,6 @@ object AppGraph {
     }
 
     private const val CATALOG_ASSET = "providers.json"
+    private const val ATTACHMENT_DIRECTORY = "attachments"
     private const val CONNECT_TIMEOUT_SECONDS = 15L
 }
