@@ -29,6 +29,7 @@ import dev.agentbayu.app.domain.Attachments
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.domain.ContextBuilder
 import dev.agentbayu.app.domain.ConversationRepository
+import dev.agentbayu.app.domain.ConversationSessionManager
 import dev.agentbayu.app.domain.ConversationStore
 import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
@@ -41,22 +42,49 @@ import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 
 object AppGraph {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val warmUpDispatcher = Dispatchers.IO.limitedParallelism(1)
     private val conversation = ConversationRepository()
     private val clock: Clock = RealClock
+    private val readinessState = MutableStateFlow(false)
+
+    val readiness: StateFlow<Boolean> = readinessState.asStateFlow()
 
     @Volatile
     private var container: Container? = null
 
+    fun warmUp(context: Context) {
+        if (container != null) {
+            readinessState.value = true
+            return
+        }
+        scope.launch(warmUpDispatcher) {
+            synchronized(this@AppGraph) {
+                if (container == null) {
+                    settings(context.applicationContext)
+                    container = build(context.applicationContext)
+                }
+            }
+            container?.credentialStore?.preload()
+            readinessState.value = true
+        }
+    }
+
     private class Container(
         val chatController: ChatController,
-        val conversationStore: ConversationStore,
+        val sessionManager: ConversationSessionManager,
         val connectionStore: ConnectionStore,
         val credentialStore: CredentialStore,
         val catalog: ProviderCatalog,
@@ -80,6 +108,9 @@ object AppGraph {
 
     fun chat(context: Context): ChatController = container(context).chatController
 
+    fun sessions(context: Context): ConversationSessionManager =
+        container(context).sessionManager
+
     fun connections(context: Context): ConnectionStore = container(context).connectionStore
 
     fun credentials(context: Context): CredentialStore = container(context).credentialStore
@@ -100,8 +131,6 @@ object AppGraph {
     fun usage(context: Context): UsageTracker = container(context).usageTracker
 
     fun logs(context: Context): LogStore = container(context).logStore
-
-    fun conversationStore(context: Context): ConversationStore = container(context).conversationStore
 
     fun attachments(context: Context): Attachments = container(context).attachments
 
@@ -133,7 +162,10 @@ object AppGraph {
     private fun container(context: Context): Container {
         container?.let { return it }
         return synchronized(this) {
-            container ?: build(context.applicationContext).also { container = it }
+            container ?: build(context.applicationContext).also {
+                container = it
+                readinessState.value = true
+            }
         }
     }
 
@@ -190,8 +222,14 @@ object AppGraph {
             ),
             copy = providerCopy(context)
         )
-        val conversationStore = ConversationStore(secureStore, attachments)
-        conversationStore.attach(scope, conversation)
+        val conversationStore = ConversationStore(secureStore)
+        val sessionManager = ConversationSessionManager(
+            store = conversationStore,
+            repository = conversation,
+            attachments = attachments,
+            clock = clock
+        )
+        sessionManager.attach(scope)
         val chatController = ChatController(
             repository = conversation,
             engine = engine,
@@ -199,9 +237,10 @@ object AppGraph {
             logStore = logStore,
             scope = scope
         )
+        sessionManager.bindCancel(chatController::cancel)
         return Container(
             chatController = chatController,
-            conversationStore = conversationStore,
+            sessionManager = sessionManager,
             connectionStore = connectionStore,
             credentialStore = credentialStore,
             catalog = catalog,

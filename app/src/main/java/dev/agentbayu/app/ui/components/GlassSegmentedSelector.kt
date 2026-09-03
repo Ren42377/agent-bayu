@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
 import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.liquidGlass
 import kotlinx.coroutines.flow.collectLatest
@@ -52,13 +53,16 @@ internal fun GlassSegmentedSelector(
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.primary,
     tintProvider: ((Float) -> Color)? = null,
-    decoration: (DrawScope.(Float) -> Unit)? = null
+    decoration: (DrawScope.(Float, Float) -> Unit)? = null
 ) {
     if (labels.isEmpty()) {
         return
     }
     val lastIndex = labels.lastIndex
-    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = TRACK_ALPHA)
+    val darkTheme = LocalDarkTheme.current
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = if (darkTheme) DARK_TRACK_ALPHA else TRACK_ALPHA
+    )
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val indicatorStyle = LocalGlassStyle.current.copy(
         elevation = SELECTOR_ELEVATION,
@@ -149,7 +153,12 @@ internal fun GlassSegmentedSelector(
                     if (decoration != null) {
                         Modifier
                             .clip(CapsuleShape)
-                            .drawBehind { decoration(dragAnimation.value) }
+                            .drawBehind {
+                                decoration(
+                                    dragAnimation.value,
+                                    dragAnimation.velocity * segmentWidthPx
+                                )
+                            }
                     } else {
                         Modifier
                     }
@@ -201,6 +210,7 @@ internal fun GlassSegmentedSelector(
 }
 
 private const val TRACK_ALPHA = 0.06f
+private const val DARK_TRACK_ALPHA = 0.035f
 private const val SELECTOR_HIGHLIGHT_ALPHA = 0.9f
 private const val SELECTOR_TINT_ALPHA = 0.88f
 private const val SELECTOR_PRESSED_SCALE = 1.1f

@@ -62,6 +62,8 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.github.kyant0:backdrop:2.0.1")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.43.0")
+    implementation("com.mikepenz:multiplatform-markdown-renderer-code:0.43.0")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")

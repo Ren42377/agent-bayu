@@ -26,13 +26,14 @@ fun MessageList(
     onShowDetail: ((ChatMessage) -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
-    val visible = messages.filterNot { message -> message.streaming && message.text.isEmpty() }
+    val visible = remember(messages) {
+        messages.filterNot { message -> message.streaming && message.text.isEmpty() }
+    }
     val showTyping = isResponding && visible.size < messages.size
     val itemCount = visible.size + if (showTyping) 1 else 0
-    val lastLength = visible.lastOrNull()?.text?.length ?: 0
     val scrolledCount = remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(itemCount, lastLength) {
+    LaunchedEffect(itemCount) {
         if (itemCount == 0) return@LaunchedEffect
         if (scrolledCount.intValue == 0) {
             scrolledCount.intValue = itemCount
@@ -43,12 +44,18 @@ fun MessageList(
         if (itemCount != scrolledCount.intValue) {
             scrolledCount.intValue = itemCount
             listState.animateScrollToItem(itemCount - 1)
-            return@LaunchedEffect
         }
-        withFrameNanos { }
-        val overflow = listState.bottomOverflow()
-        if (overflow > 0f) {
-            listState.scrollBy(overflow)
+    }
+
+    LaunchedEffect(isResponding) {
+        if (!isResponding) return@LaunchedEffect
+        while (true) {
+            withFrameNanos { }
+            if (!listState.isNearBottom()) continue
+            val overflow = listState.bottomOverflow()
+            if (overflow > 0f) {
+                listState.scrollBy(overflow)
+            }
         }
     }
 

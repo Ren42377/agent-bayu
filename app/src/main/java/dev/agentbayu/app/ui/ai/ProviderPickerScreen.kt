@@ -81,53 +81,58 @@ private fun PickerContent(
     onDismiss: () -> Unit
 ) {
     Column(
-        modifier = Modifier
-            .heightIn(max = MAX_PICKER_HEIGHT)
-            .verticalScroll(rememberScrollState()),
+        modifier = Modifier.heightIn(max = MAX_PICKER_HEIGHT),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier
+                .weight(1f, fill = false)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text(
-                text = stringResource(R.string.picker_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.weight(1f)
-            )
-        }
-
-        if (options.isEmpty()) {
-            Text(
-                text = stringResource(R.string.picker_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        options.forEach { option ->
-            OptionRow(
-                option = option,
-                onSelect = { onSelect(option.connectionId) }
-            )
-            if (option.isActive) {
-                ModelList(
-                    option = option,
-                    onSelectModel = { modelId -> onSelectModel(option.connectionId, modelId) }
-                )
-                EffortRow(
-                    option = option,
-                    onSelectEffort = { effort -> onSelectEffort(option.connectionId, effort) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.picker_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
                 )
             }
-            HorizontalDivider(
-                thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-            )
-        }
 
-        Spacer(modifier = Modifier.height(4.dp))
+            if (options.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.picker_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            options.forEach { option ->
+                OptionRow(
+                    option = option,
+                    onSelect = { onSelect(option.connectionId) }
+                )
+                if (option.isActive) {
+                    ModelList(
+                        option = option,
+                        onSelectModel = { modelId -> onSelectModel(option.connectionId, modelId) }
+                    )
+                    EffortRow(
+                        option = option,
+                        onSelectEffort = { effort -> onSelectEffort(option.connectionId, effort) }
+                    )
+                }
+                HorizontalDivider(
+                    thickness = 0.5.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),

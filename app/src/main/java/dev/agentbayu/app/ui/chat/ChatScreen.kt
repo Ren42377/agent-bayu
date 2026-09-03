@@ -45,6 +45,7 @@ import dev.agentbayu.app.ui.ai.ProviderPickerDialog
 import dev.agentbayu.app.ui.ai.ReplyDetailSheet
 import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.components.GlassButtonDefaults
 import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
@@ -67,6 +68,7 @@ fun ChatScreen(
     onSelectModel: (String, String) -> Unit,
     onSelectEffort: (String, ReasoningEffort) -> Unit,
     onManageProviders: () -> Unit,
+    onOpenHistory: () -> Unit,
     onStop: () -> Unit,
     modifier: Modifier = Modifier,
     attachments: List<MessageAttachment> = emptyList(),
@@ -131,24 +133,31 @@ fun ChatScreen(
             .padding(bottom = insets.calculateBottomPadding())
 
         CompositionLocalProvider(LocalGlassBackdrop provides overlayBackdrop) {
-            ProviderCapsule(
-                hint = providerHint,
-                isResponding = isResponding,
-                onOpenPicker = { pickerVisible = true },
-                modifier = headerModifier
-            )
-
-            Column(modifier = footerModifier) {
-                if (messages.isNotEmpty()) {
-                    SuggestionChips(
-                        suggestions = emptyList(),
-                        onSelect = onSuggestionClick,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp)
+            Box(modifier = headerModifier) {
+                ProviderCapsule(
+                    hint = providerHint,
+                    isResponding = isResponding,
+                    onOpenPicker = { pickerVisible = true },
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                GlassButton(
+                    onClick = onOpenHistory,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(40.dp),
+                    shape = CircleShape,
+                    contentPadding = GlassButtonDefaults.IconPadding
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_history),
+                        contentDescription = stringResource(R.string.history_open),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
+            }
 
+            Column(modifier = footerModifier) {
                 PromptBar(
                     value = input,
                     onValueChange = onInputChange,

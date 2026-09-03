@@ -58,8 +58,8 @@ internal val GlassSurfaceSolidBottomDark = Color(0xE613151C)
 
 internal val GlassEdgeTopLight = Color(0xF2FFFFFF)
 internal val GlassEdgeBottomLight = Color(0x1F0B0B12)
-internal val GlassEdgeTopDark = Color(0x66FFFFFF)
-internal val GlassEdgeBottomDark = Color(0x0FFFFFFF)
+internal val GlassEdgeTopDark = Color(0x3DFFFFFF)
+internal val GlassEdgeBottomDark = Color(0x0AFFFFFF)
 
 internal val GlassHighlightLight = Color(0x99FFFFFF)
 internal val GlassHighlightDark = Color(0x40FFFFFF)

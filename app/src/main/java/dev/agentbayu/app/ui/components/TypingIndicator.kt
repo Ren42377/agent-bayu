@@ -14,11 +14,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -38,7 +36,7 @@ fun TypingIndicator(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             repeat(DOT_COUNT) { index ->
-                val dotAlpha by transition.animateFloat(
+                val dotAlpha = transition.animateFloat(
                     initialValue = 0.3f,
                     targetValue = 1f,
                     animationSpec = infiniteRepeatable(
@@ -47,7 +45,7 @@ fun TypingIndicator(modifier: Modifier = Modifier) {
                     ),
                     label = "dotAlpha"
                 )
-                val dotScale by transition.animateFloat(
+                val dotScale = transition.animateFloat(
                     initialValue = 0.8f,
                     targetValue = 1.15f,
                     animationSpec = infiniteRepeatable(
@@ -59,8 +57,11 @@ fun TypingIndicator(modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .size(7.dp)
-                        .scale(dotScale)
-                        .alpha(dotAlpha)
+                        .graphicsLayer {
+                            scaleX = dotScale.value
+                            scaleY = dotScale.value
+                            alpha = dotAlpha.value
+                        }
                         .background(MaterialTheme.colorScheme.primary, CircleShape)
                 )
             }

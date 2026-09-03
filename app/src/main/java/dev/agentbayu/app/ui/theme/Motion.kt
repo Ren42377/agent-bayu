@@ -20,6 +20,11 @@ object AgentBayuMotion {
         stiffness = Spring.StiffnessMediumLow
     )
 
+    val assistantPanelSpring: AnimationSpec<Float> = spring(
+        dampingRatio = 0.85f,
+        stiffness = Spring.StiffnessMedium
+    )
+
     val snappySpring: AnimationSpec<Float> = spring(
         dampingRatio = 0.75f,
         stiffness = Spring.StiffnessMedium
