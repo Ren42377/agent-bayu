@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,8 +41,10 @@ import dev.agentbayu.app.ui.components.GlassDropdownMenuHost
 import dev.agentbayu.app.ui.components.GlassDropdownMenuItem
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.liquidGlass
 
 data class ConnectionEditState(
     val providers: List<ProviderEntry>,
@@ -507,8 +508,8 @@ fun AiDropdown(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .liquidGlass(shape = GlassTileShape)
+                    .clip(GlassTileShape)
                     .clickable { expanded = true }
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
