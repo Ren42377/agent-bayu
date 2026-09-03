@@ -31,24 +31,13 @@ fun AmbientBackground(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val baseColor = MaterialTheme.colorScheme.background
-        val auraPrimary = if (darkTheme) {
-            AppleIndigoDark.copy(alpha = 0.18f)
-        } else {
-            AppleIndigoDark.copy(alpha = 0.08f)
-        }
-        val auraSecondary = if (darkTheme) {
-            AppleBlueDark.copy(alpha = 0.15f)
-        } else {
-            AppleBlueDark.copy(alpha = 0.07f)
-        }
-        val auraTertiary = if (darkTheme) {
-            AppleTealDark.copy(alpha = 0.12f)
-        } else {
-            AppleTealDark.copy(alpha = 0.05f)
-        }
+        val auraPrimary = AppleIndigoDark.copy(alpha = 0.08f)
+        val auraSecondary = AppleBlueDark.copy(alpha = 0.07f)
+        val auraTertiary = AppleTealDark.copy(alpha = 0.05f)
 
         val drift = remember { mutableFloatStateOf(0f) }
-        LaunchedEffect(Unit) {
+        LaunchedEffect(darkTheme) {
+            if (darkTheme) return@LaunchedEffect
             while (true) {
                 delay(DRIFT_STEP_MILLIS)
                 drift.floatValue = (drift.floatValue + DRIFT_STEP_MILLIS) % DRIFT_WRAP_MILLIS
@@ -56,9 +45,10 @@ fun AmbientBackground(
         }
 
         Canvas(modifier = canvasModifier.fillMaxSize()) {
-            val elapsed = drift.floatValue
             drawRect(color = baseColor)
+            if (darkTheme) return@Canvas
 
+            val elapsed = drift.floatValue
             val primaryCenter = driftCenter(
                 size = size,
                 baseX = 0.85f,
