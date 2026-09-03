@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.theme
 
 import android.os.Build
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
@@ -95,6 +96,7 @@ fun AgentBayuTheme(
     }
     val glassStyle = currentGlassStyle(darkTheme)
     CompositionLocalProvider(
+        LocalIndication provides GlassIndication(darkTheme),
         LocalDarkTheme provides darkTheme,
         LocalGlassStyle provides glassStyle
     ) {

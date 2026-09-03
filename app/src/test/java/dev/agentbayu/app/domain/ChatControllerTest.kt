@@ -231,15 +231,6 @@ class ChatControllerTest {
         assertFalse(chat.isResponding.value)
     }
 
-    @Test
-    fun clearRemovesAllMessages() = runTest {
-        val chat = controller(engine { listOf(AgentEvent.Delta("ok")) })
-        chat.send("hi")
-        dispatcher.scheduler.advanceUntilIdle()
-        chat.clear()
-        assertTrue(repository.messages.value.isEmpty())
-    }
-
     private fun detail(): ReplyDetail = ReplyDetail(
         providerId = "kilocode",
         providerLabel = "Kilo Code",

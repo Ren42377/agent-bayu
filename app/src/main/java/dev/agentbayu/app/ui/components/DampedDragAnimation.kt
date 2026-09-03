@@ -121,4 +121,11 @@ internal class DampedDragAnimation(
         val targetVelocity = velocityTracker.calculateVelocity().x / span
         animationScope.launch { velocityAnimation.animateTo(targetVelocity, velocityAnimationSpec) }
     }
+
+    suspend fun prewarm() {
+        pressProgressAnimation.snapTo(PREWARM_PROGRESS)
+        pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec)
+    }
 }
+
+private const val PREWARM_PROGRESS = 0.05f

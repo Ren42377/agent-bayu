@@ -25,6 +25,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -54,6 +56,7 @@ fun PromptBar(
     enabled: Boolean = true,
     isResponding: Boolean = false,
     onStop: () -> Unit = {},
+    focusRequester: FocusRequester? = null,
     attachments: List<MessageAttachment> = emptyList(),
     canAttach: Boolean = false,
     onAttachClick: () -> Unit = {},
@@ -163,7 +166,15 @@ fun PromptBar(
                             ),
                             keyboardActions = KeyboardActions(onSend = { submit() }),
                             maxLines = 5,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .then(
+                                    if (focusRequester != null) {
+                                        Modifier.focusRequester(focusRequester)
+                                    } else {
+                                        Modifier
+                                    }
+                                )
                         )
                     }
 

@@ -41,6 +41,23 @@ class ChatController(
         respondingState.value = true
         activeJob = scope.launch {
             var streamed = false
+            val pending = StringBuilder()
+            var lastFlushNanos = 0L
+
+            fun flush() {
+                if (pending.isEmpty()) return
+                repository.appendDelta(placeholder.id, pending.toString())
+                pending.setLength(0)
+            }
+
+            fun flushIfDue() {
+                val now = System.nanoTime()
+                if (lastFlushNanos == 0L || now - lastFlushNanos >= FLUSH_INTERVAL_NANOS) {
+                    flush()
+                    lastFlushNanos = now
+                }
+            }
+
             try {
                 engine.reply(
                     AgentRequest(
@@ -53,16 +70,24 @@ class ChatController(
                     when (event) {
                         is AgentEvent.Delta -> {
                             streamed = true
-                            repository.appendDelta(placeholder.id, event.text)
+                            pending.append(event.text)
+                            flushIfDue()
                         }
 
-                        is AgentEvent.Detail -> repository.attachDetail(placeholder.id, event.detail)
+                        is AgentEvent.Detail -> {
+                            flush()
+                            repository.attachDetail(placeholder.id, event.detail)
+                        }
 
-                        is AgentEvent.Completed ->
+                        is AgentEvent.Completed -> {
+                            flush()
                             repository.complete(placeholder.id, event.detail, event.usage)
+                        }
 
-                        is AgentEvent.Failed ->
+                        is AgentEvent.Failed -> {
+                            flush()
                             if (!streamed) repository.replaceText(placeholder.id, event.message)
+                        }
                     }
                 }
             } catch (cancellation: CancellationException) {
@@ -72,6 +97,7 @@ class ChatController(
                 logStore.error(SOURCE, "Agent reply failed", error.javaClass.simpleName)
                 if (!streamed) repository.replaceText(placeholder.id, errorReply)
             } finally {
+                flush()
                 repository.finishStreaming(placeholder.id)
                 respondingState.value = false
                 activeJob = null
@@ -84,13 +110,9 @@ class ChatController(
         activeJob = null
     }
 
-    fun clear() {
-        cancel()
-        repository.clear()
-    }
-
     private companion object {
         const val TAG = "AgentBayu"
         const val SOURCE = "Chat"
+        const val FLUSH_INTERVAL_NANOS = 90_000_000L
     }
 }

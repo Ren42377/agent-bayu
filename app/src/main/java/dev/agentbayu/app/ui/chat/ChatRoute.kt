@@ -41,6 +41,7 @@ import kotlinx.coroutines.launch
 fun ChatRoute(
     onMessage: (String) -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenHistory: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -158,6 +159,7 @@ fun ChatRoute(
                 connectionStore.setEffort(connectionId, effort)
             },
             onManageProviders = onOpenProviders,
+            onOpenHistory = onOpenHistory,
             onStop = chat::cancel,
             modifier = modifier,
             attachments = pending,

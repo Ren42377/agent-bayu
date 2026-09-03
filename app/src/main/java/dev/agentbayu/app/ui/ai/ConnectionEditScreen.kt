@@ -15,8 +15,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +38,8 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderEntry
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.components.GlassDropdownMenuHost
+import dev.agentbayu.app.ui.components.GlassDropdownMenuItem
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -110,7 +110,8 @@ fun ConnectionEditScreen(
                 AiDropdown(
                     selectedLabel = state.provider?.label.orEmpty(),
                     options = state.providers.map { it.id to it.label },
-                    onSelect = actions.onProviderChange
+                    onSelect = actions.onProviderChange,
+                    selectedId = state.provider?.id
                 )
                 OutlinedTextField(
                     value = state.label,
@@ -316,7 +317,8 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
             AiDropdown(
                 selectedLabel = state.model,
                 options = state.modelOptions.map { it to it },
-                onSelect = actions.onModelChange
+                onSelect = actions.onModelChange,
+                selectedId = state.model
             )
         }
         if (provider.allowCustomModel || state.modelOptions.isEmpty()) {
@@ -493,43 +495,47 @@ fun AiDropdown(
     selectedLabel: String,
     options: List<Pair<String, String>>,
     onSelect: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    selectedId: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box(modifier = modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(MaterialTheme.shapes.medium)
-                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                .clickable { expanded = true }
-                .padding(horizontal = 14.dp, vertical = 12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+    GlassDropdownMenuHost(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        modifier = modifier.fillMaxWidth(),
+        trigger = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(MaterialTheme.shapes.medium)
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .clickable { expanded = true }
+                    .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
-                Text(
-                    text = selectedLabel,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
-                )
-                Icon(
-                    painter = painterResource(R.drawable.ic_chevron),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = selectedLabel,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
             }
-        }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false }
-        ) {
+        },
+        menuContent = {
             options.forEach { option ->
-                DropdownMenuItem(
-                    text = { Text(text = option.second) },
+                GlassDropdownMenuItem(
+                    label = option.second,
+                    selected = option.first == selectedId,
                     onClick = {
                         expanded = false
                         onSelect(option.first)
@@ -537,5 +543,5 @@ fun AiDropdown(
                 )
             }
         }
-    }
+    )
 }

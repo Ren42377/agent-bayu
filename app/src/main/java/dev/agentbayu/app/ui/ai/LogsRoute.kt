@@ -25,15 +25,17 @@ fun AiLogsRoute(
     val formatter = remember { SimpleDateFormat(TIME_PATTERN, Locale.getDefault()) }
     val clearedMessage = stringResource(R.string.logs_cleared)
 
-    val rows = entries.asReversed().map { entry ->
-        LogRowState(
-            id = entry.id,
-            level = entry.level,
-            time = formatter.format(Date(entry.atMillis)),
-            source = entry.source,
-            message = entry.message,
-            detail = entry.detail
-        )
+    val rows = remember(entries, formatter) {
+        entries.asReversed().map { entry ->
+            LogRowState(
+                id = entry.id,
+                level = entry.level,
+                time = formatter.format(Date(entry.atMillis)),
+                source = entry.source,
+                message = entry.message,
+                detail = entry.detail
+            )
+        }
     }
 
     LogsScreen(

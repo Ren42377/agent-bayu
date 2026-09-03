@@ -9,6 +9,7 @@ import dev.agentbayu.app.ui.ai.AiLogsRoute
 import dev.agentbayu.app.ui.ai.AiProvidersRoute
 import dev.agentbayu.app.ui.components.PageStackHost
 import dev.agentbayu.app.ui.components.PageStackProgress
+import dev.agentbayu.app.ui.history.HistoryRoute
 import dev.agentbayu.app.ui.onboarding.OnboardingRoute
 import dev.agentbayu.app.ui.tasks.TaskDetailRoute
 
@@ -48,6 +49,11 @@ fun AppPageHost(
             AppPage.Providers -> AiProvidersRoute(
                 onBack = controller::back,
                 onEdit = controller::openConnection,
+                onMessage = onMessage
+            )
+
+            AppPage.History -> HistoryRoute(
+                onBack = controller::back,
                 onMessage = onMessage
             )
 

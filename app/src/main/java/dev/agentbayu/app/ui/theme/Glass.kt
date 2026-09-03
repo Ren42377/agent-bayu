@@ -194,7 +194,7 @@ fun Modifier.liquidGlass(
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
     exportedBackdrop: LayerBackdrop? = null
 ): Modifier {
-    val sheenBrush = glassSheenBrush(style.sheenAlpha)
+    val sheenBrush = remember(style.sheenAlpha) { glassSheenBrush(style.sheenAlpha) }
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
