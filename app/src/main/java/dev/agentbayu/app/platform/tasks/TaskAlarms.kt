@@ -3,6 +3,7 @@ package dev.agentbayu.app.platform.tasks
 import android.app.AlarmManager
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.RealClock
 import dev.agentbayu.app.domain.tasks.TaskItem
@@ -47,9 +48,14 @@ class TaskAlarms(
     private fun schedule(taskId: String, atMillis: Long) {
         val alarms = manager ?: return
         val intent = taskBroadcast(context, taskId, ACTION_TASK_SHOW)
-        if (canScheduleExact()) {
+        if (!canScheduleExact()) {
+            alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
+            return
+        }
+        try {
             alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
-        } else {
+        } catch (error: SecurityException) {
+            Log.e(TAG, "Exact alarm rejected for task " + taskId, error)
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
         }
     }
@@ -61,5 +67,6 @@ class TaskAlarms(
 
     private companion object {
         const val SNOOZE_MILLIS = 60L * 60L * 1000L
+        const val TAG = "TaskAlarms"
     }
 }

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -42,7 +43,11 @@ class TaskNotifications(private val context: Context) {
         if (details.isNotEmpty()) {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(details))
         }
-        manager.notify(taskNotificationId(task.id), builder.build())
+        try {
+            manager.notify(taskNotificationId(task.id), builder.build())
+        } catch (error: SecurityException) {
+            Log.e(TAG, "Unable to post task reminder", error)
+        }
     }
 
     fun cancel(taskId: String) = manager.cancel(taskNotificationId(taskId))
@@ -68,5 +73,6 @@ class TaskNotifications(private val context: Context) {
 
     private companion object {
         const val CHANNEL_ID = "tasks_reminders"
+        const val TAG = "TaskNotifications"
     }
 }

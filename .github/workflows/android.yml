@@ -113,3 +113,14 @@ jobs:
 
       - name: Run lint and unit tests
         run: gradle lint testDebugUnitTest --parallel --build-cache
+
+      - name: Show lint report
+        if: failure()
+        shell: bash
+        run: |
+          shopt -s nullglob globstar
+          for report in app/build/**/lint-results-*.txt; do
+            echo "::group::${report}"
+            cat "${report}"
+            echo "::endgroup::"
+          done
