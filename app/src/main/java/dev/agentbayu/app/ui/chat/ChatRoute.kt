@@ -26,6 +26,7 @@ import androidx.core.content.ContextCompat
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
+import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.availableEfforts
 import dev.agentbayu.app.ai.resolveActiveConnection
 import dev.agentbayu.app.ai.resolveEffort
@@ -98,7 +99,7 @@ fun ChatRoute(
     val canAttach = remember(active) {
         val connection = active ?: return@remember false
         val provider = catalog.find(connection.providerId) ?: return@remember false
-        provider.vision || provider.modelOrFallback(connection.model).vision
+        Candidate(connection, provider, provider.modelOrFallback(connection.model)).supportsVision
     }
     val options = remember(connections, activeId) {
         connections.map { connection ->
