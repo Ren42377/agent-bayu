@@ -39,10 +39,6 @@ class AppSettings(context: Context) {
         return ThemeMode.entries.firstOrNull { it.name == stored } ?: ThemeMode.SYSTEM
     }
 
-    fun showOnboarding() {
-        onboardingState.value = true
-    }
-
     fun completeOnboarding() {
         onboardingState.value = false
         preferences.edit().putBoolean(KEY_ONBOARDING_DONE, true).apply()

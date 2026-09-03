@@ -1,13 +1,6 @@
 package dev.agentbayu.app.ui.tasks
 
 import android.Manifest
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -21,8 +14,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -31,6 +22,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskItem
 import dev.agentbayu.app.domain.tasks.completedTasks
 import dev.agentbayu.app.domain.tasks.pendingRows
+import dev.agentbayu.app.platform.NotificationAccess
 import dev.agentbayu.app.ui.components.GlassDialog
 
 @Composable
@@ -52,7 +44,7 @@ fun TasksRoute(
     val permissionDenied = stringResource(R.string.tasks_permission_denied)
 
     var notificationsAllowed by remember {
-        mutableStateOf(hasNotificationPermission(context))
+        mutableStateOf(NotificationAccess.isAllowed(context))
     }
     var exactAlarmsAllowed by remember { mutableStateOf(alarms.canScheduleExact()) }
     var listMenuOpen by remember { mutableStateOf(false) }
@@ -67,7 +59,7 @@ fun TasksRoute(
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                notificationsAllowed = hasNotificationPermission(context)
+                notificationsAllowed = NotificationAccess.isAllowed(context)
                 exactAlarmsAllowed = alarms.canScheduleExact()
             }
         }
@@ -108,19 +100,14 @@ fun TasksRoute(
         notificationsAllowed = notificationsAllowed,
         exactAlarmsAllowed = exactAlarmsAllowed,
         onRequestNotifications = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
+            if (NotificationAccess.needsRuntimeRequest(context)) {
                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else if (!openNotificationSettings(context)) {
+            } else if (!NotificationAccess.openSettings(context)) {
                 onMessage(settingsUnavailable)
             }
         },
         onRequestExactAlarms = {
-            if (!openExactAlarmSettings(context)) {
+            if (!NotificationAccess.openExactAlarmSettings(context)) {
                 onMessage(settingsUnavailable)
             }
         },
@@ -183,39 +170,4 @@ fun TasksRoute(
         dismissLabel = stringResource(R.string.tasks_detail_cancel),
         onDismiss = { clearCompletedOpen = false }
     )
-}
-
-private fun hasNotificationPermission(context: Context): Boolean {
-    if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-    return ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.POST_NOTIFICATIONS
-    ) == PackageManager.PERMISSION_GRANTED
-}
-
-private fun openNotificationSettings(context: Context): Boolean {
-    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    return try {
-        context.startActivity(intent)
-        true
-    } catch (error: ActivityNotFoundException) {
-        false
-    }
-}
-
-private fun openExactAlarmSettings(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-    val intent = Intent(
-        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-        Uri.fromParts("package", context.packageName, null)
-    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    return try {
-        context.startActivity(intent)
-        true
-    } catch (error: ActivityNotFoundException) {
-        false
-    }
 }

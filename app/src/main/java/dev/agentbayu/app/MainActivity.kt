@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -28,6 +30,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
@@ -52,6 +55,7 @@ import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
 import dev.agentbayu.app.ui.nav.AppPageHost
+import dev.agentbayu.app.ui.onboarding.OnboardingRoute
 import dev.agentbayu.app.ui.settings.SettingsRoute
 import dev.agentbayu.app.ui.tasks.TasksRoute
 import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
@@ -146,105 +150,106 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
         canvasModifier = Modifier.layerBackdrop(ambientBackdrop)
     ) {
         CompositionLocalProvider(LocalGlassOverlay provides overlayController) {
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                containerColor = Color.Transparent,
-                snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-                bottomBar = {
-                    CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
-                        AgentBayuBottomBar(
-                            selectedIndex = selectedTab,
-                            onSelect = { index ->
-                                pageController.closeAll()
-                                selectedTab = index
-                            },
-                            progress = tabProgress,
+            if (onboardingVisible) {
+                CompositionLocalProvider(
+                    LocalGlassBackdrop provides ambientBackdrop,
+                    LocalScreenInsets provides WindowInsets.systemBars.asPaddingValues()
+                ) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        OnboardingRoute(
+                            onFinish = settings::completeOnboarding,
+                            onMessage = onMessage,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                        SnackbarHost(
+                            hostState = snackbarHostState,
                             modifier = Modifier
-                                .graphicsLayer {
-                                    val cover = pageProgress.value().coerceIn(0f, 1f)
-                                    alpha = 1f - cover
-                                    translationY = size.height * cover
-                                }
-                                .drawWithContent {
-                                    if (pageProgress.value() < BASE_COVER_LIMIT) {
-                                        drawContent()
-                                    }
-                                },
-                            windowInsets = NavigationBarDefaults.windowInsets
+                                .align(Alignment.BottomCenter)
+                                .navigationBarsPadding()
                         )
                     }
                 }
-            ) { innerPadding ->
-                val pageTopInset = innerPadding.calculateTopPadding()
-                val pageBottomInset =
-                    WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-                val pageInsets = remember(pageTopInset, pageBottomInset) {
-                    PaddingValues(top = pageTopInset, bottom = pageBottomInset)
-                }
-                CompositionLocalProvider(
-                    LocalGlassBackdrop provides ambientBackdrop,
-                    LocalScreenInsets provides innerPadding
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .imePadding()
-                            .layerBackdrop(contentBackdrop)
+            } else {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = Color.Transparent,
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+                    bottomBar = {
+                        CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
+                            AgentBayuBottomBar(
+                                selectedIndex = selectedTab,
+                                onSelect = { index ->
+                                    pageController.closeAll()
+                                    selectedTab = index
+                                },
+                                progress = tabProgress,
+                                modifier = Modifier
+                                    .graphicsLayer {
+                                        val cover = pageProgress.value().coerceIn(0f, 1f)
+                                        alpha = 1f - cover
+                                        translationY = size.height * cover
+                                    }
+                                    .drawWithContent {
+                                        if (pageProgress.value() < BASE_COVER_LIMIT) {
+                                            drawContent()
+                                        }
+                                    },
+                                windowInsets = NavigationBarDefaults.windowInsets
+                            )
+                        }
+                    }
+                ) { innerPadding ->
+                    val pageTopInset = innerPadding.calculateTopPadding()
+                    val pageBottomInset =
+                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                    val pageInsets = remember(pageTopInset, pageBottomInset) {
+                        PaddingValues(top = pageTopInset, bottom = pageBottomInset)
+                    }
+                    CompositionLocalProvider(
+                        LocalGlassBackdrop provides ambientBackdrop,
+                        LocalScreenInsets provides innerPadding
                     ) {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .graphicsLayer {
-                                    val cover = pageProgress.value().coerceIn(0f, 1f)
-                                    alpha = 1f - cover
-                                    translationX = -size.width * BASE_PARALLAX * cover
-                                }
-                                .drawWithContent {
-                                    if (pageProgress.value() < BASE_COVER_LIMIT) {
-                                        drawContent()
-                                    }
-                                }
+                                .imePadding()
+                                .layerBackdrop(contentBackdrop)
                         ) {
-                            CardPager(
-                                pageCount = destinations.size,
-                                progress = { tabProgress.value() },
-                                modifier = Modifier.fillMaxSize()
-                            ) { page ->
-                                when (destinations[page]) {
-                                    AgentBayuDestination.CHAT -> ChatRoute(
-                                        onMessage = onMessage,
-                                        onOpenProviders = { pageController.openProviders() },
-                                        onOpenHistory = { pageController.openHistory() },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-
-                                    AgentBayuDestination.TASKS -> TasksRoute(
-                                        onMessage = onMessage,
-                                        onOpenTask = { taskId, listId, parentId ->
-                                            pageController.openTaskDetail(taskId, listId, parentId)
-                                        },
-                                        modifier = Modifier.fillMaxSize()
-                                    )
-
-                                    AgentBayuDestination.SETTINGS -> SettingsRoute(
-                                        onMessage = onMessage,
-                                        onOpenProviders = { pageController.openProviders() },
-                                        onOpenLogs = { pageController.openLogs() },
-                                        modifier = Modifier.fillMaxSize()
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        val cover = pageProgress.value().coerceIn(0f, 1f)
+                                        alpha = 1f - cover
+                                        translationX = -size.width * BASE_PARALLAX * cover
+                                    }
+                                    .drawWithContent {
+                                        if (pageProgress.value() < BASE_COVER_LIMIT) {
+                                            drawContent()
+                                        }
+                                    }
+                            ) {
+                                CardPager(
+                                    pageCount = destinations.size,
+                                    progress = { tabProgress.value() },
+                                    modifier = Modifier.fillMaxSize()
+                                ) { page ->
+                                    TabContent(
+                                        destination = destinations[page],
+                                        controller = pageController,
+                                        onMessage = onMessage
                                     )
                                 }
                             }
-                        }
 
-                        CompositionLocalProvider(LocalScreenInsets provides pageInsets) {
-                            AppPageHost(
-                                controller = pageController,
-                                progress = pageProgress,
-                                onboardingVisible = onboardingVisible,
-                                onOnboardingFinish = settings::completeOnboarding,
-                                onMessage = onMessage,
-                                modifier = Modifier.fillMaxSize()
-                            )
+                            CompositionLocalProvider(LocalScreenInsets provides pageInsets) {
+                                AppPageHost(
+                                    controller = pageController,
+                                    progress = pageProgress,
+                                    onMessage = onMessage,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
                         }
                     }
                 }
@@ -256,6 +261,37 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                 modifier = Modifier.fillMaxSize()
             )
         }
+    }
+}
+
+@Composable
+private fun TabContent(
+    destination: AgentBayuDestination,
+    controller: AppPageController,
+    onMessage: (String) -> Unit
+) {
+    when (destination) {
+        AgentBayuDestination.CHAT -> ChatRoute(
+            onMessage = onMessage,
+            onOpenProviders = { controller.openProviders() },
+            onOpenHistory = { controller.openHistory() },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        AgentBayuDestination.TASKS -> TasksRoute(
+            onMessage = onMessage,
+            onOpenTask = { taskId, listId, parentId ->
+                controller.openTaskDetail(taskId, listId, parentId)
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        AgentBayuDestination.SETTINGS -> SettingsRoute(
+            onMessage = onMessage,
+            onOpenProviders = { controller.openProviders() },
+            onOpenLogs = { controller.openLogs() },
+            modifier = Modifier.fillMaxSize()
+        )
     }
 }
 

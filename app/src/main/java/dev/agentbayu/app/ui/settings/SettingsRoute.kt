@@ -28,7 +28,6 @@ fun SettingsRoute(
         onScreenContextChange = settings::setUseScreenContext,
         onOpenProviders = onOpenProviders,
         onOpenLogs = onOpenLogs,
-        onOpenOnboarding = settings::showOnboarding,
         modifier = modifier
     )
 }

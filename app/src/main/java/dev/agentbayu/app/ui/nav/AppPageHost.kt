@@ -10,42 +10,22 @@ import dev.agentbayu.app.ui.ai.AiProvidersRoute
 import dev.agentbayu.app.ui.components.PageStackHost
 import dev.agentbayu.app.ui.components.PageStackProgress
 import dev.agentbayu.app.ui.history.HistoryRoute
-import dev.agentbayu.app.ui.onboarding.OnboardingRoute
 import dev.agentbayu.app.ui.tasks.TaskDetailRoute
 
 @Composable
 fun AppPageHost(
     controller: AppPageController,
     progress: PageStackProgress,
-    onboardingVisible: Boolean,
-    onOnboardingFinish: () -> Unit,
     onMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val pages = buildList<AppPage> {
-        if (onboardingVisible) {
-            add(AppPage.Onboarding)
-        }
-        addAll(controller.stack)
-    }
     PageStackHost(
-        pages = pages,
+        pages = controller.stack,
         progress = progress,
-        onDismiss = { page ->
-            if (page == AppPage.Onboarding) {
-                onOnboardingFinish()
-            } else {
-                controller.back()
-            }
-        },
+        onDismiss = { controller.back() },
         modifier = modifier
     ) { page ->
         when (page) {
-            AppPage.Onboarding -> OnboardingRoute(
-                onFinish = onOnboardingFinish,
-                onMessage = onMessage
-            )
-
             AppPage.Providers -> AiProvidersRoute(
                 onBack = controller::back,
                 onEdit = controller::openConnection,

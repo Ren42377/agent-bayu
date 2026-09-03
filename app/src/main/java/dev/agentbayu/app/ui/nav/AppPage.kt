@@ -5,8 +5,6 @@ import androidx.compose.runtime.mutableStateListOf
 
 sealed interface AppPage {
 
-    data object Onboarding : AppPage
-
     data object Providers : AppPage
 
     data object History : AppPage

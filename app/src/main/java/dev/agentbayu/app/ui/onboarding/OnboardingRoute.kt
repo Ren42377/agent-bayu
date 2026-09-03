@@ -23,6 +23,7 @@ import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.assistant.BayuVoiceInteractionService
 import dev.agentbayu.app.platform.AssistantRole
+import dev.agentbayu.app.platform.NotificationAccess
 
 @Composable
 fun OnboardingRoute(
@@ -32,11 +33,15 @@ fun OnboardingRoute(
 ) {
     val context = LocalContext.current
     val settings = remember(context) { AppGraph.settings(context) }
+    val alarms = remember(context) { AppGraph.taskAlarms(context) }
     val useScreenContext by settings.useScreenContext.collectAsState()
     var isDefaultAssistant by remember { mutableStateOf(AssistantRole.isDefaultAssistant(context)) }
     var isMicrophoneGranted by remember { mutableStateOf(hasMicrophonePermission(context)) }
+    var notificationsAllowed by remember { mutableStateOf(NotificationAccess.isAllowed(context)) }
+    var exactAlarmsAllowed by remember { mutableStateOf(alarms.canScheduleExact()) }
     val micGrantedMessage = stringResource(R.string.mic_granted_message)
     val micDeniedMessage = stringResource(R.string.mic_denied_message)
+    val notificationDeniedMessage = stringResource(R.string.tasks_permission_denied)
     val settingsUnavailable = stringResource(R.string.setup_settings_unavailable)
     val testUnavailable = stringResource(R.string.setup_test_unavailable)
 
@@ -46,6 +51,8 @@ fun OnboardingRoute(
             if (event == Lifecycle.Event.ON_RESUME) {
                 isDefaultAssistant = AssistantRole.isDefaultAssistant(context)
                 isMicrophoneGranted = hasMicrophonePermission(context)
+                notificationsAllowed = NotificationAccess.isAllowed(context)
+                exactAlarmsAllowed = alarms.canScheduleExact()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -59,9 +66,20 @@ fun OnboardingRoute(
         onMessage(if (granted) micGrantedMessage else micDeniedMessage)
     }
 
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        notificationsAllowed = granted && NotificationAccess.isAllowed(context)
+        if (!granted) {
+            onMessage(notificationDeniedMessage)
+        }
+    }
+
     OnboardingScreen(
         isDefaultAssistant = isDefaultAssistant,
         isMicrophoneGranted = isMicrophoneGranted,
+        notificationsAllowed = notificationsAllowed,
+        exactAlarmsAllowed = exactAlarmsAllowed,
         useScreenContext = useScreenContext,
         onOpenAssistantSettings = {
             if (!AssistantRole.openAssistantSettings(context)) {
@@ -69,6 +87,18 @@ fun OnboardingRoute(
             }
         },
         onRequestMicrophone = { microphoneLauncher.launch(Manifest.permission.RECORD_AUDIO) },
+        onRequestNotifications = {
+            if (NotificationAccess.needsRuntimeRequest(context)) {
+                notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else if (!NotificationAccess.openSettings(context)) {
+                onMessage(settingsUnavailable)
+            }
+        },
+        onRequestExactAlarms = {
+            if (!NotificationAccess.openExactAlarmSettings(context)) {
+                onMessage(settingsUnavailable)
+            }
+        },
         onScreenContextChange = settings::setUseScreenContext,
         onTestPanel = {
             if (!BayuVoiceInteractionService.showPanel()) {

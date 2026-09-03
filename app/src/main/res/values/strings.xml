@@ -29,7 +29,7 @@
     <string name="overlay_subtitle">Siap membantu</string>
 
     <string name="setup_title">Siapkan Agent Bayu</string>
-    <string name="setup_subtitle">Tiga langkah supaya Bayu bisa dipanggil dari mana saja.</string>
+    <string name="setup_subtitle">Siapkan izin dan pintasan supaya Bayu bisa dipanggil dari mana saja.</string>
 
     <string name="setup_assistant_title">Jadikan asisten digital</string>
     <string name="setup_assistant_body">Pilih Agent Bayu pada daftar aplikasi asisten digital di Pengaturan sistem.</string>
@@ -66,7 +66,6 @@
     <string name="history_delete_confirm_body">Percakapan ini akan dihapus dari perangkat dan tidak bisa dikembalikan.</string>
     <string name="history_deleted">Sesi dihapus.</string>
 
-    <string name="settings_assistant">Asisten</string>
     <string name="settings_appearance">Tampilan</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_body">Pilih tema terang, gelap, atau ikut pengaturan sistem.</string>
@@ -78,8 +77,6 @@
     <string name="settings_providers_body">Kelola koneksi, cara masuk, kunci API, dan model.</string>
     <string name="settings_logs_title">Logs</string>
     <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
-    <string name="settings_onboarding_title">Panduan awal</string>
-    <string name="settings_onboarding_body">Ulangi langkah asisten bawaan, mikrofon, dan panel suara.</string>
 
     <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu belum bisa membuka aplikasi lain, mengirim pesan, atau mengubah kalender, jadi jangan mengaku sudah melakukannya.</string>
     <string name="agent_screen_context_prompt">Pemilik sedang melihat layar dengan teks berikut. Pakai ini hanya kalau relevan dengan pertanyaannya.\n\n%1$s</string>
