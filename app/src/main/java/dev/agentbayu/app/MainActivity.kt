@@ -159,6 +159,17 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                                 selectedTab = index
                             },
                             progress = tabProgress,
+                            modifier = Modifier
+                                .graphicsLayer {
+                                    val cover = pageProgress.value().coerceIn(0f, 1f)
+                                    alpha = 1f - cover
+                                    translationY = size.height * cover
+                                }
+                                .drawWithContent {
+                                    if (pageProgress.value() < BASE_COVER_LIMIT) {
+                                        drawContent()
+                                    }
+                                },
                             windowInsets = NavigationBarDefaults.windowInsets
                         )
                     }

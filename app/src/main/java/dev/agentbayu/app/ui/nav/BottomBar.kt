@@ -25,6 +25,7 @@ fun AgentBayuBottomBar(
     selectedIndex: Int,
     onSelect: (index: Int) -> Unit,
     progress: GlassTabsProgress,
+    modifier: Modifier = Modifier,
     windowInsets: WindowInsets = NavigationBarDefaults.windowInsets
 ) {
     val haptics = LocalHapticFeedback.current
@@ -42,7 +43,7 @@ fun AgentBayuBottomBar(
         onTabSelected = { index -> select(index) },
         tabsCount = destinations.size,
         progress = progress,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .windowInsetsPadding(windowInsets)
             .padding(horizontal = 20.dp, vertical = 8.dp)
