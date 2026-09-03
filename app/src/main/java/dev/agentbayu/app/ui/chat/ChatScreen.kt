@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -19,6 +21,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,7 +53,9 @@ import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
+import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
+import dev.agentbayu.app.ui.theme.chromeGlassStyle
 
 @Composable
 fun ChatScreen(
@@ -82,6 +87,10 @@ fun ChatScreen(
     var footerHeight by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
     val insets = LocalScreenInsets.current
+    val imeInsets = WindowInsets.ime
+    val keyboardVisible by remember(imeInsets, density) {
+        derivedStateOf { imeInsets.getBottom(density) > 0 }
+    }
     val messagesBackdrop = rememberLayerBackdrop()
     val overlayBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, messagesBackdrop)
 
@@ -130,9 +139,14 @@ fun ChatScreen(
             .onSizeChanged { size ->
                 footerHeight = with(density) { size.height.toDp() }
             }
-            .padding(bottom = insets.calculateBottomPadding())
+            .padding(
+                bottom = if (keyboardVisible) 0.dp else insets.calculateBottomPadding()
+            )
 
-        CompositionLocalProvider(LocalGlassBackdrop provides overlayBackdrop) {
+        CompositionLocalProvider(
+            LocalGlassBackdrop provides overlayBackdrop,
+            LocalGlassStyle provides chromeGlassStyle()
+        ) {
             Box(modifier = headerModifier) {
                 ProviderCapsule(
                     hint = providerHint,

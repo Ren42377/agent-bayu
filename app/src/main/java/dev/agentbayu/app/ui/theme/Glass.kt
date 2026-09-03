@@ -116,6 +116,18 @@ fun solidGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     }
 }
 
+@Composable
+fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
+    val style = LocalGlassStyle.current
+    return if (darkTheme) {
+        style.copy(fill = GlassChromeDark, saturation = CHROME_SATURATION)
+    } else {
+        style.copy(fill = GlassChromeLight, saturation = CHROME_SATURATION)
+    }
+}
+
+private const val CHROME_SATURATION = 0.9f
+
 fun glassSheenBrush(sheenAlpha: Float): Brush {
     return Brush.verticalGradient(
         colors = listOf(
