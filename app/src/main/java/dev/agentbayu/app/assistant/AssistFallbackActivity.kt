@@ -7,9 +7,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.MainActivity
 import dev.agentbayu.app.R
@@ -25,30 +27,39 @@ class AssistFallbackActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         onBackPressedDispatcher.addCallback(this) { panel.requestHide() }
-        val chat = AppGraph.chat(this)
+        AppGraph.warmUp(applicationContext)
         setContent {
-            val visible by panel.visible.collectAsState()
-            val input by panel.input.collectAsState()
-            val messages by chat.messages.collectAsState()
-            val responding by chat.isResponding.collectAsState()
-            LaunchedEffect(Unit) { panel.show() }
+            val ready by AppGraph.readiness.collectAsState()
             AgentBayuAppTheme {
-                AssistantPanel(
-                    visible = visible,
-                    messages = messages,
-                    input = input,
-                    isResponding = responding,
-                    suggestions = defaultSuggestions(),
-                    onInputChange = panel::updateInput,
-                    onSend = { chat.send(panel.takeInput()) },
-                    onSuggestionClick = { text -> chat.send(text) },
-                    onMicClick = ::showMicNotice,
-                    onOpenApp = ::openApp,
-                    onDismiss = panel::requestHide,
-                    onHidden = ::finish
-                )
+                if (ready) {
+                    FallbackPanel()
+                }
             }
         }
+    }
+
+    @Composable
+    private fun FallbackPanel() {
+        val chat = remember { AppGraph.chat(this) }
+        val visible by panel.visible.collectAsState()
+        val input by panel.input.collectAsState()
+        val messages by chat.messages.collectAsState()
+        val responding by chat.isResponding.collectAsState()
+        LaunchedEffect(Unit) { panel.show() }
+        AssistantPanel(
+            visible = visible,
+            messages = messages,
+            input = input,
+            isResponding = responding,
+            suggestions = defaultSuggestions(),
+            onInputChange = panel::updateInput,
+            onSend = { chat.send(panel.takeInput()) },
+            onSuggestionClick = { text -> chat.send(text) },
+            onMicClick = ::showMicNotice,
+            onOpenApp = ::openApp,
+            onDismiss = panel::requestHide,
+            onHidden = ::finish
+        )
     }
 
     override fun onNewIntent(intent: Intent) {

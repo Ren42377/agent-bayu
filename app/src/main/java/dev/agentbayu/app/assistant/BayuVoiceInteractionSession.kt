@@ -11,9 +11,10 @@ import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.widget.Toast
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.setViewTreeLifecycleOwner
@@ -39,39 +40,45 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
     }
 
     override fun onCreateContentView(): View {
-        val chat = AppGraph.chat(context)
-        val settings = AppGraph.settings(context)
+        AppGraph.warmUp(context)
         val view = ComposeView(context)
         view.setViewTreeLifecycleOwner(viewTreeOwner)
         view.setViewTreeViewModelStoreOwner(viewTreeOwner)
         view.setViewTreeSavedStateRegistryOwner(viewTreeOwner)
         view.setContent {
-            val resetToken by panel.resetToken.collectAsState()
-            val visible by panel.visible.collectAsState()
-            val input by panel.input.collectAsState()
-            val messages by chat.messages.collectAsState()
-            val responding by chat.isResponding.collectAsState()
-            val useScreenContext by settings.useScreenContext.collectAsState()
+            val ready by AppGraph.readiness.collectAsState()
             AgentBayuAppTheme {
-                key(resetToken) {
-                    AssistantPanel(
-                        visible = visible,
-                        messages = messages,
-                        input = input,
-                        isResponding = responding,
-                        suggestions = defaultSuggestions(),
-                        onInputChange = panel::updateInput,
-                        onSend = { send(chat, panel.takeInput(), useScreenContext) },
-                        onSuggestionClick = { text -> send(chat, text, useScreenContext) },
-                        onMicClick = ::showMicNotice,
-                        onOpenApp = ::openApp,
-                        onDismiss = ::dismissPanel,
-                        onHidden = ::finishPanel
-                    )
+                if (ready) {
+                    SessionPanel()
                 }
             }
         }
         return view
+    }
+
+    @Composable
+    private fun SessionPanel() {
+        val chat = remember { AppGraph.chat(context) }
+        val settings = remember { AppGraph.settings(context) }
+        val visible by panel.visible.collectAsState()
+        val input by panel.input.collectAsState()
+        val messages by chat.messages.collectAsState()
+        val responding by chat.isResponding.collectAsState()
+        val useScreenContext by settings.useScreenContext.collectAsState()
+        AssistantPanel(
+            visible = visible,
+            messages = messages,
+            input = input,
+            isResponding = responding,
+            suggestions = defaultSuggestions(),
+            onInputChange = panel::updateInput,
+            onSend = { send(chat, panel.takeInput(), useScreenContext) },
+            onSuggestionClick = { text -> send(chat, text, useScreenContext) },
+            onMicClick = ::showMicNotice,
+            onOpenApp = ::openApp,
+            onDismiss = ::dismissPanel,
+            onHidden = ::finishPanel
+        )
     }
 
     override fun onPrepareShow(args: Bundle?, showFlags: Int) {
@@ -80,9 +87,11 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
             WindowCompat.setDecorFitsSystemWindows(sessionWindow, false)
             sessionWindow.setSoftInputMode(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
                 } else {
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
+                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
                 }
             )
         }

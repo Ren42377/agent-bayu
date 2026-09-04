@@ -12,7 +12,6 @@ class AssistantPanelControllerTest {
         val controller = AssistantPanelController()
         assertFalse(controller.visible.value)
         assertEquals("", controller.input.value)
-        assertEquals(0, controller.resetToken.value)
     }
 
     @Test
@@ -25,24 +24,23 @@ class AssistantPanelControllerTest {
     }
 
     @Test
-    fun requestHideKeepsResetTokenUntouched() {
+    fun requestHideKeepsDraftInput() {
         val controller = AssistantPanelController()
         controller.show()
-        val tokenBefore = controller.resetToken.value
+        controller.updateInput("draft")
         controller.requestHide()
         assertFalse(controller.visible.value)
-        assertEquals(tokenBefore, controller.resetToken.value)
+        assertEquals("draft", controller.input.value)
     }
 
     @Test
-    fun resetBumpsTokenAndClearsState() {
+    fun resetClearsState() {
         val controller = AssistantPanelController()
         controller.show()
         controller.updateInput("draft")
         controller.reset()
         assertFalse(controller.visible.value)
         assertEquals("", controller.input.value)
-        assertEquals(1, controller.resetToken.value)
     }
 
     @Test

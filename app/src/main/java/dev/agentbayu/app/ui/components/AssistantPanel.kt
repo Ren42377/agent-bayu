@@ -1,8 +1,9 @@
 package dev.agentbayu.app.ui.components
 
 import android.os.Build
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -33,9 +34,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -43,6 +46,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -62,8 +66,6 @@ import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
 import dev.agentbayu.app.ui.theme.liquidGlass
 import dev.agentbayu.app.ui.theme.solidGlassStyle
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @Composable
 fun AssistantPanel(
@@ -81,37 +83,52 @@ fun AssistantPanel(
     onHidden: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progress by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = AgentBayuMotion.assistantPanelSpring,
-        label = "assistantPanel",
-        finishedListener = { value -> if (!visible && value < HIDDEN_THRESHOLD) onHidden() }
-    )
-    if (!visible && progress < HIDDEN_THRESHOLD) {
-        return
-    }
-    val panelHeight = remember { mutableStateOf(0) }
-    val dragOffset = remember { Animatable(0f) }
-    val dragScope = rememberCoroutineScope()
-    val inputFocus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
+    val progress = remember { Animatable(0f) }
+    var rendered by remember { mutableStateOf(false) }
+    var dragOffset by remember { mutableFloatStateOf(0f) }
+    var dragging by remember { mutableStateOf(false) }
+    val metrics = remember { PanelMetrics() }
+    val panelBackdrop = remember { emptyBackdrop() }
+    val entryOffset = with(LocalDensity.current) { ENTRY_OFFSET.toPx() }
     LaunchedEffect(visible) {
         if (visible) {
-            dragOffset.snapTo(0f)
-            delay(FOCUS_DELAY_MILLIS)
-            inputFocus.requestFocus()
-            keyboard?.show()
+            dragOffset = 0f
+            rendered = true
+            progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
+        } else if (rendered) {
+            progress.animateTo(0f, AgentBayuMotion.assistantPanelSpring)
+            rendered = false
+            onHidden()
         }
     }
+    LaunchedEffect(dragging, visible) {
+        if (!dragging && visible && dragOffset != 0f) {
+            animate(
+                initialValue = dragOffset,
+                targetValue = 0f,
+                animationSpec = AgentBayuMotion.snappySpring
+            ) { value, _ -> dragOffset = value }
+        }
+    }
+    if (!rendered) {
+        return
+    }
+    val inputFocus = remember { FocusRequester() }
+    val keyboard = LocalSoftwareKeyboardController.current
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        runCatching { inputFocus.requestFocus() }
+        keyboard?.show()
+    }
     CompositionLocalProvider(
-        LocalGlassBackdrop provides emptyBackdrop(),
+        LocalGlassBackdrop provides panelBackdrop,
         LocalGlassStyle provides solidGlassStyle()
     ) {
         Box(modifier = modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .graphicsLayer { alpha = progress }
+                    .graphicsLayer { alpha = progress.value }
                     .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
                     .pointerInput(Unit) { detectTapGestures { onDismiss() } }
             )
@@ -119,10 +136,11 @@ fun AssistantPanel(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .onSizeChanged { size -> panelHeight.value = size.height }
+                    .onSizeChanged { size -> metrics.height = size.height }
                     .graphicsLayer {
-                        alpha = progress
-                        translationY = (1f - progress) * size.height + dragOffset.value
+                        val value = progress.value
+                        alpha = value
+                        translationY = (1f - value) * entryOffset + dragOffset
                     }
                     .liquidGlass(shape = PanelShape)
                     .pointerInput(Unit) { detectTapGestures { } }
@@ -141,20 +159,15 @@ fun AssistantPanel(
                         )
                 ) {
                     DragHandle(
+                        onDragStart = { dragging = true },
                         onDrag = { amount ->
-                            dragScope.launch {
-                                dragOffset.snapTo((dragOffset.value + amount).coerceAtLeast(0f))
-                            }
+                            dragOffset = (dragOffset + amount).coerceAtLeast(0f)
                         },
                         onDragStopped = {
-                            val threshold =
-                                panelHeight.value * AgentBayuMotion.PanelDismissFraction
-                            if (dragOffset.value > threshold) {
+                            dragging = false
+                            val threshold = metrics.height * AgentBayuMotion.PanelDismissFraction
+                            if (dragOffset > threshold) {
                                 onDismiss()
-                            } else {
-                                dragScope.launch {
-                                    dragOffset.animateTo(0f, AgentBayuMotion.snappySpring)
-                                }
                             }
                         }
                     )
@@ -165,18 +178,23 @@ fun AssistantPanel(
                         }?.detail?.label,
                         onDismiss = onDismiss
                     )
-                    if (messages.isEmpty()) {
-                        PanelGreeting(
-                            suggestions = suggestions,
-                            onSuggestionClick = onSuggestionClick
-                        )
-                    } else {
-                        MessageList(
-                            messages = messages,
-                            isResponding = isResponding,
-                            modifier = Modifier.heightIn(max = 320.dp),
-                            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
-                        )
+                    Box(modifier = Modifier.animateContentSize(AgentBayuMotion.panelSizeSpec)) {
+                        if (messages.isEmpty()) {
+                            PanelGreeting(
+                                suggestions = suggestions,
+                                onSuggestionClick = onSuggestionClick
+                            )
+                        } else {
+                            MessageList(
+                                messages = messages,
+                                isResponding = isResponding,
+                                modifier = Modifier.heightIn(max = MESSAGE_LIST_MAX_HEIGHT),
+                                contentPadding = PaddingValues(
+                                    horizontal = 20.dp,
+                                    vertical = 8.dp
+                                )
+                            )
+                        }
                     }
                     PromptBar(
                         value = input,
@@ -213,11 +231,19 @@ fun AssistantPanel(
     }
 }
 
-private const val HIDDEN_THRESHOLD = 0.01f
-private const val FOCUS_DELAY_MILLIS = 220L
+private class PanelMetrics {
+    var height: Int = 0
+}
+
+private val ENTRY_OFFSET = 220.dp
+private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
 
 @Composable
-private fun DragHandle(onDrag: (Float) -> Unit, onDragStopped: () -> Unit) {
+private fun DragHandle(
+    onDragStart: () -> Unit,
+    onDrag: (Float) -> Unit,
+    onDragStopped: () -> Unit
+) {
     val handleDescription = stringResource(R.string.overlay_handle)
     Box(
         modifier = Modifier
@@ -225,6 +251,7 @@ private fun DragHandle(onDrag: (Float) -> Unit, onDragStopped: () -> Unit) {
             .semantics { contentDescription = handleDescription }
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
+                    onDragStart = { onDragStart() },
                     onDragEnd = onDragStopped,
                     onDragCancel = onDragStopped,
                     onVerticalDrag = { _, dragAmount -> onDrag(dragAmount) }
@@ -261,7 +288,8 @@ private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: 
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(R.string.overlay_title),
-                style = MaterialTheme.typography.titleMedium
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = if (!isResponding && detailLabel != null) {
@@ -280,7 +308,8 @@ private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: 
         GlassIconButton(onClick = onDismiss) {
             Icon(
                 painter = painterResource(R.drawable.ic_close),
-                contentDescription = stringResource(R.string.overlay_close)
+                contentDescription = stringResource(R.string.overlay_close),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -295,7 +324,8 @@ private fun PanelGreeting(suggestions: List<String>, onSuggestionClick: (String)
     ) {
         Text(
             text = stringResource(R.string.chat_empty_title),
-            style = MaterialTheme.typography.titleLarge
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
