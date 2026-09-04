@@ -1,6 +1,7 @@
 package dev.agentbayu.app.platform
 
 import android.content.Context
+import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,10 @@ class AppSettings(context: Context) {
 
     val themeMode: StateFlow<ThemeMode> = themeModeState.asStateFlow()
 
+    private val toolApprovalModeState = MutableStateFlow(readToolApprovalMode())
+
+    val toolApprovalMode: StateFlow<ToolApprovalMode> = toolApprovalModeState.asStateFlow()
+
     fun setUseScreenContext(enabled: Boolean) {
         screenContextState.value = enabled
         preferences.edit().putBoolean(KEY_SCREEN_CONTEXT, enabled).apply()
@@ -34,9 +39,20 @@ class AppSettings(context: Context) {
         preferences.edit().putString(KEY_THEME_MODE, mode.name).apply()
     }
 
+    fun setToolApprovalMode(mode: ToolApprovalMode) {
+        toolApprovalModeState.value = mode
+        preferences.edit().putString(KEY_TOOL_APPROVAL_MODE, mode.name).apply()
+    }
+
     private fun readThemeMode(): ThemeMode {
         val stored = preferences.getString(KEY_THEME_MODE, null) ?: return ThemeMode.SYSTEM
         return ThemeMode.entries.firstOrNull { it.name == stored } ?: ThemeMode.SYSTEM
+    }
+
+    private fun readToolApprovalMode(): ToolApprovalMode {
+        val stored = preferences.getString(KEY_TOOL_APPROVAL_MODE, null)
+            ?: return ToolApprovalMode.ASK
+        return ToolApprovalMode.entries.firstOrNull { it.name == stored } ?: ToolApprovalMode.ASK
     }
 
     fun completeOnboarding() {
@@ -56,6 +72,7 @@ class AppSettings(context: Context) {
         const val KEY_DEFAULT_SEEDED = "default_connection_seeded"
         const val KEY_ONBOARDING_DONE = "onboarding_done"
         const val KEY_THEME_MODE = "theme_mode"
+        const val KEY_TOOL_APPROVAL_MODE = "tool_approval_mode"
     }
 }
 
