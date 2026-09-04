@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -45,29 +46,37 @@ fun GlassDropdownMenuHost(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    trigger: @Composable () -> Unit,
+    trigger: @Composable (progress: () -> Float) -> Unit,
     menuContent: @Composable ColumnScope.() -> Unit
 ) {
     var anchorHeight by remember { mutableIntStateOf(0) }
-    Box(modifier = modifier.onSizeChanged { size -> anchorHeight = size.height }) {
-        trigger()
+    var rendered by remember { mutableStateOf(false) }
+    val progress = remember { Animatable(0f) }
+    val progressProvider: () -> Float = remember(progress) { { progress.value } }
+    LaunchedEffect(expanded) {
         if (expanded) {
-            val progress = remember { Animatable(0f) }
-            LaunchedEffect(Unit) {
-                progress.animateTo(1f, AgentBayuMotion.snappySpring)
-            }
+            rendered = true
+            progress.animateTo(1f, AgentBayuMotion.panelSpring)
+        } else {
+            progress.animateTo(0f, AgentBayuMotion.panelSpring)
+            rendered = false
+        }
+    }
+    Box(modifier = modifier.onSizeChanged { size -> anchorHeight = size.height }) {
+        trigger(progressProvider)
+        if (rendered) {
             Popup(
-                alignment = Alignment.BottomStart,
+                alignment = Alignment.TopStart,
                 offset = IntOffset(0, anchorHeight),
                 onDismissRequest = { onExpandedChange(false) },
-                properties = PopupProperties(focusable = true)
+                properties = PopupProperties(focusable = expanded)
             ) {
                 Column(
                     modifier = Modifier
                         .graphicsLayer {
                             val value = progress.value
                             alpha = value
-                            val scale = lerp(0.92f, 1f, value)
+                            val scale = lerp(MENU_MIN_SCALE, 1f, value)
                             scaleX = scale
                             scaleY = scale
                             transformOrigin = TransformOrigin(0.5f, 0f)
@@ -128,3 +137,4 @@ fun ColumnScope.GlassDropdownMenuItem(
 }
 
 private val DROPDOWN_MAX_HEIGHT = 320.dp
+private const val MENU_MIN_SCALE = 0.92f

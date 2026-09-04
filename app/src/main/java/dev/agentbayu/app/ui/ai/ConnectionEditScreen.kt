@@ -28,12 +28,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderEntry
@@ -510,7 +512,7 @@ fun AiDropdown(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         modifier = modifier.fillMaxWidth(),
-        trigger = {
+        trigger = { progress ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -539,7 +541,15 @@ fun AiDropdown(
                         painter = painterResource(R.drawable.ic_chevron),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .graphicsLayer {
+                                rotationZ = lerp(
+                                    CHEVRON_CLOSED_ROTATION,
+                                    CHEVRON_OPEN_ROTATION,
+                                    progress()
+                                )
+                            }
                     )
                 }
             }
@@ -558,3 +568,6 @@ fun AiDropdown(
         }
     )
 }
+
+private const val CHEVRON_CLOSED_ROTATION = 90f
+private const val CHEVRON_OPEN_ROTATION = 270f
