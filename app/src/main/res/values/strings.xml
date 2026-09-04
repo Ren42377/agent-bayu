@@ -355,4 +355,43 @@
     <string name="task_notification_body">Waktunya mengerjakan tugas ini.</string>
     <string name="task_action_complete">Selesai</string>
     <string name="task_action_snooze">Tunda 1 jam</string>
+
+    <string name="settings_tools">Tool dan berkas</string>
+    <string name="settings_tool_approval_title">Izin tool</string>
+    <string name="settings_tool_approval_body">Pilih kapan Agent Bayu harus minta izin sebelum mengubah berkas.</string>
+    <string name="settings_storage_title">Akses semua berkas</string>
+    <string name="settings_storage_body">Tanpa izin ini Agent Bayu tidak bisa membuka berkas apa pun di penyimpanan.</string>
+    <string name="settings_storage_unavailable">Halaman izin berkas tidak tersedia di perangkat ini.</string>
+    <string name="tool_mode_ask">Tanya</string>
+    <string name="tool_mode_auto">Otomatis</string>
+    <string name="tool_mode_bypass">Lewati</string>
+
+    <string name="tool_approval_create">Buat berkas baru</string>
+    <string name="tool_approval_write">Tulis ulang berkas</string>
+    <string name="tool_approval_edit">Ubah isi berkas</string>
+    <string name="tool_approval_delete">Hapus berkas</string>
+    <string name="tool_approval_move">Pindahkan berkas</string>
+    <string name="tool_approval_body">Agent Bayu minta izin menjalankan %1$s. Periksa dulu sebelum mengizinkan.</string>
+    <string name="tool_approval_destination">Tujuan: %1$s</string>
+    <string name="tool_approval_counts">%1$d baris ditambah, %2$d baris dibuang</string>
+    <string name="tool_approval_empty">Tidak ada pratinjau untuk perubahan ini.</string>
+    <string name="tool_approval_more">%1$d baris lagi tidak ditampilkan</string>
+    <string name="tool_approval_allow_once">Izinkan</string>
+    <string name="tool_approval_allow_session">Izinkan untuk sesi ini</string>
+    <string name="tool_approval_deny">Tolak</string>
+
+    <string name="tool_run_pending">Sedang jalan</string>
+    <string name="tool_run_done">Selesai</string>
+    <string name="tool_run_failed">Gagal</string>
+    <string name="tool_name_create_task">Membuat tugas</string>
+    <string name="tool_name_list_tasks">Membaca daftar tugas</string>
+    <string name="tool_name_complete_task">Menyelesaikan tugas</string>
+    <string name="tool_name_list_files">Melihat isi folder</string>
+    <string name="tool_name_read_file">Membaca berkas</string>
+    <string name="tool_name_search_files">Mencari di berkas</string>
+    <string name="tool_name_view_image">Melihat gambar</string>
+    <string name="tool_name_write_file">Menulis berkas</string>
+    <string name="tool_name_edit_file">Menyunting berkas</string>
+    <string name="tool_name_delete_file">Menghapus berkas</string>
+    <string name="tool_name_move_file">Memindahkan berkas</string>
 </resources>

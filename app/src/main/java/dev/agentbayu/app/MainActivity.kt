@@ -51,6 +51,7 @@ import dev.agentbayu.app.ui.components.GlassOverlayHost
 import dev.agentbayu.app.ui.components.GlassTabsProgress
 import dev.agentbayu.app.ui.components.LocalGlassOverlay
 import dev.agentbayu.app.ui.components.PageStackProgress
+import dev.agentbayu.app.ui.components.ToolApprovalSheet
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
@@ -255,12 +256,24 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                 }
             }
 
+            ToolApprovalHost()
+
             GlassOverlayHost(
                 controller = overlayController,
                 backdrop = chromeBackdrop,
                 modifier = Modifier.fillMaxSize()
             )
         }
+    }
+}
+
+@Composable
+private fun ToolApprovalHost() {
+    val context = LocalContext.current
+    val approvals = remember(context) { AppGraph.approvals(context) }
+    val pending by approvals.pending.collectAsState()
+    pending?.let { request ->
+        ToolApprovalSheet(request = request, onDecision = approvals::resolve)
     }
 }
 

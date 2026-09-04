@@ -27,13 +27,15 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import dev.agentbayu.app.platform.ThemeMode
 import dev.agentbayu.app.ui.components.GlassBadge
-import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.theme.AppleBlueLight
+import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleIndigoLight
+import dev.agentbayu.app.ui.theme.AppleOrangeLight
 import dev.agentbayu.app.ui.theme.ApplePurpleLight
 import dev.agentbayu.app.ui.theme.AppleTealLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
@@ -45,10 +47,14 @@ fun SettingsScreen(
     versionName: String,
     useScreenContext: Boolean,
     themeMode: ThemeMode,
+    toolApprovalMode: ToolApprovalMode,
+    storageGranted: Boolean,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onToolApprovalModeChange: (ToolApprovalMode) -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
     onOpenProviders: () -> Unit,
     onOpenLogs: () -> Unit,
+    onOpenStorageSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
@@ -115,6 +121,49 @@ fun SettingsScreen(
                 title = stringResource(R.string.settings_logs_title),
                 subtitle = stringResource(R.string.settings_logs_body),
                 onClick = onOpenLogs
+            )
+        }
+
+        SectionGroup(title = stringResource(R.string.settings_tools)) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                GlassBadge(
+                    icon = painterResource(R.drawable.ic_check),
+                    containerColor = AppleGreenLight
+                )
+                Spacer(modifier = Modifier.width(14.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.settings_tool_approval_title),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_tool_approval_body),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            ToolApprovalModeSelector(
+                mode = toolApprovalMode,
+                onModeChange = onToolApprovalModeChange
+            )
+            SettingDivider()
+            NavigationSettingRow(
+                icon = painterResource(R.drawable.ic_open_in_app),
+                iconColor = AppleOrangeLight,
+                title = stringResource(R.string.settings_storage_title),
+                subtitle = if (storageGranted) {
+                    stringResource(R.string.status_ready)
+                } else {
+                    stringResource(R.string.settings_storage_body)
+                },
+                onClick = onOpenStorageSettings
             )
         }
 
@@ -186,6 +235,26 @@ private fun ThemeModeSelector(
             ThemeMode.SYSTEM -> stringResource(R.string.theme_mode_system)
             ThemeMode.LIGHT -> stringResource(R.string.theme_mode_light)
             ThemeMode.DARK -> stringResource(R.string.theme_mode_dark)
+        }
+    }
+    GlassSegmentedSelector(
+        labels = labels,
+        selectedIndex = options.indexOf(mode).coerceAtLeast(0),
+        onSelect = { index -> onModeChange(options[index]) }
+    )
+}
+
+@Composable
+private fun ToolApprovalModeSelector(
+    mode: ToolApprovalMode,
+    onModeChange: (ToolApprovalMode) -> Unit
+) {
+    val options = ToolApprovalMode.entries
+    val labels = options.map { option ->
+        when (option) {
+            ToolApprovalMode.ASK -> stringResource(R.string.tool_mode_ask)
+            ToolApprovalMode.AUTO -> stringResource(R.string.tool_mode_auto)
+            ToolApprovalMode.BYPASS -> stringResource(R.string.tool_mode_bypass)
         }
     }
     GlassSegmentedSelector(

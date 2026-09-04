@@ -6,6 +6,7 @@ import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
 import dev.agentbayu.app.ai.adapter.WireEvent
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
@@ -70,6 +71,21 @@ class AiClientTest {
         ): Flow<WireEvent> = flow {
             calls += 1
             if (calls > silentAttempts) emit(WireEvent.Delta("ok"))
+            emit(WireEvent.Done)
+        }
+    }
+
+    private class ToolOnlyAdapter(private val call: ToolCall) : ChatAdapter {
+        var calls = 0
+
+        override fun stream(
+            candidate: Candidate,
+            apiKey: String?,
+            request: ChatRequest,
+            authHeaders: Map<String, String>
+        ): Flow<WireEvent> = flow {
+            calls += 1
+            emit(WireEvent.ToolUse(call))
             emit(WireEvent.Done)
         }
     }
@@ -327,6 +343,25 @@ class AiClientTest {
         val failed = events.single() as ReplyEvent.Failed
         assertEquals(FailureKind.RETRYABLE, failed.failure.kind)
         assertEquals("no content", failed.failure.message)
+    }
+
+    @Test
+    fun `keeps a reply that carries only tool calls`() = runTest {
+        val adapter = ToolOnlyAdapter(ToolCall(id = "call-1", name = "list_tasks", arguments = "{}"))
+        val tracker = UsageTracker(FakeClock())
+
+        val events = clientFor(testCandidate(), adapter, tracker = tracker)
+            .stream(request)
+            .toList()
+
+        assertEquals(1, adapter.calls)
+        assertEquals(
+            listOf("list_tasks"),
+            events.filterIsInstance<ReplyEvent.ToolUse>().map { it.call.name }
+        )
+        assertTrue(events.last() is ReplyEvent.Completed)
+        assertEquals(1, tracker.statsFor("conn-1").successes)
+        assertEquals(0, tracker.statsFor("conn-1").failures)
     }
 
     @Test

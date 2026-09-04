@@ -45,6 +45,25 @@ class ConversationRepository {
         mutate(id) { message -> message.copy(detail = detail) }
     }
 
+    fun startToolRun(id: Long, name: String, label: String) {
+        mutate(id) { message ->
+            message.copy(toolRuns = message.toolRuns + ToolRun(name = name, label = label))
+        }
+    }
+
+    fun finishToolRun(id: Long, name: String, ok: Boolean) {
+        mutate(id) { message ->
+            val index = message.toolRuns.indexOfLast { it.name == name && it.running }
+            if (index < 0) {
+                message
+            } else {
+                val runs = message.toolRuns.toMutableList()
+                runs[index] = runs[index].copy(running = false, ok = ok)
+                message.copy(toolRuns = runs)
+            }
+        }
+    }
+
     fun complete(id: Long, detail: ReplyDetail?, usage: TokenUsage?) {
         mutate(id) { message ->
             message.copy(

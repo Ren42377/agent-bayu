@@ -24,6 +24,12 @@ import dev.agentbayu.app.ai.adapter.ChatTurn
 import dev.agentbayu.app.ai.adapter.WireEvent
 import dev.agentbayu.app.ai.testConnection
 import dev.agentbayu.app.ai.testProvider
+import dev.agentbayu.app.ai.tools.ToolCall
+import dev.agentbayu.app.ai.tools.ToolHandler
+import dev.agentbayu.app.ai.tools.ToolRegistry
+import dev.agentbayu.app.ai.tools.ToolResult
+import dev.agentbayu.app.ai.tools.ToolSpec
+import dev.agentbayu.app.ai.tools.toolSchema
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
@@ -43,6 +49,7 @@ private class RecordingAdapter : ChatAdapter {
     val keys = ArrayList<String?>()
 
     var events: List<WireEvent> = emptyList()
+    var script: List<List<WireEvent>> = emptyList()
 
     override fun stream(
         candidate: Candidate,
@@ -50,9 +57,31 @@ private class RecordingAdapter : ChatAdapter {
         request: ChatRequest,
         authHeaders: Map<String, String>
     ): Flow<WireEvent> = flow {
+        val pass = requests.size
         requests += request
         keys += apiKey
-        events.forEach { event -> emit(event) }
+        val frame = if (script.isEmpty()) {
+            events
+        } else {
+            script[pass.coerceAtMost(script.lastIndex)]
+        }
+        frame.forEach { event -> emit(event) }
+    }
+}
+
+private class FakeTool(name: String, private val content: String) : ToolHandler {
+
+    val calls = ArrayList<ToolCall>()
+
+    override val spec = ToolSpec(
+        name = name,
+        description = "test tool",
+        parameters = toolSchema()
+    )
+
+    override suspend fun run(call: ToolCall): ToolResult {
+        calls += call
+        return ToolResult(callId = call.id, name = call.name, content = content)
     }
 }
 
@@ -83,6 +112,7 @@ class ProviderAgentEngineTest {
             testProvider(
                 id = "alpha",
                 label = "Alpha",
+                tools = true,
                 models = listOf(
                     ModelEntry(
                         id = "alpha-model",
@@ -112,7 +142,8 @@ class ProviderAgentEngineTest {
     private fun engine(
         pool: List<Connection> = listOf(connection),
         activeId: String? = "first",
-        keys: Map<String, String> = mapOf("first" to "key-1")
+        keys: Map<String, String> = mapOf("first" to "key-1"),
+        tools: ToolRegistry = ToolRegistry()
     ): ProviderAgentEngine {
         val connections = FakeConnectionSource(pool, activeId)
         val keySource = FakeKeys(keys)
@@ -129,7 +160,8 @@ class ProviderAgentEngineTest {
         return ProviderAgentEngine(
             client = client,
             contextBuilder = ContextBuilder(SYSTEM_PROMPT, SCREEN_TEMPLATE),
-            copy = copy
+            copy = copy,
+            tools = tools
         )
     }
 
@@ -327,5 +359,62 @@ class ProviderAgentEngineTest {
         assertEquals(ContextBuilder.DEFAULT_TEMPERATURE, request.temperature)
         assertNull(request.maxOutputTokens)
         assertEquals("key-1", adapter.keys.single())
+    }
+
+    @Test
+    fun aToolCallRunsAndItsResultReachesTheNextRequest() {
+        val tool = FakeTool(name = "list_tasks", content = "1. Beli susu")
+        val call = ToolCall(id = "call-1", name = "list_tasks", arguments = "{}")
+        adapter.script = listOf(
+            listOf(WireEvent.ToolUse(call), WireEvent.Done),
+            listOf(WireEvent.Delta("Ada satu tugas."), WireEvent.Done)
+        )
+
+        val events = drain(
+            engine(tools = ToolRegistry(listOf(tool))).reply(AgentRequest(prompt = "cek tugas"))
+        )
+
+        assertEquals(2, adapter.requests.size)
+        assertEquals(listOf("list_tasks"), adapter.requests.first().tools.map { it.name })
+        assertEquals(listOf(call), tool.calls)
+        assertEquals(
+            listOf(
+                AgentEvent.ToolStarted("list_tasks", "list_tasks"),
+                AgentEvent.ToolFinished("list_tasks", true)
+            ),
+            events.filter { it is AgentEvent.ToolStarted || it is AgentEvent.ToolFinished }
+        )
+
+        val turns = adapter.requests[1].turns
+        val asked = turns[turns.lastIndex - 1]
+        assertEquals(ChatRole.ASSISTANT, asked.role)
+        assertEquals(listOf(call), asked.toolCalls)
+        val answered = turns.last()
+        assertEquals(ChatRole.TOOL, answered.role)
+        assertEquals("1. Beli susu", answered.content)
+        assertEquals("call-1", answered.toolCallId)
+        assertEquals(
+            listOf("Ada satu tugas."),
+            events.filterIsInstance<AgentEvent.Delta>().map { it.text }
+        )
+        assertTrue(events.last() is AgentEvent.Completed)
+    }
+
+    @Test
+    fun theToolLoopStopsAtThePassCeiling() {
+        val tool = FakeTool(name = "list_tasks", content = "kosong")
+        adapter.events = listOf(
+            WireEvent.ToolUse(ToolCall(id = "call-1", name = "list_tasks", arguments = "{}")),
+            WireEvent.Done
+        )
+
+        val events = drain(
+            engine(tools = ToolRegistry(listOf(tool))).reply(AgentRequest(prompt = "terus"))
+        )
+
+        assertEquals(8, adapter.requests.size)
+        assertTrue(adapter.requests.last().tools.isEmpty())
+        assertEquals(1, tool.calls.size)
+        assertTrue(events.last() is AgentEvent.Completed)
     }
 }

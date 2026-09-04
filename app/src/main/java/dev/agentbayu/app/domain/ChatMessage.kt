@@ -20,6 +20,14 @@ data class MessageAttachment(
 )
 
 @Serializable
+data class ToolRun(
+    val name: String,
+    val label: String = "",
+    val running: Boolean = true,
+    val ok: Boolean = false
+)
+
+@Serializable
 data class ChatMessage(
     val id: Long,
     val author: MessageAuthor,
@@ -27,5 +35,6 @@ data class ChatMessage(
     val detail: ReplyDetail? = null,
     val usage: TokenUsage? = null,
     val streaming: Boolean = false,
-    val attachments: List<MessageAttachment> = emptyList()
+    val attachments: List<MessageAttachment> = emptyList(),
+    val toolRuns: List<ToolRun> = emptyList()
 )
