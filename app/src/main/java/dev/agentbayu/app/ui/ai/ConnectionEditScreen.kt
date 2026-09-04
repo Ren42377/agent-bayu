@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,6 +40,7 @@ import dev.agentbayu.app.ai.ProviderEntry
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassDropdownMenuHost
 import dev.agentbayu.app.ui.components.GlassDropdownMenuItem
+import dev.agentbayu.app.ui.components.InteractiveHighlight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
@@ -500,6 +502,10 @@ fun AiDropdown(
     selectedId: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val animationScope = rememberCoroutineScope()
+    val interactiveHighlight = remember(animationScope) {
+        InteractiveHighlight(animationScope = animationScope, claimDrag = false)
+    }
     GlassDropdownMenuHost(
         expanded = expanded,
         onExpandedChange = { expanded = it },
@@ -510,7 +516,13 @@ fun AiDropdown(
                     .fillMaxWidth()
                     .liquidGlass(shape = GlassTileShape)
                     .clip(GlassTileShape)
-                    .clickable { expanded = true }
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = { expanded = true }
+                    )
+                    .then(interactiveHighlight.modifier)
+                    .then(interactiveHighlight.gestureModifier)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
                 Row(

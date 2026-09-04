@@ -96,7 +96,7 @@ fun AgentBayuTheme(
     }
     val glassStyle = currentGlassStyle(darkTheme)
     CompositionLocalProvider(
-        LocalIndication provides GlassIndication(darkTheme),
+        LocalIndication provides LiquidIndication(darkTheme),
         LocalDarkTheme provides darkTheme,
         LocalGlassStyle provides glassStyle
     ) {

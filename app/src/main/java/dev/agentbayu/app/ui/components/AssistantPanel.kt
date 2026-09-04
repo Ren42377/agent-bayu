@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -26,10 +27,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +55,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
+import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.PanelShape
@@ -186,17 +186,26 @@ fun AssistantPanel(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         focusRequester = inputFocus
                     )
-                    TextButton(
-                        onClick = onOpenApp,
-                        modifier = Modifier.padding(start = 12.dp, bottom = 8.dp)
+                    Row(
+                        modifier = Modifier
+                            .padding(start = 12.dp, bottom = 8.dp)
+                            .clip(CapsuleShape)
+                            .clickable(onClick = onOpenApp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_open_in_app),
                             contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = stringResource(R.string.overlay_open_app))
+                        Text(
+                            text = stringResource(R.string.overlay_open_app),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
                 }
             }
@@ -268,7 +277,7 @@ private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: 
                 overflow = TextOverflow.Ellipsis
             )
         }
-        IconButton(onClick = onDismiss) {
+        GlassIconButton(onClick = onDismiss) {
             Icon(
                 painter = painterResource(R.drawable.ic_close),
                 contentDescription = stringResource(R.string.overlay_close)

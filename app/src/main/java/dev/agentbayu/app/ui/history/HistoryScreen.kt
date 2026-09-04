@@ -15,13 +15,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -37,6 +37,8 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatSessionMeta
 import dev.agentbayu.app.ui.ai.AiScreenHeader
 import dev.agentbayu.app.ui.components.GlassDialog
+import dev.agentbayu.app.ui.components.GlassIconButton
+import dev.agentbayu.app.ui.components.InteractiveHighlight
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -64,7 +66,7 @@ fun HistoryScreen(
             title = stringResource(R.string.history_title),
             onBack = onBack,
             action = {
-                IconButton(onClick = { deleteMode = !deleteMode }) {
+                GlassIconButton(onClick = { deleteMode = !deleteMode }) {
                     Icon(
                         painter = painterResource(R.drawable.ic_delete),
                         contentDescription = stringResource(R.string.history_delete_mode),
@@ -75,7 +77,7 @@ fun HistoryScreen(
                         }
                     )
                 }
-                IconButton(onClick = onNew) {
+                GlassIconButton(onClick = onNew) {
                     Icon(
                         painter = painterResource(R.drawable.ic_add),
                         contentDescription = stringResource(R.string.history_new),
@@ -141,12 +143,18 @@ private fun SessionCard(
     onOpen: () -> Unit,
     onDelete: () -> Unit
 ) {
+    val animationScope = rememberCoroutineScope()
+    val interactiveHighlight = remember(animationScope) {
+        InteractiveHighlight(animationScope = animationScope, claimDrag = false)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .glassSurface(shape = GlassCardShape)
             .clip(GlassCardShape)
-            .clickable(onClick = onOpen)
+            .clickable(interactionSource = null, indication = null, onClick = onOpen)
+            .then(interactiveHighlight.modifier)
+            .then(interactiveHighlight.gestureModifier)
             .padding(
                 start = 16.dp,
                 end = if (showDelete) 4.dp else 16.dp,
@@ -195,7 +203,7 @@ private fun SessionCard(
             Spacer(modifier = Modifier.width(4.dp))
         }
         if (showDelete) {
-            IconButton(onClick = onDelete) {
+            GlassIconButton(onClick = onDelete) {
                 Icon(
                     painter = painterResource(R.drawable.ic_delete),
                     contentDescription = stringResource(R.string.history_delete),

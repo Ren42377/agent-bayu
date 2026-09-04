@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,6 +31,7 @@ import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ProviderTier
 import dev.agentbayu.app.ai.RiskLevel
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.GlassPill
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
@@ -236,9 +236,9 @@ private fun ConnectionCard(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                 }
-                IconButton(
+                GlassIconButton(
                     onClick = { onDelete(connection.id) },
-                    modifier = Modifier.size(32.dp)
+                    size = 32.dp
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_delete),
