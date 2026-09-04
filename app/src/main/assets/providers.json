@@ -46,7 +46,6 @@
       "risk": "tos_gray",
       "supportsStreamUsage": true,
       "allowCustomModel": true,
-      "vision": true,
       "tools": true,
       "effortMode": "request_field",
       "timeoutMillis": 120000,
@@ -143,7 +142,6 @@
       "supportsStreamUsage": true,
       "editableBaseUrl": true,
       "allowCustomModel": true,
-      "vision": true,
       "tools": true,
       "keyUrl": "https://platform.openai.com/api-keys",
       "models": []

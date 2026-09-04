@@ -39,7 +39,8 @@ internal class ToolCallBuffer {
     }
 
     fun whole(name: String, arguments: String) {
-        val slot = slotAt(nextId())
+        val id = nextId()
+        val slot = slots.getOrPut(id) { Slot(id) }
         slot.name = name
         slot.arguments.append(arguments)
     }
