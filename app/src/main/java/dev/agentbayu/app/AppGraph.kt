@@ -25,6 +25,18 @@ import dev.agentbayu.app.ai.oauth.AntigravityProjectBootstrap
 import dev.agentbayu.app.ai.oauth.CodexDeviceFlow
 import dev.agentbayu.app.ai.oauth.GoogleCodeFlow
 import dev.agentbayu.app.ai.oauth.TokenRefresher
+import dev.agentbayu.app.ai.tools.CompleteTaskTool
+import dev.agentbayu.app.ai.tools.CreateTaskTool
+import dev.agentbayu.app.ai.tools.DeleteFileTool
+import dev.agentbayu.app.ai.tools.EditFileTool
+import dev.agentbayu.app.ai.tools.ListFilesTool
+import dev.agentbayu.app.ai.tools.ListTasksTool
+import dev.agentbayu.app.ai.tools.MoveFileTool
+import dev.agentbayu.app.ai.tools.ReadFileTool
+import dev.agentbayu.app.ai.tools.SearchFilesTool
+import dev.agentbayu.app.ai.tools.ToolRegistry
+import dev.agentbayu.app.ai.tools.ViewImageTool
+import dev.agentbayu.app.ai.tools.WriteFileTool
 import dev.agentbayu.app.domain.Attachments
 import dev.agentbayu.app.domain.ChatController
 import dev.agentbayu.app.domain.ContextBuilder
@@ -34,10 +46,16 @@ import dev.agentbayu.app.domain.ConversationStore
 import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
 import dev.agentbayu.app.domain.tasks.TaskStore
+import dev.agentbayu.app.domain.tools.AiToolJudge
+import dev.agentbayu.app.domain.tools.JudgingToolApprovalGate
+import dev.agentbayu.app.domain.tools.ToolApprovalRouter
+import dev.agentbayu.app.domain.tools.ToolIntent
+import dev.agentbayu.app.domain.tools.UiToolApprovalGate
 import dev.agentbayu.app.platform.AppSettings
 import dev.agentbayu.app.platform.FileStorage
 import dev.agentbayu.app.platform.ImagePipeline
 import dev.agentbayu.app.platform.SecureStore
+import dev.agentbayu.app.platform.files.FileAccess
 import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -95,7 +113,8 @@ object AppGraph {
         val projectBootstrap: AntigravityProjectBootstrap,
         val usageTracker: UsageTracker,
         val logStore: LogStore,
-        val attachments: Attachments
+        val attachments: Attachments,
+        val approvals: UiToolApprovalGate
     )
 
     @Volatile
@@ -133,6 +152,8 @@ object AppGraph {
     fun logs(context: Context): LogStore = container(context).logStore
 
     fun attachments(context: Context): Attachments = container(context).attachments
+
+    fun approvals(context: Context): UiToolApprovalGate = container(context).approvals
 
     fun settings(context: Context): AppSettings {
         appSettings?.let { return it }
@@ -208,11 +229,24 @@ object AppGraph {
             logStore = logStore,
             clock = clock
         )
+        val pipeline = ImagePipeline(context)
         val attachments = Attachments(
-            pipeline = ImagePipeline(context),
+            pipeline = pipeline,
             storage = FileStorage(context, ATTACHMENT_DIRECTORY),
             clock = clock
         )
+        val intent = ToolIntent()
+        val approvals = UiToolApprovalGate()
+        val gate = ToolApprovalRouter(
+            mode = { settings(context).toolApprovalMode.value },
+            ask = approvals,
+            auto = JudgingToolApprovalGate(
+                judge = AiToolJudge(aiClient),
+                fallback = approvals,
+                userIntent = { intent.text }
+            )
+        )
+        val files = lazy { FileAccess.of(context) }
         val engine = ProviderAgentEngine(
             client = aiClient,
             contextBuilder = ContextBuilder(
@@ -220,7 +254,26 @@ object AppGraph {
                 screenContextTemplate = context.getString(R.string.agent_screen_context_prompt),
                 images = { list -> list.mapNotNull(attachments::image) }
             ),
-            copy = providerCopy(context)
+            copy = providerCopy(context),
+            tools = ToolRegistry(
+                listOf(
+                    CreateTaskTool(
+                        store = { tasks(context) },
+                        defaultListTitle = context.getString(R.string.tasks_list_default)
+                    ),
+                    ListTasksTool { tasks(context) },
+                    CompleteTaskTool { tasks(context) },
+                    ListFilesTool { files.value },
+                    ReadFileTool { files.value },
+                    SearchFilesTool { files.value },
+                    ViewImageTool(files = { files.value }, pipeline = { pipeline }),
+                    WriteFileTool({ files.value }, gate),
+                    EditFileTool({ files.value }, gate),
+                    DeleteFileTool({ files.value }, gate),
+                    MoveFileTool({ files.value }, gate)
+                )
+            ),
+            intent = intent
         )
         val conversationStore = ConversationStore(secureStore)
         val sessionManager = ConversationSessionManager(
@@ -251,7 +304,8 @@ object AppGraph {
             projectBootstrap = AntigravityProjectBootstrap(client),
             usageTracker = usageTracker,
             logStore = logStore,
-            attachments = attachments
+            attachments = attachments,
+            approvals = approvals
         )
     }
 

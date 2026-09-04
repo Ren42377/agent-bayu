@@ -16,7 +16,7 @@ class AiToolJudge(private val client: AiClient) : ToolApprovalJudge {
     ): ToolVerdict? {
         val answer = StringBuilder()
         var usable = true
-        client.stream(requestFor(request, userIntent)).collect { event ->
+        client.stream(requestFor(request, userIntent), countRequest = false).collect { event ->
             when (event) {
                 is ReplyEvent.Delta -> answer.append(event.text)
                 is ReplyEvent.Failed -> usable = false

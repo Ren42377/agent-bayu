@@ -100,8 +100,13 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
                 if (turns[index].role == ChatRole.TOOL) {
                     var end = index
                     while (end < turns.size && turns[end].role == ChatRole.TOOL) end += 1
-                    add(toolResultMessage(turns.subList(index, end)))
-                    index = end
+                    val carried = turns.getOrNull(end)?.takeIf { follower ->
+                        follower.role == ChatRole.USER &&
+                            follower.images.isNotEmpty() &&
+                            !follower.carriesTool
+                    }
+                    add(toolResultMessage(turns.subList(index, end), carried))
+                    index = if (carried == null) end else end + 1
                 } else {
                     add(message(turns[index]))
                     index += 1
@@ -117,11 +122,30 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
         }
     }
 
-    private fun toolResultMessage(turns: List<ChatTurn>): JsonObject = buildJsonObject {
-        put("role", "user")
-        putJsonArray("content") {
-            turns.forEach { turn -> add(anthropicToolResultBlock(turn)) }
+    private fun toolResultMessage(turns: List<ChatTurn>, carried: ChatTurn?): JsonObject =
+        buildJsonObject {
+            put("role", "user")
+            putJsonArray("content") {
+                turns.forEach { turn -> add(anthropicToolResultBlock(turn)) }
+                carried?.images?.forEach { image -> add(imageBlock(image)) }
+                if (carried != null && carried.content.isNotEmpty()) {
+                    add(textBlock(carried.content))
+                }
+            }
         }
+
+    private fun imageBlock(image: ChatImage): JsonObject = buildJsonObject {
+        put("type", "image")
+        putJsonObject("source") {
+            put("type", "base64")
+            put("media_type", image.mimeType)
+            put("data", image.data)
+        }
+    }
+
+    private fun textBlock(text: String): JsonObject = buildJsonObject {
+        put("type", "text")
+        put("text", text)
     }
 
     private fun message(turn: ChatTurn): JsonObject = buildJsonObject {
@@ -131,26 +155,8 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
             return@buildJsonObject
         }
         putJsonArray("content") {
-            turn.images.forEach { image ->
-                add(
-                    buildJsonObject {
-                        put("type", "image")
-                        putJsonObject("source") {
-                            put("type", "base64")
-                            put("media_type", image.mimeType)
-                            put("data", image.data)
-                        }
-                    }
-                )
-            }
-            if (turn.content.isNotEmpty()) {
-                add(
-                    buildJsonObject {
-                        put("type", "text")
-                        put("text", turn.content)
-                    }
-                )
-            }
+            turn.images.forEach { image -> add(imageBlock(image)) }
+            if (turn.content.isNotEmpty()) add(textBlock(turn.content))
             turn.toolCalls.forEach { call -> add(anthropicToolUseBlock(call)) }
         }
     }

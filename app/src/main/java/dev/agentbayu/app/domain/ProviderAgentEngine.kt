@@ -113,7 +113,8 @@ class ProviderAgentEngine(
             chatRequest = chatRequest.copy(
                 turns = chatRequest.turns +
                     ChatTurn(ChatRole.ASSISTANT, spoken.toString(), toolCalls = calls) +
-                    results.map(::toolTurn),
+                    results.map(::toolTurn) +
+                    imageTurns(results),
                 tools = if (pass + 1 >= MAX_PASSES) emptyList() else tools.specs
             )
         }
@@ -126,6 +127,12 @@ class ProviderAgentEngine(
         toolName = result.name,
         toolFailed = result.isError
     )
+
+    private fun imageTurns(results: List<ToolResult>): List<ChatTurn> {
+        val images = results.flatMap { it.images }
+        if (images.isEmpty()) return emptyList()
+        return listOf(ChatTurn(ChatRole.USER, TOOL_IMAGES, images = images))
+    }
 
     private fun labelOf(call: ToolCall): String {
         val arguments = call.arguments.trim()
@@ -198,6 +205,7 @@ class ProviderAgentEngine(
         const val MAX_PASSES = 8
         const val MAX_LABEL_CHARS = 120
         const val EMPTY_ARGUMENTS = "{}"
+        const val TOOL_IMAGES = "Images returned by the tool calls above."
         const val REPEATED_CALL =
             "Already called with the same arguments. Reuse the earlier result."
     }

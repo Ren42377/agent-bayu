@@ -7,7 +7,11 @@ import java.io.IOException
 
 class FileAccessException(message: String) : Exception(message)
 
-class FileAccess(roots: List<File>, blocked: List<File> = emptyList()) {
+class FileAccess(
+    roots: List<File>,
+    blocked: List<File> = emptyList(),
+    private val guard: () -> Boolean = { true }
+) {
 
     private val roots: List<File> = roots.map { it.canonicalOrAbsolute() }
 
@@ -16,6 +20,7 @@ class FileAccess(roots: List<File>, blocked: List<File> = emptyList()) {
     val rootPaths: List<String> = this.roots.map { it.path }
 
     fun resolve(path: String): File {
+        if (!guard()) throw FileAccessException(NO_ACCESS)
         val trimmed = path.trim()
         if (trimmed.isEmpty()) throw FileAccessException("The path is empty")
         val home = roots.firstOrNull() ?: throw FileAccessException("No storage root is available")
@@ -49,7 +54,7 @@ class FileAccess(roots: List<File>, blocked: List<File> = emptyList()) {
         return if (extra > 0) head + "\n" + extra + " more entries" else head
     }
 
-    fun read(path: String, maxBytes: Int = MAX_READ_BYTES): String {
+    fun bytes(path: String, maxBytes: Int = MAX_BINARY_BYTES): ByteArray {
         val target = resolve(path)
         if (!target.exists()) throw FileAccessException("Nothing at " + target.path)
         if (target.isDirectory) throw FileAccessException("That is a directory: " + target.path)
@@ -59,13 +64,18 @@ class FileAccess(roots: List<File>, blocked: List<File> = emptyList()) {
                 "The file is " + length + " bytes, over the " + maxBytes + " byte limit"
             )
         }
-        val bytes = try {
+        return try {
             target.readBytes()
         } catch (error: IOException) {
             throw FileAccessException("Cannot read " + target.path)
         } catch (error: OutOfMemoryError) {
             throw FileAccessException("The file does not fit in memory: " + target.path)
         }
+    }
+
+    fun read(path: String, maxBytes: Int = MAX_READ_BYTES): String {
+        val target = resolve(path)
+        val bytes = bytes(path, maxBytes)
         if (looksBinary(bytes)) throw FileAccessException("That file is binary: " + target.path)
         return String(bytes, Charsets.UTF_8)
     }
@@ -180,16 +190,20 @@ class FileAccess(roots: List<File>, blocked: List<File> = emptyList()) {
 
     companion object {
         const val MAX_READ_BYTES = 256 * 1024
+        const val MAX_BINARY_BYTES = 16 * 1024 * 1024
         const val MAX_ENTRIES = 200
         const val MAX_MATCHES = 80
         const val MAX_SEARCH_DEPTH = 6
         const val BINARY_PROBE_BYTES = 4_096
         const val BINARY_TOLERANCE = 5
         const val SNIPPET = 200
+        const val NO_ACCESS = "No access to the phone storage yet. The owner has to turn on " +
+            "all files access for Agent Bayu in the Android settings."
 
         fun of(context: Context): FileAccess = FileAccess(
             roots = listOf(Environment.getExternalStorageDirectory()),
-            blocked = privateDirectoriesOf(context)
+            blocked = privateDirectoriesOf(context),
+            guard = { AllFilesAccess.granted(context) }
         )
 
         private fun privateDirectoriesOf(context: Context): List<File> = listOfNotNull(

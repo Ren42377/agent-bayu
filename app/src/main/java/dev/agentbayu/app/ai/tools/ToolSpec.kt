@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ai.tools
 
+import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.booleanField
 import dev.agentbayu.app.ai.adapter.intField
 import dev.agentbayu.app.ai.adapter.parseJsonObject
@@ -21,7 +22,8 @@ data class ToolField(
 data class ToolSpec(
     val name: String,
     val description: String,
-    val parameters: JsonObject
+    val parameters: JsonObject,
+    val needsVision: Boolean = false
 )
 
 data class ToolCall(
@@ -34,7 +36,8 @@ data class ToolResult(
     val callId: String,
     val name: String,
     val content: String,
-    val isError: Boolean = false
+    val isError: Boolean = false,
+    val images: List<ChatImage> = emptyList()
 )
 
 interface ToolHandler {
@@ -66,11 +69,19 @@ class ToolArguments(raw: String) {
 
     fun text(field: String): String? = root?.stringField(field)?.takeIf { it.isNotEmpty() }
 
+    fun raw(field: String): String? = root?.stringField(field)
+
     fun flag(field: String, fallback: Boolean = false): Boolean =
         root?.booleanField(field) ?: fallback
 
     fun number(field: String, fallback: Int): Int = root?.intField(field) ?: fallback
 }
+
+fun ToolCall.reply(content: String, images: List<ChatImage> = emptyList()): ToolResult =
+    ToolResult(callId = id, name = name, content = content, images = images)
+
+fun ToolCall.problem(reason: String): ToolResult =
+    ToolResult(callId = id, name = name, content = reason, isError = true)
 
 fun toolSchema(vararg fields: ToolField): JsonObject = buildJsonObject {
     put("type", "object")

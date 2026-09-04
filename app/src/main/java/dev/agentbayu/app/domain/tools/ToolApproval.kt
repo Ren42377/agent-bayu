@@ -44,6 +44,13 @@ data class ToolApprovalRequest(
     val sessionKey: String get() = toolName + "|" + path + "|" + destination.orEmpty()
 }
 
+object ToolApprovalTicket {
+
+    private val counter = AtomicLong(0L)
+
+    fun next(): Long = counter.incrementAndGet()
+}
+
 interface ToolApprovalGate {
     suspend fun confirm(request: ToolApprovalRequest): ToolApprovalDecision
 }
@@ -57,15 +64,12 @@ class UiToolApprovalGate : ToolApprovalGate {
 
     private val state = MutableStateFlow<ToolApprovalRequest?>(null)
     private val granted = ConcurrentHashMap.newKeySet<String>()
-    private val counter = AtomicLong(0L)
     private val lock = Mutex()
 
     @Volatile
     private var waiter: CompletableDeferred<ToolApprovalDecision>? = null
 
     val pending: StateFlow<ToolApprovalRequest?> = state.asStateFlow()
-
-    fun nextId(): Long = counter.incrementAndGet()
 
     override suspend fun confirm(request: ToolApprovalRequest): ToolApprovalDecision {
         if (granted.contains(request.sessionKey)) return ToolApprovalDecision.ALLOW_SESSION

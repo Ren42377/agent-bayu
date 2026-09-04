@@ -41,6 +41,26 @@ class ImagePipeline(private val context: Context) {
         }
     }
 
+    fun prepareBytes(
+        bytes: ByteArray,
+        maxEdge: Int = MAX_EDGE,
+        quality: Int = QUALITY
+    ): PreparedImage? {
+        val decoded = decodeScaled(bytes, maxEdge) ?: return null
+        val scaled = scale(decoded, maxEdge)
+        return try {
+            PreparedImage(
+                bytes = compress(scaled, quality),
+                mimeType = JPEG_MIME_TYPE,
+                width = scaled.width,
+                height = scaled.height
+            )
+        } finally {
+            recycleUnless(scaled, decoded)
+            decoded.recycle()
+        }
+    }
+
     fun decodeScaled(bytes: ByteArray, maxEdge: Int): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)

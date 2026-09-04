@@ -5,6 +5,7 @@ import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.WireEvent
 import dev.agentbayu.app.ai.tools.ToolCall
+import dev.agentbayu.app.ai.tools.ToolSpec
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -67,7 +68,8 @@ class AiClient(
         val effective = request.copy(
             turns = fitToContext(visionAware(candidate, request), candidate.model),
             maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens),
-            effort = candidate.effort
+            effort = candidate.effort,
+            tools = toolsFor(candidate, request)
         )
         val connectionId = candidate.connection.id
         val credential = credentials.resolve(candidate)
@@ -208,6 +210,13 @@ class AiClient(
         if (candidate.supportsVision) return request
         if (request.turns.none { it.images.isNotEmpty() }) return request
         return request.copy(turns = request.turns.map { it.copy(images = emptyList()) })
+    }
+
+    private fun toolsFor(candidate: Candidate, request: ChatRequest): List<ToolSpec> {
+        if (request.tools.isEmpty()) return request.tools
+        if (!candidate.supportsTools) return emptyList()
+        if (candidate.supportsVision) return request.tools
+        return request.tools.filterNot { it.needsVision }
     }
 
     private fun estimateInputTokens(request: ChatRequest): Int =
