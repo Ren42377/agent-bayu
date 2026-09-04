@@ -4,6 +4,7 @@ import android.util.Log
 import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.WireEvent
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -13,6 +14,8 @@ sealed interface ReplyEvent {
     data class Started(val detail: ReplyDetail) : ReplyEvent
 
     data class Delta(val text: String) : ReplyEvent
+
+    data class ToolUse(val call: ToolCall) : ReplyEvent
 
     data class Completed(val detail: ReplyDetail, val usage: TokenUsage) : ReplyEvent
 
@@ -32,20 +35,25 @@ class AiClient(
     private val pause: suspend (Long) -> Unit = { delay(it) }
 ) {
 
-    fun stream(request: ChatRequest): Flow<ReplyEvent> = flow {
+    fun stream(request: ChatRequest, countRequest: Boolean = true): Flow<ReplyEvent> = flow {
         when (val resolution = activeProvider.resolve()) {
             is ActiveResolution.Unavailable -> {
                 logStore.warning(SOURCE, "No usable connection", resolution.problem.name)
                 emit(ReplyEvent.Unavailable(resolution.problem))
             }
 
-            is ActiveResolution.Ready -> streamCandidate(resolution.candidate, request)
+            is ActiveResolution.Ready -> streamCandidate(
+                resolution.candidate,
+                request,
+                countRequest
+            )
         }
     }
 
     private suspend fun FlowCollector<ReplyEvent>.streamCandidate(
         candidate: Candidate,
-        request: ChatRequest
+        request: ChatRequest,
+        countRequest: Boolean
     ) {
         val detail = detailOf(candidate)
         val route = candidate.provider.id + " " + candidate.model.id
@@ -64,14 +72,23 @@ class AiClient(
         val connectionId = candidate.connection.id
         val credential = credentials.resolve(candidate)
         val startedAt = clock.nowMillis()
-        usageTracker.beginRequest(connectionId)
+        usageTracker.beginRequest(connectionId, countRequest)
         logStore.info(SOURCE, "Request started", route)
 
         var firstTokenMillis = 0L
         var outputChars = 0
+        var toolChars = 0
+        var toolCalls = 0
         var wireUsage: WireEvent.Usage? = null
         var failure: RouteFailure? = null
         var attempt = 0
+
+        suspend fun markFirstToken() {
+            if (firstTokenMillis != 0L) return
+            firstTokenMillis = (clock.nowMillis() - startedAt).coerceAtLeast(1L)
+            usageTracker.recordFirstToken(connectionId, firstTokenMillis)
+            emit(ReplyEvent.Started(detail.copy(firstTokenMillis = firstTokenMillis)))
+        }
 
         while (true) {
             attempt += 1
@@ -81,18 +98,16 @@ class AiClient(
                 .collect { event ->
                     when (event) {
                         is WireEvent.Delta -> {
-                            if (firstTokenMillis == 0L) {
-                                firstTokenMillis =
-                                    (clock.nowMillis() - startedAt).coerceAtLeast(1L)
-                                usageTracker.recordFirstToken(connectionId, firstTokenMillis)
-                                emit(
-                                    ReplyEvent.Started(
-                                        detail.copy(firstTokenMillis = firstTokenMillis)
-                                    )
-                                )
-                            }
+                            markFirstToken()
                             outputChars += event.text.length
                             emit(ReplyEvent.Delta(event.text))
+                        }
+
+                        is WireEvent.ToolUse -> {
+                            markFirstToken()
+                            toolCalls += 1
+                            toolChars += event.call.name.length + event.call.arguments.length
+                            emit(ReplyEvent.ToolUse(event.call))
                         }
 
                         is WireEvent.Usage -> wireUsage = event
@@ -101,14 +116,14 @@ class AiClient(
                     }
                 }
 
-            if (outputChars > 0) break
+            if (outputChars > 0 || toolCalls > 0) break
             val pending = failure ?: emptyReply()
             val wait = retryDelayFor(pending, attempt) ?: break
             logStore.warning(SOURCE, "Retrying request", route + " " + pending.logLabel)
             pause(wait)
         }
 
-        val reported = failure ?: if (outputChars == 0) emptyReply() else null
+        val reported = failure ?: if (outputChars == 0 && toolCalls == 0) emptyReply() else null
         val complete = detail.copy(
             firstTokenMillis = firstTokenMillis,
             totalMillis = clock.nowMillis() - startedAt
@@ -132,7 +147,7 @@ class AiClient(
             return
         }
 
-        val usage = usageOf(candidate, effective, wireUsage, outputChars)
+        val usage = usageOf(candidate, effective, wireUsage, outputChars + toolChars)
         usageTracker.recordSuccess(connectionId, usage)
         connections.markHealth(connectionId, ConnectionHealth.READY, null)
         logStore.info(

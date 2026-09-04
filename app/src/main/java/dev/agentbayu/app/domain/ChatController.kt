@@ -79,6 +79,10 @@ class ChatController(
                             repository.attachDetail(placeholder.id, event.detail)
                         }
 
+                        is AgentEvent.ToolStarted -> flush()
+
+                        is AgentEvent.ToolFinished -> flush()
+
                         is AgentEvent.Completed -> {
                             flush()
                             repository.complete(placeholder.id, event.detail, event.usage)

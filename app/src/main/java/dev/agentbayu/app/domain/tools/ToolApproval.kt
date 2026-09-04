@@ -100,6 +100,12 @@ data class ToolVerdict(val safe: Boolean, val relevant: Boolean) {
     val approved: Boolean get() = safe && relevant
 }
 
+class ToolIntent {
+
+    @Volatile
+    var text: String = ""
+}
+
 interface ToolApprovalJudge {
     suspend fun review(request: ToolApprovalRequest, userIntent: String): ToolVerdict?
 }

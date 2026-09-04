@@ -33,9 +33,9 @@ class UsageTracker(private val clock: Clock) {
 
     fun statsFor(connectionId: String): UsageStats = state.value[connectionId] ?: UsageStats()
 
-    fun beginRequest(connectionId: String) = update(connectionId) {
+    fun beginRequest(connectionId: String, counted: Boolean = true) = update(connectionId) {
         it.copy(
-            requests = it.requests + 1,
+            requests = if (counted) it.requests + 1 else it.requests,
             inFlight = it.inFlight + 1,
             lastUsedAtMillis = clock.nowMillis()
         )

@@ -16,6 +16,10 @@ sealed interface AgentEvent {
 
     data class Detail(val detail: ReplyDetail) : AgentEvent
 
+    data class ToolStarted(val name: String, val label: String) : AgentEvent
+
+    data class ToolFinished(val name: String, val ok: Boolean) : AgentEvent
+
     data class Completed(val detail: ReplyDetail?, val usage: TokenUsage?) : AgentEvent
 
     data class Failed(val message: String) : AgentEvent
