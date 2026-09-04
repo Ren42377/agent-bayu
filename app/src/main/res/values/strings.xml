@@ -261,8 +261,6 @@
     <string name="route_tokens">Token</string>
     <string name="route_tokens_value">%1$d masuk, %2$d keluar</string>
     <string name="route_tokens_estimated">Sekitar %1$d masuk, %2$d keluar</string>
-    <string name="route_cost">Biaya perkiraan</string>
-    <string name="route_cost_unknown">Tidak diketahui</string>
     <string name="route_close">Tutup</string>
 
     <string name="chat_provider_hint">%1$s, %2$s</string>
@@ -273,8 +271,6 @@
     <string name="chat_attach_failed">Gambar itu tidak bisa dibaca.</string>
     <string name="chat_attach_limit">Maksimal %1$d gambar per pesan.</string>
     <string name="chat_attachment">Gambar lampiran</string>
-
-    <string name="cost_value">USD %1$s</string>
 
     <string name="tasks_title">Tugas</string>
     <string name="tasks_add">Tambah tugas</string>
