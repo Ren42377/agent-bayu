@@ -4,6 +4,7 @@ import dev.agentbayu.app.ai.AuthHeader
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -221,5 +222,156 @@ class GeminiAdapterTest {
         assertEquals(testImage.mimeType, inline?.stringField("mimeType"))
         assertEquals(testImage.data, inline?.stringField("data"))
         assertEquals("apa ini", parts.last().stringField("text"))
+    }
+
+    @Test
+    fun toolDeclarationsRideInsideFunctionDeclarations() {
+        server.enqueue(sseResponse("{\"candidates\":[]}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        val group = body?.arrayField(WireParams.TOOLS)?.firstOrNull() as? JsonObject
+        val declared = group?.arrayField("functionDeclarations")?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(1, declared.size)
+        assertEquals("create_task", declared.first().stringField("name"))
+        assertEquals("object", declared.first().objectField("parameters")?.stringField("type"))
+    }
+
+    @Test
+    fun toolsAreLeftOutWhenTheModelRejectsThem() {
+        server.enqueue(sseResponse("{\"candidates\":[]}"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(
+                    providerId = "google",
+                    baseUrl = server.url("/").toString(),
+                    authHeader = AuthHeader.X_GOOG_API_KEY,
+                    wireFormat = WireFormat.GEMINI,
+                    modelUnsupportedParams = listOf(WireParams.TOOLS)
+                ),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertFalse(body?.containsKey(WireParams.TOOLS) == true)
+    }
+
+    @Test
+    fun functionCallPartsBecomeToolCalls() {
+        server.enqueue(
+            sseResponse(
+                textDelta("sebentar"),
+                "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":" +
+                    "{\"name\":\"create_task\",\"args\":{\"title\":\"beli susu\"}}}]}}]}",
+                "{\"candidates\":[{\"finishReason\":\"STOP\"}]}"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "key", request()))
+
+        assertEquals("sebentar", events.deltaText())
+        assertEquals(
+            listOf(ToolCall(id = "call_1", name = "create_task", arguments = "{\"title\":\"beli susu\"}")),
+            events.toolCalls()
+        )
+        assertTrue(events.completed())
+    }
+
+    @Test
+    fun parallelFunctionCallsKeepTheirOwnArguments() {
+        server.enqueue(
+            sseResponse(
+                "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[" +
+                    "{\"functionCall\":{\"name\":\"list_files\",\"args\":{\"path\":\"a\"}}}," +
+                    "{\"functionCall\":{\"name\":\"read_file\",\"args\":{\"path\":\"b.txt\"}}}" +
+                    "]}}]}",
+                "{\"candidates\":[{\"finishReason\":\"STOP\"}]}"
+            )
+        )
+
+        val calls = collectEvents(adapter.stream(candidate(), "key", request())).toolCalls()
+
+        assertEquals(listOf("list_files", "read_file"), calls.map { it.name })
+        assertEquals("{\"path\":\"a\"}", calls.first().arguments)
+        assertEquals("{\"path\":\"b.txt\"}", calls.last().arguments)
+    }
+
+    @Test
+    fun aFunctionCallWithoutArgumentsFallsBackToAnEmptyObject() {
+        server.enqueue(
+            sseResponse(
+                "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[" +
+                    "{\"functionCall\":{\"name\":\"list_tasks\"}}]}}]}"
+            )
+        )
+
+        val calls = collectEvents(adapter.stream(candidate(), "key", request())).toolCalls()
+
+        assertEquals(listOf("list_tasks"), calls.map { it.name })
+        assertEquals("{}", calls.first().arguments)
+    }
+
+    @Test
+    fun parallelToolResultsShareOneUserContent() {
+        server.enqueue(sseResponse("{\"candidates\":[]}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(ChatRole.USER, "buat tugas"),
+                        ChatTurn(
+                            role = ChatRole.ASSISTANT,
+                            content = "",
+                            toolCalls = listOf(
+                                ToolCall(id = "call_1", name = "create_task", arguments = "{\"title\":\"beli susu\"}"),
+                                ToolCall(id = "call_2", name = "list_tasks", arguments = "{}")
+                            )
+                        ),
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "Task created",
+                            toolCallId = "call_1",
+                            toolName = "create_task"
+                        ),
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "No list",
+                            toolCallId = "call_2",
+                            toolName = "list_tasks",
+                            toolFailed = true
+                        )
+                    )
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals(listOf("user" to "buat tugas", "model" to "", "user" to ""), contents(body))
+
+        val calls = body?.parts("contents", 1).orEmpty()
+        assertEquals(2, calls.size)
+        assertEquals("create_task", calls.first().objectField("functionCall")?.stringField("name"))
+        assertEquals(
+            "beli susu",
+            calls.first().objectField("functionCall")?.objectField("args")?.stringField("title")
+        )
+
+        val results = body?.parts("contents", 2).orEmpty()
+        assertEquals(2, results.size)
+        val first = results.first().objectField("functionResponse")
+        assertEquals("create_task", first?.stringField("name"))
+        assertEquals("Task created", first?.objectField("response")?.stringField("result"))
+        val second = results.last().objectField("functionResponse")
+        assertEquals("No list", second?.objectField("response")?.stringField("error"))
     }
 }

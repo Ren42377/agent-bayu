@@ -15,7 +15,8 @@ data class ModelEntry(
     val unsupportedParams: List<String> = emptyList(),
     val efforts: List<ReasoningEffort> = emptyList(),
     val free: Boolean = false,
-    val vision: Boolean = false
+    val vision: Boolean = false,
+    val tools: Boolean = false
 ) {
     val wireId: String
         get() = upstreamId?.takeIf { it.isNotBlank() } ?: id

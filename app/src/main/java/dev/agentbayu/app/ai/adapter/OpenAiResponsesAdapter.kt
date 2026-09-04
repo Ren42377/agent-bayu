@@ -31,9 +31,10 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
             .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 
+        val tools = ToolCallBuffer()
         return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
-            parseChunk(chunk)
-        }
+            parseChunk(chunk, tools)
+        }.releasingToolCalls(tools)
     }
 
     private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
@@ -41,40 +42,48 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
         put("instructions", instructionsOf(request))
         putJsonArray("input") {
             request.turns.filter { it.role != ChatRole.SYSTEM }.forEach { turn ->
-                add(
-                    buildJsonObject {
-                        put("type", "message")
-                        put("role", roleName(turn.role))
-                        putJsonArray("content") {
-                            if (turn.role != ChatRole.ASSISTANT) {
-                                turn.images.forEach { image ->
-                                    add(
-                                        buildJsonObject {
-                                            put("type", INPUT_IMAGE)
-                                            put("image_url", image.dataUrl)
-                                        }
-                                    )
-                                }
-                            }
-                            add(
-                                buildJsonObject {
-                                    put("type", contentType(turn.role))
-                                    put("text", turn.content)
-                                }
-                            )
-                        }
-                    }
-                )
+                if (turn.role == ChatRole.TOOL) {
+                    add(responsesFunctionOutputItem(turn))
+                    return@forEach
+                }
+                if (turn.toolCalls.isEmpty() || turn.content.isNotEmpty()) add(messageItem(turn))
+                turn.toolCalls.forEach { call -> add(responsesFunctionCallItem(call)) }
             }
         }
         put("stream", true)
         put("store", false)
+        if (request.tools.isNotEmpty() && WireParams.supports(candidate, WireParams.TOOLS)) {
+            putResponsesTools(request.tools)
+        }
         val effort = request.effort
         if (effort != null && WireParams.supports(candidate, WireParams.REASONING)) {
             putJsonObject("reasoning") {
                 put("effort", effort.wireValue)
                 put("summary", REASONING_SUMMARY)
             }
+        }
+    }
+
+    private fun messageItem(turn: ChatTurn): JsonObject = buildJsonObject {
+        put("type", "message")
+        put("role", roleName(turn.role))
+        putJsonArray("content") {
+            if (turn.role != ChatRole.ASSISTANT) {
+                turn.images.forEach { image ->
+                    add(
+                        buildJsonObject {
+                            put("type", INPUT_IMAGE)
+                            put("image_url", image.dataUrl)
+                        }
+                    )
+                }
+            }
+            add(
+                buildJsonObject {
+                    put("type", contentType(turn.role))
+                    put("text", turn.content)
+                }
+            )
         }
     }
 
@@ -92,7 +101,7 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
     private fun contentType(role: ChatRole): String =
         if (role == ChatRole.ASSISTANT) OUTPUT_TEXT else INPUT_TEXT
 
-    private fun parseChunk(raw: String): List<WireEvent> {
+    private fun parseChunk(raw: String, tools: ToolCallBuffer): List<WireEvent> {
         val root = parseJsonObject(raw) ?: return emptyList()
         val type = root.stringField("type")
         val error = root.objectField("error")
@@ -106,6 +115,26 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
             DELTA_TYPE -> {
                 val text = root.stringField("delta")
                 if (text.isNullOrEmpty()) emptyList() else listOf(WireEvent.Delta(text))
+            }
+
+            OUTPUT_ITEM_ADDED_TYPE -> {
+                val item = root.objectField("item")
+                if (item?.stringField("type") == FUNCTION_CALL_ITEM) {
+                    val id = item.stringField("call_id") ?: item.stringField("id")
+                    tools.open(toolKey(root), id, item.stringField("name"))
+                    tools.append(toolKey(root), item.stringField("arguments"))
+                }
+                emptyList()
+            }
+
+            ARGUMENTS_DELTA_TYPE -> {
+                tools.append(toolKey(root), root.stringField("delta"))
+                emptyList()
+            }
+
+            ARGUMENTS_DONE_TYPE -> {
+                tools.replace(toolKey(root), root.stringField("arguments"))
+                emptyList()
             }
 
             COMPLETED_TYPE -> {
@@ -122,6 +151,11 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
             else -> emptyList()
         }
     }
+
+    private fun toolKey(root: JsonObject): String =
+        root.intField("output_index")?.toString()
+            ?: root.stringField("item_id")
+            ?: DEFAULT_TOOL_KEY
 
     private fun statusOf(error: JsonObject?): Int {
         if (error == null) return STREAM_ERROR_STATUS
@@ -145,6 +179,11 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
         const val COMPLETED_TYPE = "response.completed"
         const val FAILED_TYPE = "response.failed"
         const val ERROR_TYPE = "error"
+        const val OUTPUT_ITEM_ADDED_TYPE = "response.output_item.added"
+        const val ARGUMENTS_DELTA_TYPE = "response.function_call_arguments.delta"
+        const val ARGUMENTS_DONE_TYPE = "response.function_call_arguments.done"
+        const val FUNCTION_CALL_ITEM = "function_call"
+        const val DEFAULT_TOOL_KEY = "0"
         const val DEFAULT_INSTRUCTIONS = "You are a helpful assistant."
         const val STREAM_ERROR_STATUS = 500
         const val RATE_LIMIT_STATUS = 429

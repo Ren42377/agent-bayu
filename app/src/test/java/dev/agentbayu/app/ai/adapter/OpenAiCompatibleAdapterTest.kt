@@ -3,6 +3,8 @@ package dev.agentbayu.app.ai.adapter
 import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.tools.ToolCall
+import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -290,5 +292,145 @@ class OpenAiCompatibleAdapterTest {
 
         val body = parseJsonObject(server.takeRequest().body.readUtf8())
         assertEquals(listOf("image_url"), body?.contentItems("messages", 0).orEmpty().types())
+    }
+
+    @Test
+    fun toolDeclarationsAreSentAsFunctions() {
+        server.enqueue(sseResponse("[DONE]"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(baseUrl = baseUrl()),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        val declared = body?.arrayField(WireParams.TOOLS)?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(listOf("function"), declared.types())
+        val function = declared.first().objectField("function")
+        assertEquals("create_task", function?.stringField("name"))
+        assertEquals("object", function?.objectField("parameters")?.stringField("type"))
+    }
+
+    @Test
+    fun toolsAreLeftOutWhenTheModelRejectsThem() {
+        server.enqueue(sseResponse("[DONE]"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(baseUrl = baseUrl(), modelUnsupportedParams = listOf(WireParams.TOOLS)),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertFalse(body?.containsKey(WireParams.TOOLS) == true)
+    }
+
+    @Test
+    fun toolCallArgumentsAreJoinedAcrossChunks() {
+        server.enqueue(
+            sseResponse(
+                "{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_a\"," +
+                    "\"function\":{\"name\":\"create_task\",\"arguments\":\"\"}}]}}]}",
+                "{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0," +
+                    "\"function\":{\"arguments\":\"{\\\"title\\\":\"}}]}}]}",
+                "{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0," +
+                    "\"function\":{\"arguments\":\"\\\"beli susu\\\"}\"}}]}}]}",
+                "{\"choices\":[{\"delta\":{},\"finish_reason\":\"tool_calls\"}]}",
+                "[DONE]"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(testCandidate(baseUrl = baseUrl()), "key", request()))
+
+        assertEquals("", events.deltaText())
+        assertEquals(
+            listOf(ToolCall(id = "call_a", name = "create_task", arguments = "{\"title\":\"beli susu\"}")),
+            events.toolCalls()
+        )
+        assertTrue(events.completed())
+    }
+
+    @Test
+    fun parallelToolCallsKeepTheirOwnArguments() {
+        server.enqueue(
+            sseResponse(
+                "{\"choices\":[{\"delta\":{\"tool_calls\":[" +
+                    "{\"index\":0,\"id\":\"call_a\",\"function\":{\"name\":\"list_files\",\"arguments\":\"{\\\"path\\\":\"}}," +
+                    "{\"index\":1,\"id\":\"call_b\",\"function\":{\"name\":\"read_file\",\"arguments\":\"{\\\"path\\\":\"}}" +
+                    "]}}]}",
+                "{\"choices\":[{\"delta\":{\"tool_calls\":[" +
+                    "{\"index\":1,\"function\":{\"arguments\":\"\\\"b.txt\\\"}\"}}," +
+                    "{\"index\":0,\"function\":{\"arguments\":\"\\\"a\\\"}\"}}" +
+                    "]}}]}",
+                "[DONE]"
+            )
+        )
+
+        val calls = collectEvents(adapter.stream(testCandidate(baseUrl = baseUrl()), "key", request())).toolCalls()
+
+        assertEquals(listOf("list_files", "read_file"), calls.map { it.name })
+        assertEquals("{\"path\":\"a\"}", calls.first().arguments)
+        assertEquals("{\"path\":\"b.txt\"}", calls.last().arguments)
+    }
+
+    @Test
+    fun toolCallsAreDroppedWhenTheStreamFails() {
+        server.enqueue(
+            sseResponse(
+                "{\"choices\":[{\"delta\":{\"tool_calls\":[{\"index\":0,\"id\":\"call_a\"," +
+                    "\"function\":{\"name\":\"delete_file\",\"arguments\":\"{}\"}}]}}]}",
+                "{\"error\":{\"code\":500,\"message\":\"upstream boom\"}}",
+                "[DONE]"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(testCandidate(baseUrl = baseUrl()), "key", request()))
+
+        assertTrue(events.toolCalls().isEmpty())
+        assertEquals(FailureKind.RETRYABLE, events.firstFailure()?.kind)
+    }
+
+    @Test
+    fun toolResultsAreSentBackAsToolMessages() {
+        server.enqueue(sseResponse("[DONE]"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(baseUrl = baseUrl()),
+                "key",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(ChatRole.USER, "buat tugas"),
+                        ChatTurn(
+                            role = ChatRole.ASSISTANT,
+                            content = "",
+                            toolCalls = listOf(
+                                ToolCall(id = "call_a", name = "create_task", arguments = "{\"title\":\"beli susu\"}")
+                            )
+                        ),
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "Task created",
+                            toolCallId = "call_a",
+                            toolName = "create_task"
+                        )
+                    )
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals(
+            listOf("user" to "buat tugas", "assistant" to "", "tool" to "Task created"),
+            body?.turns("messages")
+        )
+        val messages = body?.arrayField("messages")?.filterIsInstance<JsonObject>().orEmpty()
+        val call = messages[1].arrayField("tool_calls")?.filterIsInstance<JsonObject>()?.first()
+        assertEquals("call_a", call?.stringField("id"))
+        assertEquals("create_task", call?.objectField("function")?.stringField("name"))
+        assertEquals("{\"title\":\"beli susu\"}", call?.objectField("function")?.stringField("arguments"))
+        assertEquals("call_a", messages[2].stringField("tool_call_id"))
     }
 }

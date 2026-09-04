@@ -16,6 +16,7 @@
       "modelIdFilter": "-free",
       "supportsStreamUsage": true,
       "allowCustomModel": true,
+      "tools": true,
       "effortMode": "request_field",
       "extraHeaders": {
         "User-Agent": "opencode",
@@ -46,6 +47,7 @@
       "supportsStreamUsage": true,
       "allowCustomModel": true,
       "vision": true,
+      "tools": true,
       "effortMode": "request_field",
       "timeoutMillis": 120000,
       "extraHeaders": {
@@ -85,6 +87,7 @@
       "risk": "tos_gray",
       "supportsStreamUsage": true,
       "allowCustomModel": true,
+      "tools": true,
       "effortMode": "none",
       "timeoutMillis": 120000,
       "modelsPath": "/v1internal:fetchAvailableModels",
@@ -141,6 +144,7 @@
       "editableBaseUrl": true,
       "allowCustomModel": true,
       "vision": true,
+      "tools": true,
       "keyUrl": "https://platform.openai.com/api-keys",
       "models": []
     }

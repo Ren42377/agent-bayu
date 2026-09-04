@@ -47,9 +47,10 @@ class AntigravityAdapter(
             .post(payload.toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 
+        val tools = ToolCallBuffer()
         return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
-            parseAntigravityChunk(chunk)
-        }
+            parseAntigravityChunk(chunk, tools)
+        }.releasingToolCalls(tools)
     }
 
     private fun missingProject(): RouteFailure = RouteFailure(
@@ -94,26 +95,21 @@ internal fun antigravityBody(
             }
         }
         putJsonArray("contents") {
-            contents.forEach { turn ->
-                add(
-                    buildJsonObject {
-                        put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
-                        putJsonArray("parts") {
-                            turn.images.forEach { image ->
-                                add(
-                                    buildJsonObject {
-                                        putJsonObject("inlineData") {
-                                            put("mimeType", image.mimeType)
-                                            put("data", image.data)
-                                        }
-                                    }
-                                )
-                            }
-                            add(buildJsonObject { put("text", turn.content) })
-                        }
-                    }
-                )
+            var index = 0
+            while (index < contents.size) {
+                if (contents[index].role == ChatRole.TOOL) {
+                    var end = index
+                    while (end < contents.size && contents[end].role == ChatRole.TOOL) end += 1
+                    add(antigravityFunctionResponseContent(contents.subList(index, end)))
+                    index = end
+                } else {
+                    add(antigravityContent(contents[index]))
+                    index += 1
+                }
             }
+        }
+        if (request.tools.isNotEmpty() && WireParams.supports(candidate, WireParams.TOOLS)) {
+            putGeminiTools(request.tools)
         }
         putJsonObject("generationConfig") {
             val requestedMax = request.maxOutputTokens ?: candidate.model.maxOutputTokens
@@ -126,12 +122,39 @@ internal fun antigravityBody(
     }
 }
 
+private fun antigravityFunctionResponseContent(turns: List<ChatTurn>): JsonObject = buildJsonObject {
+    put("role", "user")
+    putJsonArray("parts") {
+        turns.forEach { turn -> add(geminiFunctionResponsePart(turn)) }
+    }
+}
+
+private fun antigravityContent(turn: ChatTurn): JsonObject = buildJsonObject {
+    put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
+    putJsonArray("parts") {
+        turn.images.forEach { image ->
+            add(
+                buildJsonObject {
+                    putJsonObject("inlineData") {
+                        put("mimeType", image.mimeType)
+                        put("data", image.data)
+                    }
+                }
+            )
+        }
+        if (turn.content.isNotEmpty() || turn.toolCalls.isEmpty()) {
+            add(buildJsonObject { put("text", turn.content) })
+        }
+        turn.toolCalls.forEach { call -> add(geminiFunctionCallPart(call)) }
+    }
+}
+
 internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
     val conversation = turns.filter { it.role != ChatRole.SYSTEM }
     val merged = ArrayList<ChatTurn>(conversation.size)
     conversation.forEach { turn ->
         val last = merged.lastOrNull()
-        if (last != null && last.role == turn.role) {
+        if (last != null && last.role == turn.role && !last.carriesTool && !turn.carriesTool) {
             merged[merged.lastIndex] = last.copy(
                 content = last.content + "\n\n" + turn.content,
                 images = last.images + turn.images
@@ -180,7 +203,10 @@ internal fun antigravityRequestId(
 internal fun antigravityMaxOutputTokens(requested: Int): Int =
     requested.coerceIn(1, MAX_OUTPUT_TOKENS)
 
-internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
+internal fun parseAntigravityChunk(
+    raw: String,
+    tools: ToolCallBuffer = ToolCallBuffer()
+): List<WireEvent> {
     val envelope = parseJsonObject(raw) ?: return emptyList()
     val root = envelope.objectField(RESPONSE) ?: envelope
 
@@ -201,6 +227,7 @@ internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
             if (isThought) null else part.stringField("text")
         }.joinToString("")
         if (text.isNotEmpty()) events += WireEvent.Delta(text)
+        collectFunctionCalls(parts, tools)
     }
 
     root.objectField("usageMetadata")?.let { usage ->

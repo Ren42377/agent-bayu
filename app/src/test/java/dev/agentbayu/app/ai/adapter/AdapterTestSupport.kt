@@ -1,6 +1,10 @@
 package dev.agentbayu.app.ai.adapter
 
 import dev.agentbayu.app.ai.RouteFailure
+import dev.agentbayu.app.ai.tools.ToolCall
+import dev.agentbayu.app.ai.tools.ToolField
+import dev.agentbayu.app.ai.tools.ToolSpec
+import dev.agentbayu.app.ai.tools.toolSchema
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
@@ -36,6 +40,17 @@ internal fun List<WireEvent>.firstFailure(): RouteFailure? =
     filterIsInstance<WireEvent.Failure>().firstOrNull()?.failure
 
 internal fun List<WireEvent>.completed(): Boolean = contains(WireEvent.Done)
+
+internal fun List<WireEvent>.toolCalls(): List<ToolCall> =
+    filterIsInstance<WireEvent.ToolUse>().map { it.call }
+
+internal val testTool = ToolSpec(
+    name = "create_task",
+    description = "Create a task for the owner",
+    parameters = toolSchema(
+        ToolField(name = "title", type = "string", description = "Task title")
+    )
+)
 
 internal fun JsonObject.turns(field: String): List<Pair<String?, String?>> {
     val array = arrayField(field) ?: return emptyList()

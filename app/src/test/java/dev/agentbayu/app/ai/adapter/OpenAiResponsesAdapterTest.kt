@@ -6,6 +6,7 @@ import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -352,6 +353,112 @@ class OpenAiResponsesAdapterTest {
 
         val answered = body?.contentItems("input", 1).orEmpty()
         assertEquals(listOf(OpenAiResponsesAdapter.OUTPUT_TEXT), answered.types())
+    }
+
+    @Test
+    fun toolDeclarationsAreSentFlat() {
+        server.enqueue(sseResponse("{\"type\":\"response.completed\",\"response\":{}}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "token-1",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val declared = parseJsonObject(server.takeRequest().body.readUtf8())
+            ?.arrayField(WireParams.TOOLS)?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(listOf("function"), declared.types())
+        assertEquals("create_task", declared.first().stringField("name"))
+        assertEquals("object", declared.first().objectField("parameters")?.stringField("type"))
+    }
+
+    @Test
+    fun functionCallArgumentsAreJoinedAcrossChunks() {
+        server.enqueue(
+            sseResponse(
+                "{\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":" +
+                    "{\"type\":\"function_call\",\"id\":\"fc_1\",\"call_id\":\"call_a\"," +
+                    "\"name\":\"create_task\",\"arguments\":\"\"}}",
+                "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":0," +
+                    "\"delta\":\"{\\\"title\\\":\"}",
+                "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":0," +
+                    "\"delta\":\"\\\"beli susu\\\"}\"}",
+                "{\"type\":\"response.function_call_arguments.done\",\"output_index\":0," +
+                    "\"arguments\":\"{\\\"title\\\":\\\"beli susu\\\"}\"}",
+                "{\"type\":\"response.completed\",\"response\":{}}"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "token-1", request()))
+
+        assertEquals("", events.deltaText())
+        assertEquals(
+            listOf(ToolCall(id = "call_a", name = "create_task", arguments = "{\"title\":\"beli susu\"}")),
+            events.toolCalls()
+        )
+        assertTrue(events.completed())
+    }
+
+    @Test
+    fun parallelFunctionCallsAreKeyedByOutputIndex() {
+        server.enqueue(
+            sseResponse(
+                "{\"type\":\"response.output_item.added\",\"output_index\":0,\"item\":" +
+                    "{\"type\":\"function_call\",\"call_id\":\"call_a\",\"name\":\"list_files\"}}",
+                "{\"type\":\"response.output_item.added\",\"output_index\":1,\"item\":" +
+                    "{\"type\":\"function_call\",\"call_id\":\"call_b\",\"name\":\"read_file\"}}",
+                "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":1," +
+                    "\"delta\":\"{\\\"path\\\":\\\"b.txt\\\"}\"}",
+                "{\"type\":\"response.function_call_arguments.delta\",\"output_index\":0," +
+                    "\"delta\":\"{\\\"path\\\":\\\"a\\\"}\"}",
+                "{\"type\":\"response.completed\",\"response\":{}}"
+            )
+        )
+
+        val calls = collectEvents(adapter.stream(candidate(), "token-1", request())).toolCalls()
+
+        assertEquals(listOf("list_files", "read_file"), calls.map { it.name })
+        assertEquals("{\"path\":\"a\"}", calls.first().arguments)
+        assertEquals("{\"path\":\"b.txt\"}", calls.last().arguments)
+    }
+
+    @Test
+    fun toolResultsRideBackAsFunctionCallItems() {
+        server.enqueue(sseResponse("{\"type\":\"response.completed\",\"response\":{}}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "token-1",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(ChatRole.USER, "buat tugas"),
+                        ChatTurn(
+                            role = ChatRole.ASSISTANT,
+                            content = "",
+                            toolCalls = listOf(
+                                ToolCall(id = "call_a", name = "create_task", arguments = "{\"title\":\"beli susu\"}")
+                            )
+                        ),
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "Task created",
+                            toolCallId = "call_a",
+                            toolName = "create_task"
+                        )
+                    )
+                )
+            )
+        )
+
+        val items = parseJsonObject(server.takeRequest().body.readUtf8())
+            ?.arrayField("input")?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(listOf("message", "function_call", "function_call_output"), items.types())
+        assertEquals("call_a", items[1].stringField("call_id"))
+        assertEquals("create_task", items[1].stringField("name"))
+        assertEquals("{\"title\":\"beli susu\"}", items[1].stringField("arguments"))
+        assertEquals("call_a", items[2].stringField("call_id"))
+        assertEquals("Task created", items[2].stringField("output"))
     }
 
     private companion object {

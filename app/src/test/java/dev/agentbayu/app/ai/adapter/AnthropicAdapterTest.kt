@@ -4,6 +4,8 @@ import dev.agentbayu.app.ai.AuthHeader
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.tools.ToolCall
+import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -240,5 +242,173 @@ class AnthropicAdapterTest {
             listOf("image", "image", "text"),
             body?.contentItems("messages", 0).orEmpty().types()
         )
+    }
+
+    @Test
+    fun toolDeclarationsCarryAnInputSchema() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val declared = parseJsonObject(server.takeRequest().body.readUtf8())
+            ?.arrayField(WireParams.TOOLS)?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(1, declared.size)
+        assertEquals("create_task", declared.first().stringField("name"))
+        assertEquals("object", declared.first().objectField("input_schema")?.stringField("type"))
+    }
+
+    @Test
+    fun toolsAreLeftOutWhenTheModelRejectsThem() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(
+                    providerId = "anthropic",
+                    baseUrl = server.url("/").toString(),
+                    authHeader = AuthHeader.X_API_KEY,
+                    wireFormat = WireFormat.ANTHROPIC,
+                    modelUnsupportedParams = listOf(WireParams.TOOLS)
+                ),
+                "key",
+                ChatRequest(turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")), tools = listOf(testTool))
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertFalse(body?.containsKey(WireParams.TOOLS) == true)
+    }
+
+    @Test
+    fun toolInputIsJoinedAcrossPartialJsonChunks() {
+        server.enqueue(
+            sseResponse(
+                "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":" +
+                    "{\"type\":\"tool_use\",\"id\":\"toolu_a\",\"name\":\"create_task\",\"input\":{}}}",
+                "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":" +
+                    "{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"title\\\":\"}}",
+                "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":" +
+                    "{\"type\":\"input_json_delta\",\"partial_json\":\"\\\"beli susu\\\"}\"}}",
+                "{\"type\":\"message_stop\"}"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "key", request()))
+
+        assertEquals("", events.deltaText())
+        assertEquals(
+            listOf(ToolCall(id = "toolu_a", name = "create_task", arguments = "{\"title\":\"beli susu\"}")),
+            events.toolCalls()
+        )
+        assertTrue(events.completed())
+    }
+
+    @Test
+    fun parallelToolUseBlocksAreKeyedByIndex() {
+        server.enqueue(
+            sseResponse(
+                "{\"type\":\"content_block_start\",\"index\":0,\"content_block\":" +
+                    "{\"type\":\"tool_use\",\"id\":\"toolu_a\",\"name\":\"list_files\"}}",
+                "{\"type\":\"content_block_start\",\"index\":1,\"content_block\":" +
+                    "{\"type\":\"tool_use\",\"id\":\"toolu_b\",\"name\":\"read_file\"}}",
+                "{\"type\":\"content_block_delta\",\"index\":1,\"delta\":" +
+                    "{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"path\\\":\\\"b.txt\\\"}\"}}",
+                "{\"type\":\"content_block_delta\",\"index\":0,\"delta\":" +
+                    "{\"type\":\"input_json_delta\",\"partial_json\":\"{\\\"path\\\":\\\"a\\\"}\"}}",
+                "{\"type\":\"message_stop\"}"
+            )
+        )
+
+        val calls = collectEvents(adapter.stream(candidate(), "key", request())).toolCalls()
+
+        assertEquals(listOf("list_files", "read_file"), calls.map { it.name })
+        assertEquals(listOf("toolu_a", "toolu_b"), calls.map { it.id })
+        assertEquals("{\"path\":\"a\"}", calls.first().arguments)
+        assertEquals("{\"path\":\"b.txt\"}", calls.last().arguments)
+    }
+
+    @Test
+    fun parallelToolResultsShareOneUserMessage() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(ChatRole.USER, "buat tugas"),
+                        ChatTurn(
+                            role = ChatRole.ASSISTANT,
+                            content = "",
+                            toolCalls = listOf(
+                                ToolCall(id = "toolu_a", name = "create_task", arguments = "{\"title\":\"beli susu\"}"),
+                                ToolCall(id = "toolu_b", name = "list_tasks", arguments = "{}")
+                            )
+                        ),
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "Task created",
+                            toolCallId = "toolu_a",
+                            toolName = "create_task"
+                        ),
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "No list",
+                            toolCallId = "toolu_b",
+                            toolName = "list_tasks",
+                            toolFailed = true
+                        )
+                    )
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        val messages = body?.arrayField("messages")?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(listOf("user", "assistant", "user"), messages.map { it.stringField("role") })
+
+        val calls = body?.contentItems("messages", 1).orEmpty()
+        assertEquals(listOf("tool_use", "tool_use"), calls.types())
+        assertEquals("toolu_a", calls.first().stringField("id"))
+        assertEquals(
+            "beli susu",
+            calls.first().objectField("input")?.stringField("title")
+        )
+
+        val results = body?.contentItems("messages", 2).orEmpty()
+        assertEquals(listOf("tool_result", "tool_result"), results.types())
+        assertEquals("toolu_a", results.first().stringField("tool_use_id"))
+        assertEquals("Task created", results.first().stringField("content"))
+        assertFalse(results.first().containsKey("is_error"))
+        assertEquals("true", results.last()["is_error"].toString())
+    }
+
+    @Test
+    fun anOrphanToolTurnIsDropped() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                candidate(),
+                "key",
+                ChatRequest(
+                    turns = listOf(
+                        ChatTurn(
+                            role = ChatRole.TOOL,
+                            content = "sisa lama",
+                            toolCallId = "toolu_x",
+                            toolName = "read_file"
+                        ),
+                        ChatTurn(ChatRole.USER, "halo")
+                    )
+                )
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals(listOf("user" to "halo"), body?.turns("messages"))
     }
 }
