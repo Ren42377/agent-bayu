@@ -3,6 +3,9 @@ package dev.agentbayu.app.ai.tools
 import dev.agentbayu.app.platform.files.FileAccess
 import dev.agentbayu.app.platform.files.FileAccessException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 class ListFilesTool(private val files: () -> FileAccess) : ToolHandler {
@@ -116,11 +119,21 @@ class SearchFilesTool(private val files: () -> FileAccess) : ToolHandler {
         val path = arguments.text("path") ?: STORAGE_ROOT
         val limit = arguments.number("limit", FileAccess.MAX_MATCHES)
             .coerceIn(1, FileAccess.MAX_MATCHES)
+        val job = currentCoroutineContext()[Job]
         try {
             call.reply(
-                clipOutput(files().search(path, query, arguments.text("extension"), limit))
+                clipOutput(
+                    files().search(
+                        path = path,
+                        query = query,
+                        extension = arguments.text("extension"),
+                        limit = limit,
+                        active = { job?.isActive != false }
+                    )
+                )
             )
         } catch (error: FileAccessException) {
+            currentCoroutineContext().ensureActive()
             call.problem(error.message.orEmpty())
         }
     }

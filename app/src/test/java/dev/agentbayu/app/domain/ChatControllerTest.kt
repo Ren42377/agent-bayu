@@ -288,6 +288,45 @@ class ChatControllerTest {
         )
     }
 
+    @Test
+    fun cancelReleasesTheStopButtonBeforeTheChainUnwinds() = runTest {
+        val stubborn = object : AgentEngine {
+            override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {
+                emit(AgentEvent.Delta("mulai"))
+                delay(60_000L)
+            }
+        }
+        val chat = controller(stubborn)
+
+        chat.send("hi")
+        dispatcher.scheduler.advanceTimeBy(100L)
+        assertTrue(chat.isResponding.value)
+
+        chat.cancel()
+
+        assertFalse(chat.isResponding.value)
+        assertFalse(repository.messages.value.last().streaming)
+    }
+
+    @Test
+    fun cancelDoesNotClearAFreshSendThatFollowsIt() = runTest {
+        val slow = object : AgentEngine {
+            override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {
+                emit(AgentEvent.Delta("satu"))
+                delay(60_000L)
+            }
+        }
+        val chat = controller(slow)
+
+        chat.send("pertama")
+        dispatcher.scheduler.advanceTimeBy(100L)
+        chat.cancel()
+        chat.send("kedua")
+        dispatcher.scheduler.advanceTimeBy(100L)
+
+        assertTrue(chat.isResponding.value)
+    }
+
     private fun detail(): ReplyDetail = ReplyDetail(
         providerId = "kilocode",
         providerLabel = "Kilo Code",

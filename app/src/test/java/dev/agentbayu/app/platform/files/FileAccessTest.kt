@@ -93,4 +93,20 @@ class FileAccessTest {
         assertTrue(matches.contains("note.txt"))
         assertTrue(!matches.contains("keys.txt"))
     }
+
+    @Test
+    fun searchStopsWhenTheCallerGivesUp() {
+        val root = temporary.newFolder("shared")
+        repeat(20) { index -> File(root, "note$index.txt").writeText("needle") }
+        val access = FileAccess(listOf(root))
+        var probes = 0
+
+        val error = assertThrows(FileAccessException::class.java) {
+            access.search(".", "needle", active = {
+                probes += 1
+                probes <= 2
+            })
+        }
+        assertEquals(FileAccess.STOPPED, error.message)
+    }
 }

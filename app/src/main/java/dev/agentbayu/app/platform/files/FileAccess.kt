@@ -133,7 +133,8 @@ class FileAccess(
         path: String,
         query: String,
         extension: String? = null,
-        limit: Int = MAX_MATCHES
+        limit: Int = MAX_MATCHES,
+        active: () -> Boolean = { true }
     ): String {
         if (query.isEmpty()) throw FileAccessException("The query is empty")
         val root = resolve(path)
@@ -145,6 +146,7 @@ class FileAccess(
             .onEnter { directory -> !directory.name.startsWith(".") && !directory.isBlocked() }
         for (file in walk) {
             if (matches.size >= limit) break
+            if (!active()) throw FileAccessException(STOPPED)
             if (!file.isFile || file.length() > MAX_READ_BYTES) continue
             if (suffix != null && !file.name.lowercase().endsWith("." + suffix)) continue
             val bytes = try {
@@ -199,6 +201,7 @@ class FileAccess(
         const val SNIPPET = 200
         const val NO_ACCESS = "No access to the phone storage yet. The owner has to turn on " +
             "all files access for Agent Bayu in the Android settings."
+        const val STOPPED = "The search was stopped."
 
         fun of(context: Context): FileAccess = FileAccess(
             roots = listOf(Environment.getExternalStorageDirectory()),

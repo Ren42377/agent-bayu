@@ -2,6 +2,7 @@ package dev.agentbayu.app.domain
 
 import android.util.Log
 import dev.agentbayu.app.ai.LogStore
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -19,9 +20,13 @@ class ChatController(
 ) {
 
     private val respondingState = MutableStateFlow(false)
+    private val sends = AtomicLong(0L)
 
     @Volatile
     private var activeJob: Job? = null
+
+    @Volatile
+    private var streamingId: Long? = null
 
     val messages: StateFlow<List<ChatMessage>> = repository.messages
     val isResponding: StateFlow<Boolean> = respondingState.asStateFlow()
@@ -39,6 +44,8 @@ class ChatController(
         repository.append(MessageAuthor.USER, prompt, attachments = attachments)
         val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
         respondingState.value = true
+        streamingId = placeholder.id
+        val token = sends.incrementAndGet()
         activeJob = scope.launch {
             var streamed = false
             val pending = StringBuilder()
@@ -136,15 +143,21 @@ class ChatController(
             } finally {
                 flush()
                 repository.finishStreaming(placeholder.id)
-                respondingState.value = false
-                activeJob = null
+                if (sends.get() == token) {
+                    respondingState.value = false
+                    streamingId = null
+                    activeJob = null
+                }
             }
         }
     }
 
     fun cancel() {
-        activeJob?.cancel()
+        val job = activeJob ?: return
         activeJob = null
+        respondingState.value = false
+        streamingId?.let { id -> repository.finishStreaming(id) }
+        job.cancel()
     }
 
     private companion object {

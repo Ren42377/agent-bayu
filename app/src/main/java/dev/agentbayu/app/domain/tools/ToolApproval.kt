@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 enum class ToolApprovalKind {
     CREATE,
@@ -117,13 +118,18 @@ interface ToolApprovalJudge {
 class JudgingToolApprovalGate(
     private val judge: ToolApprovalJudge,
     private val fallback: ToolApprovalGate,
-    private val userIntent: () -> String = { "" }
+    private val userIntent: () -> String = { "" },
+    private val timeoutMillis: Long = JUDGE_TIMEOUT_MILLIS
 ) : ToolApprovalGate {
 
     override suspend fun confirm(request: ToolApprovalRequest): ToolApprovalDecision {
-        val verdict = judge.review(request, userIntent())
+        val verdict = withTimeoutOrNull(timeoutMillis) { judge.review(request, userIntent()) }
         if (verdict?.approved == true) return ToolApprovalDecision.ALLOW_ONCE
         return fallback.confirm(request)
+    }
+
+    private companion object {
+        const val JUDGE_TIMEOUT_MILLIS = 20_000L
     }
 }
 

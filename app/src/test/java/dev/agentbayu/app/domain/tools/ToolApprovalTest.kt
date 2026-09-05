@@ -1,6 +1,7 @@
 package dev.agentbayu.app.domain.tools
 
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -88,6 +89,29 @@ class ToolApprovalTest {
             offContext.confirm(requestFor("edit_file", "notes/one.txt"))
         )
         assertEquals(2, fallback.calls)
+    }
+
+    @Test
+    fun autoModeFallsBackWhenTheJudgeNeverAnswers() = runTest {
+        val fallback = DenyingGate()
+        val gate = JudgingToolApprovalGate(
+            judge = object : ToolApprovalJudge {
+                override suspend fun review(
+                    request: ToolApprovalRequest,
+                    userIntent: String
+                ): ToolVerdict? {
+                    awaitCancellation()
+                }
+            },
+            fallback = fallback,
+            timeoutMillis = 5_000L
+        )
+
+        assertEquals(
+            ToolApprovalDecision.DENY,
+            gate.confirm(requestFor("edit_file", "notes/one.txt"))
+        )
+        assertEquals(1, fallback.calls)
     }
 
     @Test

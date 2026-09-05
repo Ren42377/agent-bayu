@@ -14,6 +14,8 @@ import dev.agentbayu.app.ai.tools.ToolCall
 import dev.agentbayu.app.ai.tools.ToolRegistry
 import dev.agentbayu.app.ai.tools.ToolResult
 import dev.agentbayu.app.domain.tools.ToolIntent
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
@@ -50,6 +52,7 @@ class ProviderAgentEngine(
         val seen = HashSet<String>()
 
         while (true) {
+            currentCoroutineContext().ensureActive()
             pass += 1
             val calls = ArrayList<ToolCall>()
             val spoken = StringBuilder()
@@ -98,6 +101,7 @@ class ProviderAgentEngine(
 
             val results = ArrayList<ToolResult>(calls.size)
             for (call in calls) {
+                currentCoroutineContext().ensureActive()
                 emit(AgentEvent.ToolStarted(call.name, labelOf(call)))
                 val result = if (seen.add(call.name + "|" + call.arguments)) {
                     tools.run(call)
