@@ -34,11 +34,27 @@ class ConversationRepository {
 
     fun appendDelta(id: Long, text: String) {
         if (text.isEmpty()) return
-        mutate(id) { message -> message.copy(text = message.text + text) }
+        mutate(id) { message ->
+            message.copy(
+                text = message.text + text,
+                segments = message.segments.withProse(text)
+            )
+        }
+    }
+
+    fun appendThinking(id: Long, text: String) {
+        if (text.isEmpty()) return
+        mutate(id) { message -> message.copy(segments = message.segments.withThinking(text)) }
+    }
+
+    fun closeThinking(id: Long, millis: Long) {
+        mutate(id) { message -> message.copy(segments = message.segments.closingThinking(millis)) }
     }
 
     fun replaceText(id: Long, text: String) {
-        mutate(id) { message -> message.copy(text = text) }
+        mutate(id) { message ->
+            message.copy(text = text, segments = listOf(MessageSegment.Prose(text)))
+        }
     }
 
     fun attachDetail(id: Long, detail: ReplyDetail) {
@@ -47,19 +63,24 @@ class ConversationRepository {
 
     fun startToolRun(id: Long, name: String, label: String) {
         mutate(id) { message ->
-            message.copy(toolRuns = message.toolRuns + ToolRun(name = name, label = label))
+            message.copy(
+                segments = message.segments + MessageSegment.Tool(name = name, label = label)
+            )
         }
     }
 
     fun finishToolRun(id: Long, name: String, ok: Boolean) {
         mutate(id) { message ->
-            val index = message.toolRuns.indexOfLast { it.name == name && it.running }
+            val index = message.segments.indexOfLast { segment ->
+                segment is MessageSegment.Tool && segment.name == name && segment.running
+            }
             if (index < 0) {
                 message
             } else {
-                val runs = message.toolRuns.toMutableList()
-                runs[index] = runs[index].copy(running = false, ok = ok)
-                message.copy(toolRuns = runs)
+                val segments = message.segments.toMutableList()
+                val tool = segments[index] as MessageSegment.Tool
+                segments[index] = tool.copy(running = false, ok = ok)
+                message.copy(segments = segments)
             }
         }
     }
@@ -75,7 +96,13 @@ class ConversationRepository {
     }
 
     fun finishStreaming(id: Long) {
-        mutate(id) { message -> if (message.streaming) message.copy(streaming = false) else message }
+        mutate(id) { message ->
+            if (message.streaming) {
+                message.copy(streaming = false, segments = message.segments.settled())
+            } else {
+                message
+            }
+        }
     }
 
     fun restore(messages: List<ChatMessage>) {
@@ -83,7 +110,11 @@ class ConversationRepository {
         val highestId = messages.maxOf { it.id }
         nextId.set(highestId + 1L)
         state.value = messages.map { message ->
-            if (message.streaming) message.copy(streaming = false) else message
+            if (message.streaming) {
+                message.copy(streaming = false, segments = message.segments.settled())
+            } else {
+                message
+            }
         }
     }
 
@@ -100,5 +131,38 @@ class ConversationRepository {
                 current.toMutableList().apply { set(index, block(get(index))) }
             }
         }
+    }
+}
+
+private fun List<MessageSegment>.withProse(text: String): List<MessageSegment> {
+    val last = lastOrNull()
+    if (last is MessageSegment.Prose) {
+        return dropLast(1) + last.copy(text = last.text + text)
+    }
+    return this + MessageSegment.Prose(text)
+}
+
+private fun List<MessageSegment>.withThinking(text: String): List<MessageSegment> {
+    val last = lastOrNull()
+    if (last is MessageSegment.Thinking && !last.done) {
+        return dropLast(1) + last.copy(text = last.text + text)
+    }
+    return this + MessageSegment.Thinking(text = text)
+}
+
+private fun List<MessageSegment>.closingThinking(millis: Long): List<MessageSegment> {
+    val index = indexOfLast { it is MessageSegment.Thinking && !it.done }
+    if (index < 0) return this
+    val segments = toMutableList()
+    val open = segments[index] as MessageSegment.Thinking
+    segments[index] = open.copy(millis = millis, done = true)
+    return segments
+}
+
+private fun List<MessageSegment>.settled(): List<MessageSegment> = map { segment ->
+    when {
+        segment is MessageSegment.Thinking && !segment.done -> segment.copy(done = true)
+        segment is MessageSegment.Tool && segment.running -> segment.copy(running = false)
+        else -> segment
     }
 }

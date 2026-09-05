@@ -14,6 +14,8 @@ data class AgentRequest(
 sealed interface AgentEvent {
     data class Delta(val text: String) : AgentEvent
 
+    data class Thinking(val text: String) : AgentEvent
+
     data class Detail(val detail: ReplyDetail) : AgentEvent
 
     data class ToolStarted(val name: String, val label: String) : AgentEvent

@@ -139,6 +139,87 @@ class ConversationRepositoryTest {
         assertEquals(listOf("ada"), repository.messages.value.map { it.text })
     }
 
+    @Test
+    fun deltasCollapseIntoOneProseSegment() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+
+        repository.appendDelta(placeholder.id, "Hal")
+        repository.appendDelta(placeholder.id, "lo")
+
+        val segments = repository.messages.value.single().segments
+        assertEquals(listOf(MessageSegment.Prose("Hallo")), segments)
+    }
+
+    @Test
+    fun segmentsKeepTheOrderTheEventsArrivedIn() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+
+        repository.appendThinking(placeholder.id, "menimbang")
+        repository.closeThinking(placeholder.id, 3_200L)
+        repository.appendDelta(placeholder.id, "Saya cek dulu.")
+        repository.startToolRun(placeholder.id, "read_file", "read_file {\"path\":\"a.txt\"}")
+        repository.finishToolRun(placeholder.id, "read_file", true)
+        repository.appendDelta(placeholder.id, " Sudah.")
+
+        val message = repository.messages.value.single()
+        assertEquals(
+            listOf(
+                MessageSegment.Thinking(text = "menimbang", millis = 3_200L, done = true),
+                MessageSegment.Prose("Saya cek dulu."),
+                MessageSegment.Tool(
+                    name = "read_file",
+                    label = "read_file {\"path\":\"a.txt\"}",
+                    running = false,
+                    ok = true
+                ),
+                MessageSegment.Prose(" Sudah.")
+            ),
+            message.segments
+        )
+        assertEquals("Saya cek dulu. Sudah.", message.text)
+    }
+
+    @Test
+    fun thinkingAfterAToolOpensASecondSegment() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+
+        repository.appendThinking(placeholder.id, "satu")
+        repository.closeThinking(placeholder.id, 1_000L)
+        repository.appendThinking(placeholder.id, "dua")
+
+        val segments = repository.messages.value.single().segments
+        assertEquals(2, segments.size)
+        assertEquals("satu", (segments.first() as MessageSegment.Thinking).text)
+        assertEquals("dua", (segments.last() as MessageSegment.Thinking).text)
+        assertFalse((segments.last() as MessageSegment.Thinking).done)
+    }
+
+    @Test
+    fun finishStreamingSettlesWhateverWasStillOpen() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+        repository.appendThinking(placeholder.id, "berhenti di tengah")
+        repository.startToolRun(placeholder.id, "search_files", "")
+
+        repository.finishStreaming(placeholder.id)
+
+        val segments = repository.messages.value.single().segments
+        assertTrue((segments.first() as MessageSegment.Thinking).done)
+        val tool = segments.last() as MessageSegment.Tool
+        assertFalse(tool.running)
+        assertFalse(tool.ok)
+    }
+
+    @Test
+    fun aStoredMessageWithoutSegmentsStillRenders() {
+        val message = ChatMessage(id = 1L, author = MessageAuthor.AGENT, text = "jawaban lama")
+
+        assertEquals(listOf(MessageSegment.Prose("jawaban lama")), message.displaySegments)
+    }
+
     private fun detail(): ReplyDetail = ReplyDetail(
         providerId = "kilocode",
         providerLabel = "Kilo Code",

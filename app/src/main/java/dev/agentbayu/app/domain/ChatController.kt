@@ -42,12 +42,19 @@ class ChatController(
         activeJob = scope.launch {
             var streamed = false
             val pending = StringBuilder()
+            val pendingThought = StringBuilder()
             var lastFlushNanos = 0L
+            var thinkingStartedNanos = 0L
 
             fun flush() {
-                if (pending.isEmpty()) return
-                repository.appendDelta(placeholder.id, pending.toString())
-                pending.setLength(0)
+                if (pendingThought.isNotEmpty()) {
+                    repository.appendThinking(placeholder.id, pendingThought.toString())
+                    pendingThought.setLength(0)
+                }
+                if (pending.isNotEmpty()) {
+                    repository.appendDelta(placeholder.id, pending.toString())
+                    pending.setLength(0)
+                }
             }
 
             fun flushIfDue() {
@@ -56,6 +63,14 @@ class ChatController(
                     flush()
                     lastFlushNanos = now
                 }
+            }
+
+            fun closeThinking() {
+                if (thinkingStartedNanos == 0L) return
+                val elapsed = (System.nanoTime() - thinkingStartedNanos) / NANOS_PER_MILLI
+                thinkingStartedNanos = 0L
+                flush()
+                repository.closeThinking(placeholder.id, elapsed)
             }
 
             try {
@@ -68,8 +83,17 @@ class ChatController(
                     )
                 ).collect { event ->
                     when (event) {
+                        is AgentEvent.Thinking -> {
+                            if (thinkingStartedNanos == 0L) {
+                                thinkingStartedNanos = System.nanoTime()
+                            }
+                            pendingThought.append(event.text)
+                            flushIfDue()
+                        }
+
                         is AgentEvent.Delta -> {
                             streamed = true
+                            closeThinking()
                             pending.append(event.text)
                             flushIfDue()
                         }
@@ -80,6 +104,7 @@ class ChatController(
                         }
 
                         is AgentEvent.ToolStarted -> {
+                            closeThinking()
                             flush()
                             repository.startToolRun(placeholder.id, event.name, event.label)
                         }
@@ -90,11 +115,13 @@ class ChatController(
                         }
 
                         is AgentEvent.Completed -> {
+                            closeThinking()
                             flush()
                             repository.complete(placeholder.id, event.detail, event.usage)
                         }
 
                         is AgentEvent.Failed -> {
+                            closeThinking()
                             flush()
                             if (!streamed) repository.replaceText(placeholder.id, event.message)
                         }
@@ -124,5 +151,6 @@ class ChatController(
         const val TAG = "AgentBayu"
         const val SOURCE = "Chat"
         const val FLUSH_INTERVAL_NANOS = 90_000_000L
+        const val NANOS_PER_MILLI = 1_000_000L
     }
 }

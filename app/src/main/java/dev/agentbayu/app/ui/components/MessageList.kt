@@ -27,7 +27,9 @@ fun MessageList(
 ) {
     val listState = rememberLazyListState()
     val visible = remember(messages) {
-        messages.filterNot { message -> message.streaming && message.text.isEmpty() }
+        messages.filterNot { message ->
+            message.streaming && message.text.isEmpty() && message.segments.isEmpty()
+        }
     }
     val showTyping = isResponding && visible.size < messages.size
     val itemCount = visible.size + if (showTyping) 1 else 0

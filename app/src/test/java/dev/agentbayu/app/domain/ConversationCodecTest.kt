@@ -163,4 +163,42 @@ class ConversationCodecTest {
         assertEquals(200, ConversationCodec.MAX_MESSAGES)
         assertEquals(512 * 1024, ConversationCodec.MAX_CHARS)
     }
+
+    @Test
+    fun segmentsSurviveARoundTrip() {
+        val message = ChatMessage(
+            id = 4L,
+            author = MessageAuthor.AGENT,
+            text = "Sudah dibuat.",
+            segments = listOf(
+                MessageSegment.Thinking(text = "menimbang", millis = 2_400L, done = true),
+                MessageSegment.Prose("Sudah dibuat."),
+                MessageSegment.Tool(
+                    name = "create_task",
+                    label = "create_task {\"title\":\"beli susu\"}",
+                    running = false,
+                    ok = true
+                )
+            )
+        )
+
+        val decoded = ConversationCodec.decode(ConversationCodec.encode(listOf(message)))
+
+        assertEquals(message, decoded.single())
+    }
+
+    @Test
+    fun conversationsWrittenBeforeSegmentsStillDecode() {
+        val raw = """{"version":1,"messages":[{"id":3,"author":"AGENT","text":"lama",""" +
+            """"toolRuns":[{"name":"read_file","running":false,"ok":true}]}]}"""
+
+        val decoded = ConversationCodec.decode(raw)
+
+        assertEquals("lama", decoded.single().text)
+        assertTrue(decoded.single().segments.isEmpty())
+        assertEquals(
+            listOf(MessageSegment.Prose("lama")),
+            decoded.single().displaySegments
+        )
+    }
 }

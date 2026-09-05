@@ -2,6 +2,7 @@ package dev.agentbayu.app.domain
 
 import dev.agentbayu.app.ai.ReplyDetail
 import dev.agentbayu.app.ai.TokenUsage
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -20,12 +21,29 @@ data class MessageAttachment(
 )
 
 @Serializable
-data class ToolRun(
-    val name: String,
-    val label: String = "",
-    val running: Boolean = true,
-    val ok: Boolean = false
-)
+sealed interface MessageSegment {
+
+    @Serializable
+    @SerialName("thinking")
+    data class Thinking(
+        val text: String = "",
+        val millis: Long = 0L,
+        val done: Boolean = false
+    ) : MessageSegment
+
+    @Serializable
+    @SerialName("prose")
+    data class Prose(val text: String) : MessageSegment
+
+    @Serializable
+    @SerialName("tool")
+    data class Tool(
+        val name: String,
+        val label: String = "",
+        val running: Boolean = true,
+        val ok: Boolean = false
+    ) : MessageSegment
+}
 
 @Serializable
 data class ChatMessage(
@@ -36,5 +54,12 @@ data class ChatMessage(
     val usage: TokenUsage? = null,
     val streaming: Boolean = false,
     val attachments: List<MessageAttachment> = emptyList(),
-    val toolRuns: List<ToolRun> = emptyList()
-)
+    val segments: List<MessageSegment> = emptyList()
+) {
+    val displaySegments: List<MessageSegment>
+        get() = if (segments.isNotEmpty() || text.isEmpty()) {
+            segments
+        } else {
+            listOf(MessageSegment.Prose(text))
+        }
+}

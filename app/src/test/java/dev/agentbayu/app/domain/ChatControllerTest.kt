@@ -231,6 +231,63 @@ class ChatControllerTest {
         assertFalse(chat.isResponding.value)
     }
 
+    @Test
+    fun thinkingClosesIntoItsOwnSegmentBeforeTheProse() = runTest {
+        val chat = controller(
+            engine {
+                listOf(
+                    AgentEvent.Thinking("menimbang "),
+                    AgentEvent.Thinking("pilihan"),
+                    AgentEvent.Delta("Jawabannya ini."),
+                    AgentEvent.Completed(detail(), TokenUsage(1, 1))
+                )
+            }
+        )
+
+        chat.send("hi")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val agent = repository.messages.value.last()
+        assertEquals("Jawabannya ini.", agent.text)
+        val thinking = agent.segments.first() as MessageSegment.Thinking
+        assertEquals("menimbang pilihan", thinking.text)
+        assertTrue(thinking.done)
+        assertEquals(MessageSegment.Prose("Jawabannya ini."), agent.segments.last())
+    }
+
+    @Test
+    fun toolActivitySitsBetweenTheProseAroundIt() = runTest {
+        val chat = controller(
+            engine {
+                listOf(
+                    AgentEvent.Delta("Aku cek."),
+                    AgentEvent.ToolStarted("read_file", "read_file {\"path\":\"a.txt\"}"),
+                    AgentEvent.ToolFinished("read_file", true),
+                    AgentEvent.Delta(" Sudah.")
+                )
+            }
+        )
+
+        chat.send("hi")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val agent = repository.messages.value.last()
+        assertEquals("Aku cek. Sudah.", agent.text)
+        assertEquals(
+            listOf(
+                MessageSegment.Prose("Aku cek."),
+                MessageSegment.Tool(
+                    name = "read_file",
+                    label = "read_file {\"path\":\"a.txt\"}",
+                    running = false,
+                    ok = true
+                ),
+                MessageSegment.Prose(" Sudah.")
+            ),
+            agent.segments
+        )
+    }
+
     private fun detail(): ReplyDetail = ReplyDetail(
         providerId = "kilocode",
         providerLabel = "Kilo Code",
