@@ -117,6 +117,11 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
                 if (text.isNullOrEmpty()) emptyList() else listOf(WireEvent.Delta(text))
             }
 
+            REASONING_DELTA_TYPE -> {
+                val text = root.stringField("delta")
+                if (text.isNullOrEmpty()) emptyList() else listOf(WireEvent.Thinking(text))
+            }
+
             OUTPUT_ITEM_ADDED_TYPE -> {
                 val item = root.objectField("item")
                 if (item?.stringField("type") == FUNCTION_CALL_ITEM) {
@@ -176,6 +181,7 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
         const val OUTPUT_TEXT = "output_text"
         const val INPUT_IMAGE = "input_image"
         const val DELTA_TYPE = "response.output_text.delta"
+        const val REASONING_DELTA_TYPE = "response.reasoning_summary_text.delta"
         const val COMPLETED_TYPE = "response.completed"
         const val FAILED_TYPE = "response.failed"
         const val ERROR_TYPE = "error"

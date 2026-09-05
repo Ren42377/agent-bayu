@@ -377,6 +377,7 @@ class AntigravityAdapterTest {
         )
 
         assertEquals("signedvisible", events.deltaText())
+        assertEquals("planning", events.thinkingText())
         assertEquals(11, events.lastUsage()?.inputTokens)
         assertEquals(7, events.lastUsage()?.outputTokens)
     }
@@ -393,6 +394,25 @@ class AntigravityAdapterTest {
         )
 
         assertEquals("answer", events.deltaText())
+        assertEquals("planning", events.thinkingText())
+    }
+
+    @Test
+    fun thoughtPartsArriveBeforeTheAnswerTheyPrecede() {
+        val events = parseAntigravityChunk(
+            """
+            {"response":{"candidates":[{"content":{"parts":[
+            {"text":"first thought","thought":true},
+            {"text":"reply"},
+            {"text":"second thought","thought":true}
+            ]}}]}}
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf(WireEvent.Thinking("first thoughtsecond thought"), WireEvent.Delta("reply")),
+            events
+        )
     }
 
     @Test

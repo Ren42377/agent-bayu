@@ -161,6 +161,30 @@ class AnthropicAdapterTest {
     }
 
     @Test
+    fun thinkingDeltasBecomeThinking() {
+        server.enqueue(
+            rawSseResponse(
+                "event: content_block_delta\n" +
+                    "data: {\"type\":\"content_block_delta\",\"index\":0," +
+                    "\"delta\":{\"type\":\"thinking_delta\",\"thinking\":\"menimbang\"}}\n" +
+                    "\n" +
+                    "event: content_block_delta\n" +
+                    "data: {\"type\":\"content_block_delta\",\"index\":1," +
+                    "\"delta\":{\"type\":\"text_delta\",\"text\":\"jawaban\"}}\n" +
+                    "\n" +
+                    "event: message_stop\n" +
+                    "data: {\"type\":\"message_stop\"}\n" +
+                    "\n"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "key", request()))
+
+        assertEquals("jawaban", events.deltaText())
+        assertEquals("menimbang", events.thinkingText())
+    }
+
+    @Test
     fun overloadedErrorsRetryAndTripTheBreaker() {
         server.enqueue(
             sseResponse("{\"type\":\"error\",\"error\":{\"type\":\"overloaded_error\",\"message\":\"busy\"}}")

@@ -159,6 +159,23 @@ class GeminiAdapterTest {
     }
 
     @Test
+    fun thoughtPartsBecomeThinkingInsteadOfAnswerText() {
+        server.enqueue(
+            sseResponse(
+                "{\"candidates\":[{\"content\":{\"parts\":[" +
+                    "{\"text\":\"menimbang\",\"thought\":true}," +
+                    "{\"text\":\"jawaban\"}" +
+                    "]}}]}"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "key", request()))
+
+        assertEquals("jawaban", events.deltaText())
+        assertEquals("menimbang", events.thinkingText())
+    }
+
+    @Test
     fun streamErrorsCarryTheStatusCode() {
         server.enqueue(
             sseResponse(

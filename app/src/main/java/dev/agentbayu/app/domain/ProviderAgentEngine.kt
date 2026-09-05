@@ -68,6 +68,8 @@ class ProviderAgentEngine(
                         emit(AgentEvent.Delta(event.text))
                     }
 
+                    is ReplyEvent.Thinking -> emit(AgentEvent.Thinking(event.text))
+
                     is ReplyEvent.ToolUse -> calls += event.call
 
                     is ReplyEvent.Completed -> {

@@ -115,6 +115,21 @@ class AiClientTest {
         }
     }
 
+    private class ThinkingOnlyAdapter : ChatAdapter {
+        var calls = 0
+
+        override fun stream(
+            candidate: Candidate,
+            apiKey: String?,
+            request: ChatRequest,
+            authHeaders: Map<String, String>
+        ): Flow<WireEvent> = flow {
+            calls += 1
+            emit(WireEvent.Thinking("menimbang"))
+            emit(WireEvent.Done)
+        }
+    }
+
     private val storedKeys = FakeKeys(mapOf("conn-1" to "key-1234"))
 
     private val request = ChatRequest(
@@ -369,6 +384,21 @@ class AiClientTest {
         assertEquals(3, adapter.calls)
         val failed = events.single() as ReplyEvent.Failed
         assertEquals(FailureKind.RETRYABLE, failed.failure.kind)
+        assertEquals("no content", failed.failure.message)
+    }
+
+    @Test
+    fun `retries a reply that carries only thinking`() = runTest {
+        val adapter = ThinkingOnlyAdapter()
+
+        val events = clientFor(testCandidate(), adapter).stream(request).toList()
+
+        assertEquals(3, adapter.calls)
+        assertEquals(
+            listOf("menimbang", "menimbang", "menimbang"),
+            events.filterIsInstance<ReplyEvent.Thinking>().map { it.text }
+        )
+        val failed = events.last() as ReplyEvent.Failed
         assertEquals("no content", failed.failure.message)
     }
 

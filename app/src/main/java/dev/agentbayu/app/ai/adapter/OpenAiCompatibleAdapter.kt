@@ -130,6 +130,8 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
         val events = ArrayList<WireEvent>(2)
         val choice = root.arrayField("choices")?.firstOrNull() as? JsonObject
         val delta = choice?.objectField("delta")
+        val thought = delta?.stringField(REASONING_CONTENT) ?: delta?.stringField(REASONING)
+        if (!thought.isNullOrEmpty()) events += WireEvent.Thinking(thought)
         val text = delta?.stringField("content")
         if (!text.isNullOrEmpty()) events += WireEvent.Delta(text)
         delta?.arrayField("tool_calls")?.forEachIndexed { position, element ->
@@ -151,6 +153,8 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
     companion object {
         const val CHAT_PATH = "chat/completions"
         const val REASONING_EFFORT = "reasoning_effort"
+        const val REASONING_CONTENT = "reasoning_content"
+        const val REASONING = "reasoning"
         const val STREAM_ERROR_STATUS = 500
     }
 }

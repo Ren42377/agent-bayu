@@ -130,8 +130,19 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         val candidateNode = root.arrayField("candidates")?.firstOrNull() as? JsonObject
         val parts = candidateNode?.objectField("content")?.arrayField("parts")
         if (parts != null) {
-            val text = parts.mapNotNull { (it as? JsonObject)?.stringField("text") }.joinToString("")
-            if (text.isNotEmpty()) events += WireEvent.Delta(text)
+            val answer = StringBuilder()
+            val thought = StringBuilder()
+            parts.forEach { element ->
+                val part = element as? JsonObject ?: return@forEach
+                val text = part.stringField("text") ?: return@forEach
+                if (part.booleanField(THOUGHT) == true) {
+                    thought.append(text)
+                } else {
+                    answer.append(text)
+                }
+            }
+            if (thought.isNotEmpty()) events += WireEvent.Thinking(thought.toString())
+            if (answer.isNotEmpty()) events += WireEvent.Delta(answer.toString())
             collectFunctionCalls(parts, tools)
         }
 
@@ -147,5 +158,6 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         const val MODELS_PATH = "v1beta/models/"
         const val STREAM_SUFFIX = ":streamGenerateContent?alt=sse"
         const val STREAM_ERROR_STATUS = 500
+        private const val THOUGHT = "thought"
     }
 }

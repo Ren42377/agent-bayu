@@ -65,6 +65,8 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
                     val delta = root.objectField("delta")
                     val text = delta?.stringField("text")
                     if (!text.isNullOrEmpty()) events += WireEvent.Delta(text)
+                    val thought = delta?.stringField("thinking")
+                    if (!thought.isNullOrEmpty()) events += WireEvent.Thinking(thought)
                     if (delta?.stringField("type") == INPUT_JSON_DELTA) {
                         tools.append(blockKey(root), delta.stringField("partial_json"))
                     }

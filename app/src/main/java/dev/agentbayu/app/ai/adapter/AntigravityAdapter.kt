@@ -275,11 +275,15 @@ internal fun parseAntigravityChunk(
     val candidateNode = root.arrayField("candidates")?.firstOrNull() as? JsonObject
     val parts = candidateNode?.objectField("content")?.arrayField("parts")
     if (parts != null) {
-        val text = parts.mapNotNull { element ->
-            val part = element as? JsonObject ?: return@mapNotNull null
-            if (part.booleanField(THOUGHT) == true) null else part.stringField("text")
-        }.joinToString("")
-        if (text.isNotEmpty()) events += WireEvent.Delta(text)
+        val answer = StringBuilder()
+        val thought = StringBuilder()
+        parts.forEach { element ->
+            val part = element as? JsonObject ?: return@forEach
+            val text = part.stringField("text") ?: return@forEach
+            if (part.booleanField(THOUGHT) == true) thought.append(text) else answer.append(text)
+        }
+        if (thought.isNotEmpty()) events += WireEvent.Thinking(thought.toString())
+        if (answer.isNotEmpty()) events += WireEvent.Delta(answer.toString())
         collectFunctionCalls(parts, tools)
     }
 

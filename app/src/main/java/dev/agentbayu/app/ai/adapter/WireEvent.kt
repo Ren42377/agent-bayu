@@ -6,6 +6,8 @@ import dev.agentbayu.app.ai.tools.ToolCall
 sealed interface WireEvent {
     data class Delta(val text: String) : WireEvent
 
+    data class Thinking(val text: String) : WireEvent
+
     data class ToolUse(val call: ToolCall) : WireEvent
 
     data class Usage(val inputTokens: Int, val outputTokens: Int) : WireEvent

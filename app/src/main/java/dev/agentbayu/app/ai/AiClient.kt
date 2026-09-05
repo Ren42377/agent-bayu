@@ -16,6 +16,8 @@ sealed interface ReplyEvent {
 
     data class Delta(val text: String) : ReplyEvent
 
+    data class Thinking(val text: String) : ReplyEvent
+
     data class ToolUse(val call: ToolCall) : ReplyEvent
 
     data class Completed(val detail: ReplyDetail, val usage: TokenUsage) : ReplyEvent
@@ -116,6 +118,11 @@ class AiClient(
                             markFirstToken()
                             outputChars += event.text.length
                             emit(ReplyEvent.Delta(event.text))
+                        }
+
+                        is WireEvent.Thinking -> {
+                            markFirstToken()
+                            emit(ReplyEvent.Thinking(event.text))
                         }
 
                         is WireEvent.ToolUse -> {

@@ -168,6 +168,23 @@ class OpenAiCompatibleAdapterTest {
     }
 
     @Test
+    fun reasoningDeltasBecomeThinking() {
+        server.enqueue(
+            sseResponse(
+                "{\"choices\":[{\"delta\":{\"reasoning_content\":\"menimbang\"}}]}",
+                "{\"choices\":[{\"delta\":{\"reasoning\":\" lagi\"}}]}",
+                "{\"choices\":[{\"delta\":{\"content\":\"jawaban\"}}]}",
+                "[DONE]"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(testCandidate(baseUrl = baseUrl()), "key", request()))
+
+        assertEquals("jawaban", events.deltaText())
+        assertEquals("menimbang lagi", events.thinkingText())
+    }
+
+    @Test
     fun aStreamThatEndsWithoutTheSentinelStillCompletes() {
         server.enqueue(rawSseResponse("data: {\"choices\":[{\"delta\":{\"content\":\"habis\"}}]}\n"))
 

@@ -33,6 +33,9 @@ internal fun collectEvents(flow: Flow<WireEvent>): List<WireEvent> = runBlocking
 internal fun List<WireEvent>.deltaText(): String =
     filterIsInstance<WireEvent.Delta>().joinToString("") { it.text }
 
+internal fun List<WireEvent>.thinkingText(): String =
+    filterIsInstance<WireEvent.Thinking>().joinToString("") { it.text }
+
 internal fun List<WireEvent>.lastUsage(): WireEvent.Usage? =
     filterIsInstance<WireEvent.Usage>().lastOrNull()
 

@@ -246,6 +246,22 @@ class OpenAiResponsesAdapterTest {
     }
 
     @Test
+    fun reasoningSummaryDeltasBecomeThinking() {
+        server.enqueue(
+            sseResponse(
+                "{\"type\":\"response.reasoning_summary_text.delta\",\"delta\":\"menimbang\"}",
+                "{\"type\":\"response.output_text.delta\",\"delta\":\"jawaban\"}",
+                "{\"type\":\"response.completed\",\"response\":{}}"
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "token-1", request()))
+
+        assertEquals("jawaban", events.deltaText())
+        assertEquals("menimbang", events.thinkingText())
+    }
+
+    @Test
     fun completedWithoutUsageStillFinishesTheStream() {
         server.enqueue(
             sseResponse(
