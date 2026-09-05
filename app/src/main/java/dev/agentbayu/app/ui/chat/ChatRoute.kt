@@ -114,8 +114,9 @@ fun ChatRoute(
                 label = connection.label,
                 providerLabel = provider?.label ?: connection.providerId,
                 model = connection.model,
-                models = (provider?.models?.map { it.id }.orEmpty() + connection.discoveredModels)
-                    .distinct(),
+                models = provider
+                    ?.pickerModelIds(connection.discoveredModels, connection.model)
+                    .orEmpty(),
                 efforts = efforts,
                 effort = resolveEffort(efforts, connection.effort, connection.model),
                 authKind = provider?.authKind ?: AuthKind.API_KEY,

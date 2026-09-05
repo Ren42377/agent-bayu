@@ -92,7 +92,7 @@
       "modelsPath": "/v1internal:fetchAvailableModels",
       "modelsMethod": "POST",
       "extraHeaders": {
-        "User-Agent": "antigravity/ide/2.1.1 darwin/arm64"
+        "User-Agent": "antigravity/ide/2.11.0 darwin/arm64"
       },
       "oauth": {
         "flow": "authorization_code",
@@ -112,22 +112,25 @@
         ]
       },
       "models": [
+        { "id": "gemini-3.8-flash-high", "label": "Gemini 3.8 Flash (High)", "upstreamId": "gemini-3.8-flash-high(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
+        { "id": "gemini-3.8-flash-medium", "label": "Gemini 3.8 Flash (Medium)", "upstreamId": "gemini-3.8-flash-medium(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
+        { "id": "gemini-3.8-flash-low", "label": "Gemini 3.8 Flash (Low)", "upstreamId": "gemini-3.8-flash-low(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.7-flash-high", "label": "Gemini 3.7 Flash (High)", "upstreamId": "gemini-3.7-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "upstreamId": "gemini-3.7-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "upstreamId": "gemini-3.7-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.6-flash-high", "label": "Gemini 3.6 Flash (High)", "upstreamId": "gemini-3.6-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.6-flash-medium", "label": "Gemini 3.6 Flash (Medium)", "upstreamId": "gemini-3.6-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.6-flash-low", "label": "Gemini 3.6 Flash (Low)", "upstreamId": "gemini-3.6-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.5-flash-high", "label": "Gemini 3.5 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3-flash-agent", "label": "Gemini 3.5 Flash Agent", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.5-flash-low", "label": "Gemini 3.5 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.5-flash-extra-low", "label": "Gemini 3.5 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3-flash", "label": "Gemini 3 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
         { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 200000, "maxOutputTokens": 64000, "vision": true },
         { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 200000, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gpt-oss-120b-medium", "label": "GPT-OSS 120B (Medium)", "contextLength": 131072, "maxOutputTokens": 32768 }
+        { "id": "gpt-oss-120b-medium", "label": "GPT-OSS 120B (Medium)", "contextLength": 131072, "maxOutputTokens": 32768 },
+        { "id": "gemini-3.5-flash-high", "label": "Gemini 3.5 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3-flash-agent", "label": "Gemini 3.5 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3-flash", "label": "Gemini 3 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true }
       ]
     },
     {

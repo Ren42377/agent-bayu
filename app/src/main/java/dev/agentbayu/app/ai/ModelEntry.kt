@@ -16,7 +16,8 @@ data class ModelEntry(
     val efforts: List<ReasoningEffort> = emptyList(),
     val free: Boolean = false,
     val vision: Boolean = false,
-    val tools: Boolean = false
+    val tools: Boolean = false,
+    val deprecated: Boolean = false
 ) {
     val wireId: String
         get() = upstreamId?.takeIf { it.isNotBlank() } ?: id

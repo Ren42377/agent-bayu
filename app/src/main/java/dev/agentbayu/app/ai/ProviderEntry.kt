@@ -58,7 +58,23 @@ data class ProviderEntry(
     val modelsUsePost: Boolean
         get() = modelsMethod.equals("POST", ignoreCase = true)
 
+    val selectableModels: List<ModelEntry>
+        get() = models.filter { !it.deprecated }
+
     fun model(modelId: String): ModelEntry? = models.firstOrNull { it.id == modelId }
+
+    fun pickerModelIds(
+        discovered: List<String> = emptyList(),
+        keep: String? = null
+    ): List<String> {
+        val hidden = models
+            .filter { it.deprecated && it.id != keep }
+            .map { it.id }
+            .toSet()
+        return (models.map { it.id } + discovered)
+            .filter { it !in hidden }
+            .distinct()
+    }
 
     fun modelOrFallback(modelId: String): ModelEntry = model(modelId) ?: ModelEntry(id = modelId)
 
