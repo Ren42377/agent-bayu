@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
@@ -98,7 +99,8 @@ fun AgentBayuTheme(
     CompositionLocalProvider(
         LocalIndication provides LiquidIndication(darkTheme),
         LocalDarkTheme provides darkTheme,
-        LocalGlassStyle provides glassStyle
+        LocalGlassStyle provides glassStyle,
+        LocalContentColor provides colorScheme.onSurface
     ) {
         MaterialTheme(
             colorScheme = colorScheme,
