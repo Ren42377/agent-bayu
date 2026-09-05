@@ -1,12 +1,15 @@
 package dev.agentbayu.app
 
+import android.Manifest
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -27,6 +30,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -37,15 +41,20 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.WindowCompat
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import dev.agentbayu.app.domain.tools.PermissionKind
+import dev.agentbayu.app.platform.NotificationAccess
+import dev.agentbayu.app.platform.files.AllFilesAccess
 import dev.agentbayu.app.platform.tasks.EXTRA_TASK_ID
 import dev.agentbayu.app.ui.chat.ChatRoute
 import dev.agentbayu.app.ui.components.AmbientBackground
 import dev.agentbayu.app.ui.components.CardPager
+import dev.agentbayu.app.ui.components.GlassDialog
 import dev.agentbayu.app.ui.components.GlassOverlayController
 import dev.agentbayu.app.ui.components.GlassOverlayHost
 import dev.agentbayu.app.ui.components.GlassTabsProgress
@@ -258,6 +267,8 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
 
             ToolApprovalHost()
 
+            PermissionHost(onMessage = onMessage)
+
             GlassOverlayHost(
                 controller = overlayController,
                 backdrop = chromeBackdrop,
@@ -275,6 +286,54 @@ private fun ToolApprovalHost() {
     pending?.let { request ->
         ToolApprovalSheet(request = request, onDecision = approvals::resolve)
     }
+}
+
+@Composable
+private fun PermissionHost(onMessage: (String) -> Unit) {
+    val context = LocalContext.current
+    val requests = remember(context) { AppGraph.permissions(context) }
+    val pending by requests.pending.collectAsState()
+    val settingsUnavailable = stringResource(R.string.dialog_settings_unavailable)
+    val notificationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { requests.resolve(true) }
+    var shown by remember { mutableStateOf(PermissionKind.STORAGE) }
+
+    LaunchedEffect(pending) {
+        pending?.let { ask -> shown = ask.kind }
+    }
+
+    GlassDialog(
+        visible = pending != null,
+        title = stringResource(R.string.permission_ask_title),
+        body = stringResource(permissionBody(shown)),
+        confirmLabel = stringResource(R.string.permission_ask_allow),
+        onConfirm = {
+            val opened = when (shown) {
+                PermissionKind.STORAGE -> AllFilesAccess.open(context)
+
+                PermissionKind.NOTIFICATIONS ->
+                    if (NotificationAccess.needsRuntimeRequest(context)) {
+                        notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        return@GlassDialog
+                    } else {
+                        NotificationAccess.openSettings(context)
+                    }
+
+                PermissionKind.EXACT_ALARMS -> NotificationAccess.openExactAlarmSettings(context)
+            }
+            if (!opened) onMessage(settingsUnavailable)
+            requests.resolve(opened)
+        },
+        dismissLabel = stringResource(R.string.dialog_later),
+        onDismiss = { requests.resolve(false) }
+    )
+}
+
+private fun permissionBody(kind: PermissionKind): Int = when (kind) {
+    PermissionKind.STORAGE -> R.string.permission_ask_storage
+    PermissionKind.NOTIFICATIONS -> R.string.permission_ask_notifications
+    PermissionKind.EXACT_ALARMS -> R.string.permission_ask_alarms
 }
 
 @Composable

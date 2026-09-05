@@ -78,7 +78,7 @@
     <string name="settings_logs_title">Logs</string>
     <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
 
-    <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu punya tool untuk mengurus tugas pemilik, menjelajah dan membaca berkas di penyimpanan ponsel, melihat gambar, serta menulis dan menyunting berkas teks. Pakai tool itu kalau memang dibutuhkan, dan baru katakan sesuatu sudah dikerjakan setelah tool benar-benar mengembalikan hasilnya. Kalau pemilik menolak sebuah tool, sampaikan apa adanya dan jangan mencoba jalan lain tanpa diminta. Untuk hal di luar tool yang kamu punya, misalnya membuka aplikasi lain, mengirim pesan, atau mengubah kalender, katakan bahwa kamu belum bisa melakukannya.</string>
+    <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu punya tool untuk mengurus tugas pemilik, menjelajah dan membaca berkas di penyimpanan ponsel, melihat gambar, serta menulis dan menyunting berkas teks. Pakai tool itu kalau memang dibutuhkan, dan baru katakan sesuatu sudah dikerjakan setelah tool benar-benar mengembalikan hasilnya. Kalau pemilik menolak sebuah tool, sampaikan apa adanya dan jangan mencoba jalan lain tanpa diminta. Kalau sebuah tool gagal karena izin belum ada, panggil tool request_permission untuk meminta izinnya, jangan menyuruh pemilik membuka pengaturan sendiri. Untuk hal di luar tool yang kamu punya, misalnya membuka aplikasi lain, mengirim pesan, atau mengubah kalender, katakan bahwa kamu belum bisa melakukannya.</string>
     <string name="agent_screen_context_prompt">Pemilik sedang melihat layar dengan teks berikut. Pakai ini hanya kalau relevan dengan pertanyaannya.\n\n%1$s</string>
     <string name="agent_no_connection">Belum ada koneksi AI yang aktif. Buka Pengaturan lalu Provider AI untuk memilih penyedia.</string>
     <string name="agent_unknown_provider">Penyedia untuk koneksi ini tidak ada di katalog. Ubah koneksinya di layar Provider AI.</string>
@@ -384,8 +384,13 @@
     <string name="tool_run_pending">Sedang jalan</string>
     <string name="tool_run_done">Selesai</string>
     <string name="tool_run_failed">Gagal</string>
-    <string name="chat_thinking">Berpikir</string>
-    <string name="chat_thinking_seconds">Berpikir %1$ds</string>
+    <string name="chat_thought">Berpikir</string>
+    <string name="chat_thought_seconds">Berpikir %1$ds</string>
+    <string name="permission_ask_title">Agent Bayu butuh izin</string>
+    <string name="permission_ask_allow">Buka izin</string>
+    <string name="permission_ask_storage">Agent Bayu perlu akses semua berkas untuk membaca dan menulis berkas di penyimpanan ponsel. Halaman pengaturan Android akan terbuka, sakelarnya dinyalakan di sana.</string>
+    <string name="permission_ask_notifications">Agent Bayu perlu izin notifikasi supaya pengingat tugas bisa muncul.</string>
+    <string name="permission_ask_alarms">Agent Bayu perlu izin alarm tepat waktu supaya pengingat berbunyi pada waktunya, bukan terlambat.</string>
     <string name="tool_name_create_task">Membuat tugas</string>
     <string name="tool_name_list_tasks">Membaca daftar tugas</string>
     <string name="tool_name_complete_task">Menyelesaikan tugas</string>
@@ -397,4 +402,5 @@
     <string name="tool_name_edit_file">Menyunting berkas</string>
     <string name="tool_name_delete_file">Menghapus berkas</string>
     <string name="tool_name_move_file">Memindahkan berkas</string>
+    <string name="tool_name_request_permission">Meminta izin</string>
 </resources>

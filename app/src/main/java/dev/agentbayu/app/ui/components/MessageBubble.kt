@@ -149,9 +149,9 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
     val millis = if (running) liveMillis else segment.millis
     val seconds = (millis / MILLIS_PER_SECOND).toInt()
     val label = if (seconds <= 0) {
-        stringResource(R.string.chat_thinking)
+        stringResource(R.string.chat_thought)
     } else {
-        stringResource(R.string.chat_thinking_seconds, seconds)
+        stringResource(R.string.chat_thought_seconds, seconds)
     }
 
     Column(modifier = Modifier.fillMaxWidth()) {

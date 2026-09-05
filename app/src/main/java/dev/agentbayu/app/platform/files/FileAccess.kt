@@ -199,8 +199,8 @@ class FileAccess(
         const val BINARY_PROBE_BYTES = 4_096
         const val BINARY_TOLERANCE = 5
         const val SNIPPET = 200
-        const val NO_ACCESS = "No access to the phone storage yet. The owner has to turn on " +
-            "all files access for Agent Bayu in the Android settings."
+        const val NO_ACCESS = "No access to the phone storage yet. Call request_permission with " +
+            "kind storage so the owner can turn on all files access, then try again."
         const val STOPPED = "The search was stopped."
 
         fun of(context: Context): FileAccess = FileAccess(

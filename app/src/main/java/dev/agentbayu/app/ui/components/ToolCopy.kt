@@ -17,5 +17,6 @@ internal fun toolDisplayName(name: String): String = when (name) {
     "edit_file" -> stringResource(R.string.tool_name_edit_file)
     "delete_file" -> stringResource(R.string.tool_name_delete_file)
     "move_file" -> stringResource(R.string.tool_name_move_file)
+    "request_permission" -> stringResource(R.string.tool_name_request_permission)
     else -> name
 }

@@ -34,6 +34,7 @@ import dev.agentbayu.app.ai.tools.ListFilesTool
 import dev.agentbayu.app.ai.tools.ListTasksTool
 import dev.agentbayu.app.ai.tools.MoveFileTool
 import dev.agentbayu.app.ai.tools.ReadFileTool
+import dev.agentbayu.app.ai.tools.RequestPermissionTool
 import dev.agentbayu.app.ai.tools.SearchFilesTool
 import dev.agentbayu.app.ai.tools.ToolRegistry
 import dev.agentbayu.app.ai.tools.ViewImageTool
@@ -49,13 +50,17 @@ import dev.agentbayu.app.domain.ProviderCopy
 import dev.agentbayu.app.domain.tasks.TaskStore
 import dev.agentbayu.app.domain.tools.AiToolJudge
 import dev.agentbayu.app.domain.tools.JudgingToolApprovalGate
+import dev.agentbayu.app.domain.tools.PermissionKind
+import dev.agentbayu.app.domain.tools.PermissionRequests
 import dev.agentbayu.app.domain.tools.ToolApprovalRouter
 import dev.agentbayu.app.domain.tools.ToolIntent
 import dev.agentbayu.app.domain.tools.UiToolApprovalGate
 import dev.agentbayu.app.platform.AppSettings
 import dev.agentbayu.app.platform.FileStorage
 import dev.agentbayu.app.platform.ImagePipeline
+import dev.agentbayu.app.platform.NotificationAccess
 import dev.agentbayu.app.platform.SecureStore
+import dev.agentbayu.app.platform.files.AllFilesAccess
 import dev.agentbayu.app.platform.files.FileAccess
 import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
@@ -115,7 +120,8 @@ object AppGraph {
         val usageTracker: UsageTracker,
         val logStore: LogStore,
         val attachments: Attachments,
-        val approvals: UiToolApprovalGate
+        val approvals: UiToolApprovalGate,
+        val permissions: PermissionRequests
     )
 
     @Volatile
@@ -155,6 +161,8 @@ object AppGraph {
     fun attachments(context: Context): Attachments = container(context).attachments
 
     fun approvals(context: Context): UiToolApprovalGate = container(context).approvals
+
+    fun permissions(context: Context): PermissionRequests = container(context).permissions
 
     fun settings(context: Context): AppSettings {
         appSettings?.let { return it }
@@ -255,6 +263,13 @@ object AppGraph {
             )
         )
         val files = lazy { FileAccess.of(context) }
+        val permissions = PermissionRequests { kind ->
+            when (kind) {
+                PermissionKind.STORAGE -> AllFilesAccess.granted(context)
+                PermissionKind.NOTIFICATIONS -> NotificationAccess.isAllowed(context)
+                PermissionKind.EXACT_ALARMS -> taskAlarms(context).canScheduleExact()
+            }
+        }
         val engine = ProviderAgentEngine(
             client = aiClient,
             contextBuilder = ContextBuilder(
@@ -278,7 +293,8 @@ object AppGraph {
                     WriteFileTool({ files.value }, gate),
                     EditFileTool({ files.value }, gate),
                     DeleteFileTool({ files.value }, gate),
-                    MoveFileTool({ files.value }, gate)
+                    MoveFileTool({ files.value }, gate),
+                    RequestPermissionTool { permissions }
                 )
             ),
             intent = intent
@@ -313,7 +329,8 @@ object AppGraph {
             usageTracker = usageTracker,
             logStore = logStore,
             attachments = attachments,
-            approvals = approvals
+            approvals = approvals,
+            permissions = permissions
         )
     }
 
