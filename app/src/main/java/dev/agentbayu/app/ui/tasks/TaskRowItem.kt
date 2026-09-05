@@ -78,7 +78,7 @@ internal fun TaskRowItem(
         StarButton(starred = task.starred, onClick = onToggleStarred)
         Spacer(modifier = Modifier.width(4.dp))
         Icon(
-            painter = painterResource(R.drawable.ic_pending),
+            painter = painterResource(R.drawable.ic_more_vert),
             contentDescription = stringResource(R.string.tasks_row_menu),
             tint = scheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier

@@ -102,7 +102,7 @@ fun MessageBubble(
                     contentAlignment = Alignment.CenterStart
                 ) {
                     Icon(
-                        painter = painterResource(R.drawable.ic_open_in_app),
+                        painter = painterResource(R.drawable.ic_more_horiz),
                         contentDescription = stringResource(R.string.route_show),
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)

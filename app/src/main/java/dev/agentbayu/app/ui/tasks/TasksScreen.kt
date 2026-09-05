@@ -88,7 +88,7 @@ fun TasksScreen(
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_pending),
+                    painter = painterResource(R.drawable.ic_more_vert),
                     contentDescription = stringResource(R.string.tasks_list_menu),
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp)
