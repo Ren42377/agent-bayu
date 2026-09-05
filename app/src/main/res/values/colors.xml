@@ -2,6 +2,6 @@
 <resources>
     <color name="window_background">#FFFBFE</color>
     <color name="brand_primary">#6750A4</color>
-    <color name="ic_launcher_background">#1B1533</color>
-    <color name="splash_background">#1B1533</color>
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="splash_background">#FFFFFF</color>
 </resources>
