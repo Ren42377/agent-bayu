@@ -101,7 +101,7 @@ class AntigravityAdapterTest {
 
         val body = parseJsonObject(recorded.body.readUtf8())
         assertEquals("projects/42", body?.stringField("project"))
-        assertEquals("gemini-3.7-flash-tiered(high)", body?.stringField("model"))
+        assertEquals("gemini-3.7-flash-tiered", body?.stringField("model"))
         assertEquals("antigravity", body?.stringField("userAgent"))
         assertEquals("agent", body?.stringField("requestType"))
         assertTrue(IDE_REQUEST_ID.matches(body?.stringField("requestId").orEmpty()))
@@ -119,12 +119,85 @@ class AntigravityAdapterTest {
         assertEquals(listOf("user" to "hello"), contents(inner))
 
         val config = inner?.objectField("generationConfig")
-        assertEquals(512, config?.intField("maxOutputTokens"))
         assertNotNull(config?.get("temperature"))
         assertFalse(config?.containsKey("topK") == true)
         assertFalse(config?.containsKey("topP") == true)
-        assertFalse(config?.containsKey("thinkingConfig") == true)
         assertFalse(inner?.containsKey("safetySettings") == true)
+
+        val thinking = config?.objectField("thinkingConfig")
+        assertEquals("high", thinking?.stringField("thinkingLevel"))
+        assertTrue(thinking?.booleanField("includeThoughts") == true)
+    }
+
+    @Test
+    fun theTierRidesInTheThinkingLevelInsteadOfTheModelId() {
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-high", "high"),
+            antigravityModel("gemini-3.8-flash-high(high)")
+        )
+        assertEquals(
+            AntigravityModel("gemini-3.6-flash-tiered", "medium"),
+            antigravityModel("gemini-3.6-flash-tiered(medium)")
+        )
+        assertEquals(
+            AntigravityModel("gemini-3.7-flash-tiered", "low"),
+            antigravityModel(ModelEntry(id = "gemini-3.7-flash-low"))
+        )
+        assertEquals(
+            AntigravityModel("gemini-pro-agent", null),
+            antigravityModel(ModelEntry(id = "gemini-3.1-pro-high"))
+        )
+    }
+
+    @Test
+    fun anUnknownTierIsStillStrippedButCarriesNoThinkingLevel() {
+        assertEquals(
+            AntigravityModel("gemini-3.9-flash", null),
+            antigravityModel("gemini-3.9-flash(banana)")
+        )
+        assertEquals(AntigravityModel("(high)", null), antigravityModel("(high)"))
+        assertEquals(AntigravityModel("gemini-pro-agent", null), antigravityModel("gemini-pro-agent"))
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-high", "high"),
+            antigravityModel("  gemini-3.8-flash-high(HIGH)  ")
+        )
+    }
+
+    @Test
+    fun anUntieredModelCarriesNoThinkingConfig() {
+        val body = bodyOf(route = candidate(modelId = "claude-sonnet-4-6", upstreamModelId = null))
+
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertFalse(config?.containsKey("thinkingConfig") == true)
+        assertEquals(512, config?.intField("maxOutputTokens"))
+    }
+
+    @Test
+    fun theMinimalTierAsksTheHostToKeepThoughtsHidden() {
+        val body = bodyOf(
+            route = candidate(upstreamModelId = "gemini-3.8-flash-minimal(minimal)")
+        )
+
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertEquals("gemini-3.8-flash-minimal", body.stringField("model"))
+        assertEquals(4_096, config?.intField("maxOutputTokens"))
+        val thinking = config?.objectField("thinkingConfig")
+        assertEquals("minimal", thinking?.stringField("thinkingLevel"))
+        assertFalse(thinking?.booleanField("includeThoughts") == true)
+    }
+
+    @Test
+    fun theThinkingLevelLiftsTheOutputCeilingSoThoughtsLeaveRoomForText() {
+        assertEquals(64_000, antigravityMaxOutputTokens(512, "high"))
+        assertEquals(16_384, antigravityMaxOutputTokens(512, "medium"))
+        assertEquals(8_192, antigravityMaxOutputTokens(512, "low"))
+        assertEquals(4_096, antigravityMaxOutputTokens(512, "minimal"))
+        assertEquals(32_768, antigravityMaxOutputTokens(32_768, "low"))
+        assertEquals(512, antigravityMaxOutputTokens(512, "banana"))
+
+        val body = bodyOf(request = chat(maxOutputTokens = 512))
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertEquals(64_000, config?.intField("maxOutputTokens"))
     }
 
     @Test
@@ -166,7 +239,11 @@ class AntigravityAdapterTest {
     @Test
     fun theModelCeilingAppliesWhenTheRequestLeavesItOpen() {
         val body = bodyOf(
-            route = candidate(maxOutputTokens = 32_768),
+            route = candidate(
+                modelId = "claude-sonnet-4-6",
+                upstreamModelId = null,
+                maxOutputTokens = 32_768
+            ),
             request = chat(maxOutputTokens = null)
         )
 

@@ -100,6 +100,18 @@ class FailureClassifierTest {
     }
 
     @Test
+    fun aMissingEntityLocksTheModelEvenWithoutTheWordModel() {
+        val body = """
+            {"error":{"code":404,"message":"Requested entity was not found.","status":"NOT_FOUND"}}
+        """.trimIndent()
+
+        val failure = FailureClassifier.classifyHttp(404, body)
+        assertEquals(FailureKind.MODEL_LOCK, failure.kind)
+        assertEquals("model unavailable", failure.message)
+        assertEquals(FailureKind.MODEL_LOCK, kind(404, """{"status":"NOT_FOUND"}"""))
+    }
+
+    @Test
     fun missingEndpointIsTerminal() {
         assertEquals(FailureKind.TERMINAL, kind(404, "not found"))
     }

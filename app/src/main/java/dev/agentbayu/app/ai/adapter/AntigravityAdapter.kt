@@ -72,19 +72,19 @@ internal fun antigravityBody(
     sessionId: String,
     nowMillis: Long
 ): JsonObject = buildJsonObject {
-    val upstreamModel = resolveAntigravityModelId(candidate.model)
+    val model = antigravityModel(candidate.model)
     val contents = antigravityTurns(request.turns)
     put(PROJECT, projectId)
     put(
         REQUEST_ID,
         antigravityRequestId(
             sessionId = sessionId,
-            upstreamModel = upstreamModel,
+            upstreamModel = model.wireId,
             contentCount = contents.size,
             nowMillis = nowMillis
         )
     )
-    put(MODEL, upstreamModel)
+    put(MODEL, model.wireId)
     put(USER_AGENT, USER_AGENT_VALUE)
     put(REQUEST_TYPE, REQUEST_TYPE_VALUE)
     putJsonObject(REQUEST) {
@@ -120,10 +120,16 @@ internal fun antigravityBody(
         }
         putJsonObject("generationConfig") {
             val requestedMax = request.maxOutputTokens ?: candidate.model.maxOutputTokens
-            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax))
+            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax, model.thinkingLevel))
             val temperature = request.temperature
             if (temperature != null && WireParams.supports(candidate, WireParams.TEMPERATURE)) {
                 put("temperature", temperature)
+            }
+            model.thinkingLevel?.let { level ->
+                putJsonObject(THINKING_CONFIG) {
+                    put(THINKING_LEVEL, level)
+                    put(INCLUDE_THOUGHTS, level != LEVEL_MINIMAL)
+                }
             }
         }
     }
@@ -200,6 +206,21 @@ internal fun resolveAntigravityModelId(model: ModelEntry): String {
     return upstream ?: resolveAntigravityModelId(model.id)
 }
 
+internal data class AntigravityModel(val wireId: String, val thinkingLevel: String?)
+
+internal fun antigravityModel(model: ModelEntry): AntigravityModel =
+    antigravityModel(resolveAntigravityModelId(model))
+
+internal fun antigravityModel(upstreamModel: String): AntigravityModel {
+    val trimmed = upstreamModel.trim()
+    val match = THINKING_SUFFIX.matchEntire(trimmed)
+        ?: return AntigravityModel(trimmed, null)
+    val wireId = match.groupValues[1].trim()
+    if (wireId.isEmpty()) return AntigravityModel(trimmed, null)
+    val level = match.groupValues[2].trim().lowercase()
+    return AntigravityModel(wireId, level.takeIf { it in THINKING_LEVELS })
+}
+
 internal fun antigravityUuidFromSeed(seed: String): String {
     val bytes = sha256(seed).copyOf(UUID_BYTES)
     bytes[VERSION_INDEX] = ((bytes[VERSION_INDEX].toInt() and 0x0f) or VERSION_BITS).toByte()
@@ -226,8 +247,16 @@ internal fun antigravityRequestId(
     return REQUEST_ID_PREFIX + conversationId + "/" + nowMillis + "/" + trajectoryId + "/" + step
 }
 
-internal fun antigravityMaxOutputTokens(requested: Int): Int =
-    requested.coerceIn(1, MAX_OUTPUT_TOKENS)
+internal fun antigravityMaxOutputTokens(requested: Int, thinkingLevel: String? = null): Int =
+    maxOf(requested, antigravityOutputFloor(thinkingLevel)).coerceIn(1, MAX_OUTPUT_TOKENS)
+
+private fun antigravityOutputFloor(thinkingLevel: String?): Int = when (thinkingLevel) {
+    LEVEL_MINIMAL -> MINIMAL_OUTPUT_FLOOR
+    LEVEL_LOW -> LOW_OUTPUT_FLOOR
+    LEVEL_MEDIUM -> MEDIUM_OUTPUT_FLOOR
+    LEVEL_HIGH -> MAX_OUTPUT_TOKENS
+    else -> 0
+}
 
 internal fun parseAntigravityChunk(
     raw: String,
@@ -292,6 +321,18 @@ private const val VERSION_BITS = 0x50
 private const val VARIANT_INDEX = 8
 private const val VARIANT_BITS = 0x80
 private const val MAX_OUTPUT_TOKENS = 64_000
+private const val MINIMAL_OUTPUT_FLOOR = 4_096
+private const val LOW_OUTPUT_FLOOR = 8_192
+private const val MEDIUM_OUTPUT_FLOOR = 16_384
+private const val LEVEL_MINIMAL = "minimal"
+private const val LEVEL_LOW = "low"
+private const val LEVEL_MEDIUM = "medium"
+private const val LEVEL_HIGH = "high"
+private val THINKING_LEVELS = setOf(LEVEL_MINIMAL, LEVEL_LOW, LEVEL_MEDIUM, LEVEL_HIGH)
+private val THINKING_SUFFIX = Regex("(.*)\\(([^()]+)\\)")
+private const val THINKING_CONFIG = "thinkingConfig"
+private const val THINKING_LEVEL = "thinkingLevel"
+private const val INCLUDE_THOUGHTS = "includeThoughts"
 private const val MODEL = "model"
 private const val USER_AGENT = "userAgent"
 private const val USER_AGENT_VALUE = "antigravity"

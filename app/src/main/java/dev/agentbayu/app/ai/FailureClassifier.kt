@@ -33,6 +33,12 @@ object FailureClassifier {
         "deprecated"
     )
 
+    private val ENTITY_HINTS = listOf(
+        "requested entity was not found",
+        "not_found",
+        "notfound"
+    )
+
     private val QUOTA_HINTS = listOf(
         "insufficient_quota",
         "insufficient quota",
@@ -98,11 +104,12 @@ object FailureClassifier {
                 tripsBreaker = true
             )
 
-            statusCode == 404 && mentionsModel(lower) -> RouteFailure(
-                kind = FailureKind.MODEL_LOCK,
-                message = "model unavailable",
-                statusCode = statusCode
-            )
+            statusCode == 404 && (mentionsModel(lower) || mentionsMissingEntity(lower)) ->
+                RouteFailure(
+                    kind = FailureKind.MODEL_LOCK,
+                    message = "model unavailable",
+                    statusCode = statusCode
+                )
 
             statusCode == 404 -> RouteFailure(
                 kind = FailureKind.TERMINAL,
@@ -151,6 +158,9 @@ object FailureClassifier {
 
     private fun mentionsModel(lowerBody: String): Boolean =
         lowerBody.contains("model") && MODEL_HINTS.any { lowerBody.contains(it) }
+
+    private fun mentionsMissingEntity(lowerBody: String): Boolean =
+        ENTITY_HINTS.any { lowerBody.contains(it) }
 
     fun parseRetryAfter(header: String?): Long? {
         val value = header?.trim() ?: return null
