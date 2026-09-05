@@ -12,7 +12,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlendMode
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
@@ -35,7 +34,6 @@ data class GlassStyle(
     val fill: Color,
     val highlight: Color,
     val strokeWidth: Dp = 1.dp,
-    val sheenAlpha: Float = 0.12f,
     val elevation: Dp = 4.dp,
     val refractionHeightRatio: Float = 0.5f,
     val refractionAmountRatio: Float = 1f,
@@ -43,10 +41,8 @@ data class GlassStyle(
     val brightness: Float = 0f,
     val saturation: Float = 1f,
     val vibrant: Boolean = true,
-    val surfaceTop: Color = fill,
-    val surfaceBottom: Color = fill,
-    val surfaceEdgeTop: Color = highlight,
-    val surfaceEdgeBottom: Color = highlight,
+    val surface: Color = fill,
+    val surfaceEdge: Color = highlight,
     val surfaceElevation: Dp = elevation
 )
 
@@ -54,10 +50,8 @@ val LocalGlassStyle = compositionLocalOf {
     GlassStyle(
         fill = GlassFillDark,
         highlight = GlassHighlightDark,
-        surfaceTop = GlassSurfaceTopDark,
-        surfaceBottom = GlassSurfaceBottomDark,
-        surfaceEdgeTop = GlassEdgeTopDark,
-        surfaceEdgeBottom = GlassEdgeBottomDark
+        surface = GlassSurfaceDark,
+        surfaceEdge = GlassEdgeDark
     )
 }
 
@@ -70,29 +64,23 @@ fun currentGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
             fill = GlassFillDark,
             highlight = GlassHighlightDark,
             strokeWidth = 1.dp,
-            sheenAlpha = 0.14f,
             elevation = 6.dp,
             highlightAlpha = 0.7f,
             brightness = 0f,
-            surfaceTop = GlassSurfaceTopDark,
-            surfaceBottom = GlassSurfaceBottomDark,
-            surfaceEdgeTop = GlassEdgeTopDark,
-            surfaceEdgeBottom = GlassEdgeBottomDark,
-            surfaceElevation = 2.dp
+            surface = GlassSurfaceDark,
+            surfaceEdge = GlassEdgeDark,
+            surfaceElevation = 0.dp
         )
     } else {
         GlassStyle(
             fill = GlassFillLight,
             highlight = GlassHighlightLight,
             strokeWidth = 1.dp,
-            sheenAlpha = 0.16f,
             elevation = 4.dp,
             highlightAlpha = 0.7f,
             brightness = 0.12f,
-            surfaceTop = GlassSurfaceTopLight,
-            surfaceBottom = GlassSurfaceBottomLight,
-            surfaceEdgeTop = GlassEdgeTopLight,
-            surfaceEdgeBottom = GlassEdgeBottomLight,
+            surface = GlassSurfaceLight,
+            surfaceEdge = GlassEdgeLight,
             surfaceElevation = 5.dp
         )
     }
@@ -102,17 +90,9 @@ fun currentGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
 fun solidGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     val style = LocalGlassStyle.current
     return if (darkTheme) {
-        style.copy(
-            fill = GlassSolidDark,
-            surfaceTop = GlassSurfaceSolidTopDark,
-            surfaceBottom = GlassSurfaceSolidBottomDark
-        )
+        style.copy(fill = GlassSolidDark)
     } else {
-        style.copy(
-            fill = GlassSolidLight,
-            surfaceTop = GlassSurfaceSolidTopLight,
-            surfaceBottom = GlassSurfaceSolidBottomLight
-        )
+        style.copy(fill = GlassSolidLight)
     }
 }
 
@@ -128,25 +108,6 @@ fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
 
 private const val CHROME_SATURATION = 0.9f
 
-fun glassSheenBrush(sheenAlpha: Float): Brush {
-    return Brush.verticalGradient(
-        colors = listOf(
-            Color.White.copy(alpha = sheenAlpha),
-            Color.Transparent,
-            Color.Black.copy(alpha = sheenAlpha * 0.25f)
-        )
-    )
-}
-
-fun glassSurfaceSheenBrush(sheenAlpha: Float): Brush {
-    return Brush.verticalGradient(
-        0f to Color.White.copy(alpha = (sheenAlpha * 1.4f).coerceAtMost(1f)),
-        0.3f to Color.White.copy(alpha = sheenAlpha * 0.28f),
-        0.62f to Color.Transparent,
-        1f to Color.Black.copy(alpha = sheenAlpha * 0.22f)
-    )
-}
-
 @Composable
 fun Modifier.glassSurface(
     shape: Shape = GlassCardShape,
@@ -154,46 +115,17 @@ fun Modifier.glassSurface(
     tint: Color = Color.Unspecified,
     elevation: Dp = style.surfaceElevation
 ): Modifier {
-    val fillBrush = remember(style.surfaceTop, style.surfaceBottom) {
-        Brush.verticalGradient(listOf(style.surfaceTop, style.surfaceBottom))
-    }
-    val sheenBrush = remember(style.sheenAlpha) { glassSurfaceSheenBrush(style.sheenAlpha) }
-    val tintBrush = remember(tint) {
-        if (tint.isSpecified) {
-            Brush.verticalGradient(
-                listOf(
-                    tint.copy(alpha = STATIC_TINT_TOP_ALPHA),
-                    tint.copy(alpha = STATIC_TINT_BOTTOM_ALPHA)
-                )
-            )
-        } else {
-            null
-        }
-    }
-    val edgeBrush = remember(style.surfaceEdgeTop, style.surfaceEdgeBottom, style.highlightAlpha) {
-        Brush.verticalGradient(
-            listOf(
-                style.surfaceEdgeTop.copy(
-                    alpha = style.surfaceEdgeTop.alpha * style.highlightAlpha
-                ),
-                style.surfaceEdgeBottom.copy(
-                    alpha = style.surfaceEdgeBottom.alpha * style.highlightAlpha
-                )
-            )
-        )
+    val edgeColor = remember(style.surfaceEdge, style.highlightAlpha) {
+        style.surfaceEdge.copy(alpha = style.surfaceEdge.alpha * style.highlightAlpha)
     }
     return this
         .shadow(elevation = elevation, shape = shape, clip = true)
         .drawBehind {
-            drawRect(brush = fillBrush)
-            tintBrush?.let { drawRect(brush = it) }
-            drawRect(brush = sheenBrush)
+            drawRect(color = style.surface)
+            if (tint.isSpecified) drawRect(color = tint)
         }
-        .border(width = style.strokeWidth, brush = edgeBrush, shape = shape)
+        .border(width = style.strokeWidth, color = edgeColor, shape = shape)
 }
-
-private const val STATIC_TINT_TOP_ALPHA = 0.9f
-private const val STATIC_TINT_BOTTOM_ALPHA = 1f
 
 @Composable
 fun Modifier.liquidGlass(
@@ -206,7 +138,6 @@ fun Modifier.liquidGlass(
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
     exportedBackdrop: LayerBackdrop? = null
 ): Modifier {
-    val sheenBrush = remember(style.sheenAlpha) { glassSheenBrush(style.sheenAlpha) }
     return this.drawBackdrop(
         backdrop = backdrop,
         shape = { shape },
@@ -243,7 +174,6 @@ fun Modifier.liquidGlass(
                 drawRect(color = activeTint, blendMode = BlendMode.Hue)
                 drawRect(color = activeTint.copy(alpha = tintAlpha))
             }
-            drawRect(brush = sheenBrush)
         }
     )
 }
