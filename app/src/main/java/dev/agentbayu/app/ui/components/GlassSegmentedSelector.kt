@@ -37,10 +37,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.lerp
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
-import dev.agentbayu.app.ui.theme.LocalGlassStyle
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.drop
 import kotlin.math.abs
@@ -64,10 +69,7 @@ internal fun GlassSegmentedSelector(
         alpha = if (darkTheme) DARK_TRACK_ALPHA else TRACK_ALPHA
     )
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val indicatorStyle = LocalGlassStyle.current.copy(
-        elevation = SELECTOR_ELEVATION,
-        highlightAlpha = SELECTOR_HIGHLIGHT_ALPHA
-    )
+    val backdrop = LocalGlassBackdrop.current
     val animationScope = rememberCoroutineScope()
     val currentOnSelect by rememberUpdatedState(onSelect)
     val touchSlop = LocalViewConfiguration.current.touchSlop
@@ -131,13 +133,26 @@ internal fun GlassSegmentedSelector(
                 .width(segmentWidth)
                 .fillMaxHeight()
                 .graphicsLayer { translationX = dragAnimation.value * segmentWidthPx }
-                .liquidGlass(
-                    shape = CapsuleShape,
-                    style = indicatorStyle,
-                    tint = tint,
-                    tintAlpha = SELECTOR_TINT_ALPHA,
-                    tintProvider = tintProvider?.let { provider ->
-                        { provider(dragAnimation.value) }
+                .drawBackdrop(
+                    backdrop = backdrop,
+                    shape = { CapsuleShape },
+                    effects = {
+                        val progress = dragAnimation.pressProgress
+                        lens(
+                            SELECTOR_LENS_HEIGHT.toPx() * progress,
+                            SELECTOR_LENS_AMOUNT.toPx() * progress,
+                            chromaticAberration = true
+                        )
+                    },
+                    highlight = {
+                        Highlight.Default.copy(alpha = dragAnimation.pressProgress)
+                    },
+                    shadow = {
+                        Shadow(alpha = dragAnimation.pressProgress)
+                    },
+                    innerShadow = {
+                        val progress = dragAnimation.pressProgress
+                        InnerShadow(radius = SELECTOR_INNER_SHADOW * progress, alpha = progress)
                     },
                     layerBlock = {
                         scaleX = dragAnimation.scaleX
@@ -147,6 +162,12 @@ internal fun GlassSegmentedSelector(
                             .fastCoerceIn(-SELECTOR_SQUISH, SELECTOR_SQUISH)
                         scaleY *= 1f - (velocity * 0.25f)
                             .fastCoerceIn(-SELECTOR_SQUISH, SELECTOR_SQUISH)
+                    },
+                    onDrawSurface = {
+                        val progress = dragAnimation.pressProgress
+                        val activeTint = tintProvider?.invoke(dragAnimation.value) ?: tint
+                        val alpha = lerp(SELECTOR_TINT_ALPHA, SELECTOR_GLASS_TINT_ALPHA, progress)
+                        drawRect(activeTint.copy(alpha = alpha))
                     }
                 )
                 .then(
@@ -211,10 +232,12 @@ internal fun GlassSegmentedSelector(
 
 private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
-private const val SELECTOR_HIGHLIGHT_ALPHA = 0.9f
 private const val SELECTOR_TINT_ALPHA = 0.88f
+private const val SELECTOR_GLASS_TINT_ALPHA = 0.45f
 private const val SELECTOR_PRESSED_SCALE = 1.1f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f
 private val SELECTOR_HEIGHT = 36.dp
-private val SELECTOR_ELEVATION = 3.dp
+private val SELECTOR_LENS_HEIGHT = 8.dp
+private val SELECTOR_LENS_AMOUNT = 12.dp
+private val SELECTOR_INNER_SHADOW = 6.dp
