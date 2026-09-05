@@ -386,6 +386,9 @@
     <string name="tool_run_failed">Gagal</string>
     <string name="chat_thought">Berpikir</string>
     <string name="chat_thought_seconds">Berpikir %1$ds</string>
+    <string name="code_copy">Salin</string>
+    <string name="code_plain">Kode</string>
+    <string name="code_markdown">Markdown</string>
     <string name="permission_ask_title">Agent Bayu butuh izin</string>
     <string name="permission_ask_allow">Buka izin</string>
     <string name="permission_ask_storage">Agent Bayu perlu akses semua berkas untuk membaca dan menulis berkas di penyimpanan ponsel. Halaman pengaturan Android akan terbuka, sakelarnya dinyalakan di sana.</string>

@@ -68,7 +68,8 @@ class RequestPermissionToolTest {
 
         val answer = result.await()
         assertFalse(answer.isError)
-        assertTrue(answer.content.contains("try again"))
+        assertTrue(answer.content.contains("settings page"))
+        assertTrue(answer.content.contains("again"))
         assertEquals(PermissionKind.STORAGE, PermissionKind.of("storage"))
         assertFalse(allowed)
     }
