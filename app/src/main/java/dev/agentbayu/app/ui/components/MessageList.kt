@@ -51,6 +51,7 @@ fun MessageList(
         if (!isResponding) return@LaunchedEffect
         while (true) {
             withFrameNanos { }
+            if (listState.isScrollInProgress) continue
             if (!listState.isNearBottom()) continue
             val overflow = listState.bottomOverflow()
             if (overflow > 0f) {
@@ -68,7 +69,7 @@ fun MessageList(
         items(items = visible, key = { message -> message.id }) { message ->
             MessageBubble(
                 message = message,
-                modifier = Modifier.animateItem(),
+                modifier = Modifier.animateItem(placementSpec = null),
                 onShowDetail = onShowDetail
             )
         }
@@ -76,7 +77,7 @@ fun MessageList(
             item(key = TYPING_KEY) {
                 TypingIndicator(
                     modifier = Modifier
-                        .animateItem()
+                        .animateItem(placementSpec = null)
                         .padding(start = 8.dp, top = 2.dp)
                 )
             }
@@ -101,4 +102,4 @@ private fun LazyListState.bottomOverflow(): Float {
 }
 
 private const val TYPING_KEY = "typing"
-private const val BOTTOM_TOLERANCE_PIXELS = 200
+private const val BOTTOM_TOLERANCE_PIXELS = 24
