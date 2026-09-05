@@ -13,7 +13,7 @@ import kotlinx.serialization.json.Json
 class ConnectionStore(
     private val storage: EncryptedStorage,
     private val clock: Clock = RealClock
-) : ConnectionSource {
+) : ConnectionSource, ProjectIdSink {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val persistScope = CoroutineScope(Dispatchers.IO.limitedParallelism(1))
@@ -63,7 +63,7 @@ class ConnectionStore(
         upsert(target.copy(effort = effort))
     }
 
-    fun setProjectId(connectionId: String, projectId: String?) {
+    override fun setProjectId(connectionId: String, projectId: String?) {
         val target = find(connectionId) ?: return
         val trimmed = projectId?.trim()?.takeIf { it.isNotEmpty() }
         if (target.projectId == trimmed) return

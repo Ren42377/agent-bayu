@@ -91,6 +91,7 @@
     <string name="agent_model_unavailable">Model ini sedang tidak bisa dipakai. Pilih model lain di koneksi aktif.</string>
     <string name="agent_server_error">Penyedia sedang bermasalah di sisi mereka. Coba lagi sebentar atau ganti penyedia aktif.</string>
     <string name="agent_network_error">Tidak ada jaringan ke penyedia. Cek koneksi internet lalu coba lagi.</string>
+    <string name="agent_setup_incomplete">Penyiapan proyek penyedia ini belum selesai. Buka Koneksi lalu masuk ulang untuk menyelesaikannya.</string>
     <string name="agent_generic_error">Penyedia menolak permintaan dengan status %1$d.</string>
     <string name="agent_error_reply">Maaf, ada gangguan saat menyiapkan jawaban. Coba lagi sebentar.</string>
 

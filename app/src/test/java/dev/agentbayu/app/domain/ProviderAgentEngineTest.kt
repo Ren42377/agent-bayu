@@ -104,6 +104,7 @@ class ProviderAgentEngineTest {
         modelUnavailable = "Model tidak tersedia.",
         serverError = "Penyedia bermasalah.",
         networkError = "Tidak ada jaringan.",
+        setupIncomplete = "Penyiapan proyek belum selesai.",
         genericError = "Status %1\$d."
     )
 

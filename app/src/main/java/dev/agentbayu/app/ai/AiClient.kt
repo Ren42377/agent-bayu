@@ -33,6 +33,7 @@ class AiClient(
     private val usageTracker: UsageTracker,
     private val logStore: LogStore,
     private val clock: Clock = RealClock,
+    private val projects: ProjectResolver = ReadyProjectResolver,
     private val pause: suspend (Long) -> Unit = { delay(it) }
 ) {
 
@@ -77,6 +78,18 @@ class AiClient(
         usageTracker.beginRequest(connectionId, countRequest)
         logStore.info(SOURCE, "Request started", route)
 
+        val routed = when (val resolution = projects.resolve(candidate, credential)) {
+            is ProjectResolution.Ready -> resolution.candidate
+            is ProjectResolution.Failed -> {
+                reportFailure(
+                    candidate,
+                    resolution.failure,
+                    detail.copy(totalMillis = clock.nowMillis() - startedAt)
+                )
+                return
+            }
+        }
+
         var firstTokenMillis = 0L
         var outputChars = 0
         var toolChars = 0
@@ -96,7 +109,7 @@ class AiClient(
             attempt += 1
             failure = null
             wireUsage = null
-            adapter.stream(candidate, credential.token, effective, credential.headers)
+            adapter.stream(routed, credential.token, effective, credential.headers)
                 .collect { event ->
                     when (event) {
                         is WireEvent.Delta -> {
@@ -131,21 +144,7 @@ class AiClient(
             totalMillis = clock.nowMillis() - startedAt
         )
         if (reported != null) {
-            usageTracker.recordFailure(connectionId, reported)
-            healthFor(reported)?.let { health ->
-                connections.markHealth(connectionId, health, reported.logLabel)
-            }
-            logStore.error(
-                SOURCE,
-                reported.message,
-                route + " " + reported.logLabel
-            )
-            Log.e(
-                TAG,
-                "Reply failed: provider=" + candidate.provider.id +
-                    " model=" + candidate.model.id + " " + reported.logLabel
-            )
-            emit(ReplyEvent.Failed(reported, complete))
+            reportFailure(candidate, reported, complete)
             return
         }
 
@@ -159,6 +158,22 @@ class AiClient(
                 usage.outputTokens + " output tokens"
         )
         emit(ReplyEvent.Completed(complete, usage))
+    }
+
+    private suspend fun FlowCollector<ReplyEvent>.reportFailure(
+        candidate: Candidate,
+        failure: RouteFailure,
+        detail: ReplyDetail
+    ) {
+        val connectionId = candidate.connection.id
+        val route = candidate.provider.id + " " + candidate.model.id
+        usageTracker.recordFailure(connectionId, failure)
+        healthFor(failure)?.let { health ->
+            connections.markHealth(connectionId, health, failure.logLabel)
+        }
+        logStore.error(SOURCE, failure.message, route + " " + failure.logLabel)
+        Log.e(TAG, "Reply failed: " + route + " " + failure.logLabel)
+        emit(ReplyEvent.Failed(failure, detail))
     }
 
     private fun retryDelayFor(failure: RouteFailure, attempt: Int): Long? {

@@ -288,7 +288,7 @@ class AntigravityAdapterTest {
     }
 
     @Test
-    fun thoughtPartsAreSkippedAndUsageIsRead() {
+    fun thoughtPartsAreSkippedWhileSignedAnswerTextSurvives() {
         val events = parseAntigravityChunk(
             """
             {"response":{"candidates":[{"content":{"parts":[
@@ -299,9 +299,23 @@ class AntigravityAdapterTest {
             """.trimIndent()
         )
 
-        assertEquals("visible", events.deltaText())
+        assertEquals("signedvisible", events.deltaText())
         assertEquals(11, events.lastUsage()?.inputTokens)
         assertEquals(7, events.lastUsage()?.outputTokens)
+    }
+
+    @Test
+    fun signedThoughtPartsStayHidden() {
+        val events = parseAntigravityChunk(
+            """
+            {"response":{"candidates":[{"content":{"parts":[
+            {"text":"planning","thought":true,"thoughtSignature":"abc"},
+            {"text":"answer","thoughtSignature":"def"}
+            ]}}]}}
+            """.trimIndent()
+        )
+
+        assertEquals("answer", events.deltaText())
     }
 
     @Test
@@ -368,6 +382,73 @@ class AntigravityAdapterTest {
         )
 
         assertFalse(body.objectField("request")?.containsKey(WireParams.TOOLS) == true)
+        assertFalse(body.objectField("request")?.containsKey("toolConfig") == true)
+    }
+
+    @Test
+    fun toolsSwitchTheFunctionCallingModeToValidated() {
+        val body = bodyOf(
+            request = ChatRequest(
+                turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")),
+                tools = listOf(testTool)
+            )
+        )
+
+        assertEquals(
+            "VALIDATED",
+            body.objectField("request")
+                ?.objectField("toolConfig")
+                ?.objectField("functionCallingConfig")
+                ?.stringField("mode")
+        )
+    }
+
+    @Test
+    fun aRequestWithoutToolsCarriesNoToolConfig() {
+        val body = bodyOf()
+
+        assertFalse(body.objectField("request")?.containsKey("toolConfig") == true)
+    }
+
+    @Test
+    fun replayedFunctionCallsCarryAnIdAndAThoughtSignature() {
+        val body = bodyOf(
+            request = chat(
+                systemPrompt = null,
+                turns = listOf(
+                    ChatTurn(ChatRole.USER, "buat tugas"),
+                    ChatTurn(
+                        role = ChatRole.ASSISTANT,
+                        content = "",
+                        toolCalls = listOf(
+                            ToolCall(
+                                id = "call_1",
+                                name = "create_task",
+                                arguments = "{\"title\":\"beli susu\"}"
+                            )
+                        )
+                    ),
+                    ChatTurn(
+                        role = ChatRole.TOOL,
+                        content = "Task created",
+                        toolCallId = "call_1",
+                        toolName = "create_task"
+                    )
+                )
+            )
+        )
+
+        val inner = body.objectField("request")
+        val part = inner?.parts("contents", 1)?.single()
+        assertEquals(ANTIGRAVITY_THOUGHT_SIGNATURE, part?.stringField("thoughtSignature"))
+        val call = part?.objectField("functionCall")
+        assertEquals("call_1", call?.stringField("id"))
+        assertEquals("create_task", call?.stringField("name"))
+
+        val response = inner?.parts("contents", 2)?.single()?.objectField("functionResponse")
+        assertEquals("call_1", response?.stringField("id"))
+        assertEquals("create_task", response?.stringField("name"))
+        assertEquals("Task created", response?.objectField("response")?.stringField("result"))
     }
 
     @Test
@@ -463,7 +544,7 @@ class AntigravityAdapterTest {
 
     private companion object {
         const val LAUNCH_MILLIS = 1_700_000_000_000L
-        const val IDE_USER_AGENT = "antigravity/ide/2.1.1 darwin/arm64"
+        const val IDE_USER_AGENT = "antigravity/ide/2.11.0 darwin/arm64"
         const val EMPTY_CHUNK = """{"response":{"candidates":[]}}"""
         val IDE_REQUEST_ID = Regex("^agent/[^/]+/\\d+/[^/]+/\\d+$")
         val UUID_SHAPE =

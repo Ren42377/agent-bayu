@@ -3,6 +3,7 @@ package dev.agentbayu.app
 import android.content.Context
 import dev.agentbayu.app.ai.ActiveProvider
 import dev.agentbayu.app.ai.AiClient
+import dev.agentbayu.app.ai.AntigravityProjectResolver
 import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
@@ -220,6 +221,12 @@ object AppGraph {
             connections = connectionStore,
             clock = clock
         )
+        val projectBootstrap = AntigravityProjectBootstrap(client)
+        val projects = AntigravityProjectResolver(
+            bootstrap = projectBootstrap,
+            sink = connectionStore,
+            clock = clock
+        )
         val aiClient = AiClient(
             activeProvider = activeProvider,
             connections = connectionStore,
@@ -227,7 +234,8 @@ object AppGraph {
             adapters = adapters,
             usageTracker = usageTracker,
             logStore = logStore,
-            clock = clock
+            clock = clock,
+            projects = projects
         )
         val pipeline = ImagePipeline(context)
         val attachments = Attachments(
@@ -298,10 +306,10 @@ object AppGraph {
             credentialStore = credentialStore,
             catalog = catalog,
             activeProvider = activeProvider,
-            tester = ConnectionTester(client, catalog, credentials, adapters, clock),
+            tester = ConnectionTester(client, catalog, credentials, adapters, clock, projects),
             deviceFlow = CodexDeviceFlow(client, clock),
             codeFlow = GoogleCodeFlow(client, clock),
-            projectBootstrap = AntigravityProjectBootstrap(client),
+            projectBootstrap = projectBootstrap,
             usageTracker = usageTracker,
             logStore = logStore,
             attachments = attachments,
@@ -321,6 +329,7 @@ object AppGraph {
         modelUnavailable = context.getString(R.string.agent_model_unavailable),
         serverError = context.getString(R.string.agent_server_error),
         networkError = context.getString(R.string.agent_network_error),
+        setupIncomplete = context.getString(R.string.agent_setup_incomplete),
         genericError = context.getString(R.string.agent_generic_error)
     )
 
@@ -334,7 +343,7 @@ object AppGraph {
         settings.markDefaultConnectionSeeded()
         if (store.connections.value.isNotEmpty()) return
         val provider = catalog.find(ProviderCatalog.DEFAULT_PROVIDER_ID) ?: return
-        val model = provider.models.firstOrNull()?.id ?: return
+        val model = provider.selectableModels.firstOrNull()?.id ?: return
         val id = store.newId()
         store.upsert(
             Connection(

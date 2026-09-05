@@ -5,6 +5,7 @@ import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.RouteFailure
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.JsonObject
@@ -55,7 +56,8 @@ class AntigravityAdapter(
 
     private fun missingProject(): RouteFailure = RouteFailure(
         kind = FailureKind.TERMINAL,
-        message = "sign in again to finish Antigravity project setup"
+        message = "sign in again to finish Antigravity project setup",
+        needsSetup = true
     )
 
     companion object {
@@ -110,6 +112,11 @@ internal fun antigravityBody(
         }
         if (request.tools.isNotEmpty() && WireParams.supports(candidate, WireParams.TOOLS)) {
             putGeminiTools(request.tools)
+            putJsonObject(TOOL_CONFIG) {
+                putJsonObject(FUNCTION_CALLING_CONFIG) {
+                    put(MODE, MODE_VALIDATED)
+                }
+            }
         }
         putJsonObject("generationConfig") {
             val requestedMax = request.maxOutputTokens ?: candidate.model.maxOutputTokens
@@ -125,7 +132,26 @@ internal fun antigravityBody(
 private fun antigravityFunctionResponseContent(turns: List<ChatTurn>): JsonObject = buildJsonObject {
     put("role", "user")
     putJsonArray("parts") {
-        turns.forEach { turn -> add(geminiFunctionResponsePart(turn)) }
+        turns.forEach { turn -> add(antigravityFunctionResponsePart(turn)) }
+    }
+}
+
+private fun antigravityFunctionResponsePart(turn: ChatTurn): JsonObject = buildJsonObject {
+    putJsonObject("functionResponse") {
+        turn.toolCallId?.takeIf { it.isNotBlank() }?.let { id -> put("id", id) }
+        put("name", turn.toolName.orEmpty())
+        putJsonObject("response") {
+            if (turn.toolFailed) put("error", turn.content) else put("result", turn.content)
+        }
+    }
+}
+
+private fun antigravityFunctionCallPart(call: ToolCall): JsonObject = buildJsonObject {
+    put(THOUGHT_SIGNATURE, ANTIGRAVITY_THOUGHT_SIGNATURE)
+    putJsonObject("functionCall") {
+        put("id", call.id)
+        put("name", call.name)
+        put("args", argumentsObject(call.arguments))
     }
 }
 
@@ -145,7 +171,7 @@ private fun antigravityContent(turn: ChatTurn): JsonObject = buildJsonObject {
         if (turn.content.isNotEmpty() || turn.toolCalls.isEmpty()) {
             add(buildJsonObject { put("text", turn.content) })
         }
-        turn.toolCalls.forEach { call -> add(geminiFunctionCallPart(call)) }
+        turn.toolCalls.forEach { call -> add(antigravityFunctionCallPart(call)) }
     }
 }
 
@@ -222,9 +248,7 @@ internal fun parseAntigravityChunk(
     if (parts != null) {
         val text = parts.mapNotNull { element ->
             val part = element as? JsonObject ?: return@mapNotNull null
-            val isThought = part.booleanField(THOUGHT) == true ||
-                !part.stringField(THOUGHT_SIGNATURE).isNullOrEmpty()
-            if (isThought) null else part.stringField("text")
+            if (part.booleanField(THOUGHT) == true) null else part.stringField("text")
         }.joinToString("")
         if (text.isNotEmpty()) events += WireEvent.Delta(text)
         collectFunctionCalls(parts, tools)
@@ -239,6 +263,10 @@ internal fun parseAntigravityChunk(
 }
 
 private val MODEL_ALIASES = mapOf(
+    "gemini-3.8-flash" to "gemini-3.8-flash-medium(medium)",
+    "gemini-3.8-flash-high" to "gemini-3.8-flash-high(high)",
+    "gemini-3.8-flash-medium" to "gemini-3.8-flash-medium(medium)",
+    "gemini-3.8-flash-low" to "gemini-3.8-flash-low(low)",
     "gemini-3.7-flash" to "gemini-3.7-flash-tiered(high)",
     "gemini-3.7-flash-tiered" to "gemini-3.7-flash-tiered(high)",
     "gemini-3.7-flash-high" to "gemini-3.7-flash-tiered(high)",
@@ -273,4 +301,8 @@ private const val REQUEST = "request"
 private const val RESPONSE = "response"
 private const val THOUGHT = "thought"
 private const val THOUGHT_SIGNATURE = "thoughtSignature"
+private const val TOOL_CONFIG = "toolConfig"
+private const val FUNCTION_CALLING_CONFIG = "functionCallingConfig"
+private const val MODE = "mode"
+private const val MODE_VALIDATED = "VALIDATED"
 private const val STREAM_ERROR_STATUS = 500

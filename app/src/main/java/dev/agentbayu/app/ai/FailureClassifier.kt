@@ -12,10 +12,12 @@ data class RouteFailure(
     val message: String,
     val statusCode: Int? = null,
     val retryAfterMillis: Long? = null,
-    val tripsBreaker: Boolean = false
+    val tripsBreaker: Boolean = false,
+    val needsSetup: Boolean = false
 ) {
     val logLabel: String
-        get() = "status=" + (statusCode ?: 0) + " kind=" + kind.name
+        get() = "status=" + (statusCode ?: 0) + " kind=" + kind.name +
+            if (needsSetup) " setup" else ""
 }
 
 object FailureClassifier {

@@ -24,6 +24,7 @@ class AiClientTest {
         var lastKey: String? = null
         var lastRequest: ChatRequest? = null
         var lastHeaders: Map<String, String> = emptyMap()
+        var lastCandidate: Candidate? = null
 
         override fun stream(
             candidate: Candidate,
@@ -34,7 +35,31 @@ class AiClientTest {
             lastKey = apiKey
             lastRequest = request
             lastHeaders = authHeaders
+            lastCandidate = candidate
             events.forEach { emit(it) }
+        }
+    }
+
+    private class StubProjectResolver(private val projectId: String?) : ProjectResolver {
+        var calls = 0
+
+        override suspend fun resolve(
+            candidate: Candidate,
+            credential: WireCredential
+        ): ProjectResolution {
+            calls += 1
+            if (projectId == null) return ProjectResolution.Failed(setupFailure)
+            return ProjectResolution.Ready(
+                candidate.copy(connection = candidate.connection.copy(projectId = projectId))
+            )
+        }
+
+        companion object {
+            val setupFailure = RouteFailure(
+                kind = FailureKind.TERMINAL,
+                message = "sign in again to finish Antigravity project setup",
+                needsSetup = true
+            )
         }
     }
 
@@ -109,7 +134,8 @@ class AiClientTest {
         ),
         tracker: UsageTracker = UsageTracker(FakeClock()),
         logStore: LogStore = LogStore(FakeClock()),
-        clock: Clock = FakeClock(1_000L)
+        clock: Clock = FakeClock(1_000L),
+        projects: ProjectResolver = ReadyProjectResolver
     ): AiClient = AiClient(
         activeProvider = ActiveProvider(
             connections,
@@ -121,7 +147,8 @@ class AiClientTest {
         adapters = adapter?.let { mapOf(candidate.provider.wireFormat to it) } ?: emptyMap(),
         usageTracker = tracker,
         logStore = logStore,
-        clock = clock
+        clock = clock,
+        projects = projects
     )
 
     @Test
@@ -524,5 +551,44 @@ class AiClientTest {
         val usage = (events.last() as ReplyEvent.Completed).usage
         assertTrue(usage.estimated)
         assertTrue(usage.inputTokens > ChatImage.TOKEN_COST)
+    }
+
+    @Test
+    fun `a resolved project reaches the adapter`() = runTest {
+        val candidate = testCandidate()
+        val adapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        val projects = StubProjectResolver("project-1")
+
+        val events = clientFor(candidate, adapter, projects = projects).stream(request).toList()
+
+        assertEquals(1, projects.calls)
+        assertEquals("project-1", adapter.lastCandidate?.connection?.projectId)
+        assertTrue(events.last() is ReplyEvent.Completed)
+    }
+
+    @Test
+    fun `a failed project bootstrap fails the reply without calling the adapter`() = runTest {
+        val candidate = testCandidate()
+        val adapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        val tracker = UsageTracker(FakeClock())
+        val connections = FakeConnectionSource(listOf(candidate.connection), "conn-1")
+
+        val events = clientFor(
+            candidate,
+            adapter,
+            connections = connections,
+            tracker = tracker,
+            projects = StubProjectResolver(null)
+        ).stream(request).toList()
+
+        val failed = events.single() as ReplyEvent.Failed
+        assertTrue(failed.failure.needsSetup)
+        assertEquals(FailureKind.TERMINAL, failed.failure.kind)
+        assertNull(adapter.lastCandidate)
+        assertEquals(1, tracker.statsFor("conn-1").failures)
+        assertEquals(
+            "conn-1" to ConnectionHealth.NEEDS_ATTENTION,
+            connections.healthCalls.single()
+        )
     }
 }

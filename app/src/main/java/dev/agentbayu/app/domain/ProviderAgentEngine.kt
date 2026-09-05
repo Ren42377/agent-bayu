@@ -29,6 +29,7 @@ data class ProviderCopy(
     val modelUnavailable: String,
     val serverError: String,
     val networkError: String,
+    val setupIncomplete: String,
     val genericError: String
 )
 
@@ -183,6 +184,7 @@ class ProviderAgentEngine(
             status == STATUS_TOO_MANY_REQUESTS -> rateLimitMessage(failure)
             failure.kind == FailureKind.MODEL_LOCK -> copy.modelUnavailable
             status != null && status >= STATUS_SERVER_ERROR -> copy.serverError
+            failure.needsSetup -> copy.setupIncomplete
             status == null -> copy.networkError
             else -> copy.genericError.format(status)
         }
