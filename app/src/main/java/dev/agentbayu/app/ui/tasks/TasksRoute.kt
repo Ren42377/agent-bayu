@@ -10,6 +10,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -20,8 +21,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskItem
+import dev.agentbayu.app.domain.tasks.TaskSort
+import dev.agentbayu.app.domain.tasks.TaskStore
 import dev.agentbayu.app.domain.tasks.completedTasks
 import dev.agentbayu.app.domain.tasks.pendingRows
+import dev.agentbayu.app.domain.tasks.starredCompleted
+import dev.agentbayu.app.domain.tasks.starredRows
 import dev.agentbayu.app.platform.NotificationAccess
 import dev.agentbayu.app.ui.components.GlassDialog
 
@@ -54,6 +59,9 @@ fun TasksRoute(
     var clearCompletedOpen by remember { mutableStateOf(false) }
     var rowMenuTask by remember { mutableStateOf<TaskItem?>(null) }
     var moveTargetTask by remember { mutableStateOf<TaskItem?>(null) }
+    var starredOpen by rememberSaveable { mutableStateOf(false) }
+    var sortMenuOpen by remember { mutableStateOf(false) }
+    var quickAddOpen by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
@@ -84,19 +92,27 @@ fun TasksRoute(
 
     val activeList = lists.firstOrNull { it.id == activeId } ?: lists.firstOrNull()
     val listId = activeList?.id
-    val rows = remember(tasks, listId, sort) {
-        if (listId == null) emptyList() else pendingRows(tasks, listId, sort)
+    val rows = remember(tasks, listId, sort, starredOpen) {
+        when {
+            starredOpen -> starredRows(tasks, sort)
+            listId == null -> emptyList()
+            else -> pendingRows(tasks, listId, sort)
+        }
     }
-    val completed = remember(tasks, listId) {
-        if (listId == null) emptyList() else completedTasks(tasks, listId)
+    val completed = remember(tasks, listId, starredOpen) {
+        when {
+            starredOpen -> starredCompleted(tasks)
+            listId == null -> emptyList()
+            else -> completedTasks(tasks, listId)
+        }
     }
 
     TasksScreen(
         lists = lists,
         activeList = activeList,
+        starredOpen = starredOpen,
         rows = rows,
         completed = completed,
-        sort = sort,
         notificationsAllowed = notificationsAllowed,
         exactAlarmsAllowed = exactAlarmsAllowed,
         onRequestNotifications = {
@@ -111,10 +127,15 @@ fun TasksRoute(
                 onMessage(settingsUnavailable)
             }
         },
-        onSelectList = store::setActiveList,
+        onSelectStarred = { starredOpen = true },
+        onSelectList = { id ->
+            starredOpen = false
+            store.setActiveList(id)
+        },
+        onNewList = { newListOpen = true },
         onListMenu = { listMenuOpen = true },
-        onSortChange = store::setSort,
-        onAddTask = { listId?.let { onOpenTask(null, it, null) } },
+        onSortMenu = { sortMenuOpen = true },
+        onAddTask = { quickAddOpen = true },
         onOpenTask = { task -> onOpenTask(task.id, task.listId, task.parentId) },
         onToggleCompleted = { task -> store.setCompleted(task.id, !task.completed) },
         onToggleStarred = { task -> store.setStarred(task.id, !task.starred) },
@@ -170,4 +191,43 @@ fun TasksRoute(
         dismissLabel = stringResource(R.string.tasks_detail_cancel),
         onDismiss = { clearCompletedOpen = false }
     )
+
+    TaskActionSheet(
+        visible = sortMenuOpen,
+        title = stringResource(R.string.tasks_sort_menu),
+        actions = TaskSort.entries.map { option ->
+            TaskAction(label = sortLabel(option)) { store.setSort(option) }
+        },
+        onDismiss = { sortMenuOpen = false }
+    )
+
+    TaskQuickAddSheet(
+        visible = quickAddOpen,
+        onSave = { quick ->
+            quickAddOpen = false
+            val target = listId ?: store.createList(defaultListTitle).also(store::setActiveList)
+            saveQuickTask(store, target, quick)
+        },
+        onOpenDetails = { quick ->
+            quickAddOpen = false
+            val target = listId ?: store.createList(defaultListTitle).also(store::setActiveList)
+            onOpenTask(saveQuickTask(store, target, quick), target, null)
+        },
+        onDismiss = { quickAddOpen = false }
+    )
+}
+
+private fun saveQuickTask(store: TaskStore, listId: String, quick: QuickTask): String? {
+    val id = store.createTask(listId, quick.title.ifBlank { return null })
+    if (id.isEmpty()) return null
+    val created = store.find(id) ?: return null
+    store.upsertTask(
+        created.copy(
+            details = quick.details,
+            dueAtMillis = quick.dueAtMillis,
+            hasTime = quick.hasTime
+        )
+    )
+    if (quick.starred) store.setStarred(id, true)
+    return id
 }

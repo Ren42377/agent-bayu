@@ -3,6 +3,7 @@ package dev.agentbayu.app.ui.tasks
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,8 +28,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskItem
-import dev.agentbayu.app.ui.theme.GlassTileShape
-import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
 internal fun TaskRowItem(
@@ -45,11 +44,14 @@ internal fun TaskRowItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = if (subtask) 28.dp else 0.dp)
-            .glassSurface(shape = GlassTileShape)
-            .clickable(onClick = onOpen)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .combinedClickable(onLongClick = onMenu, onClick = onOpen)
+            .padding(
+                start = if (subtask) 44.dp else 16.dp,
+                end = 8.dp,
+                top = 8.dp,
+                bottom = 8.dp
+            ),
+        verticalAlignment = Alignment.Top
     ) {
         CompleteCircle(completed = task.completed, onClick = onToggleCompleted)
         Spacer(modifier = Modifier.width(12.dp))
@@ -68,24 +70,13 @@ internal fun TaskRowItem(
                     text = details,
                     style = MaterialTheme.typography.bodySmall,
                     color = scheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
             }
             TaskRowMeta(task = task, overdue = overdue)
         }
-        Spacer(modifier = Modifier.width(8.dp))
         StarButton(starred = task.starred, onClick = onToggleStarred)
-        Spacer(modifier = Modifier.width(4.dp))
-        Icon(
-            painter = painterResource(R.drawable.ic_more_vert),
-            contentDescription = stringResource(R.string.tasks_row_menu),
-            tint = scheme.onSurfaceVariant.copy(alpha = 0.6f),
-            modifier = Modifier
-                .size(28.dp)
-                .clickable(onClick = onMenu)
-                .padding(5.dp)
-        )
     }
 }
 
@@ -95,23 +86,35 @@ private fun TaskRowMeta(task: TaskItem, overdue: Boolean) {
     val schedule = taskScheduleLabel(task)
     val repeats = task.repeat != null
     if (schedule == null && !repeats) return
+    val color = when {
+        overdue -> scheme.error
+        schedule != null -> scheme.primary
+        else -> scheme.onSurfaceVariant
+    }
     Row(
-        modifier = Modifier.padding(top = 3.dp),
+        modifier = Modifier.padding(top = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         if (schedule != null) {
+            Icon(
+                painter = painterResource(R.drawable.ic_clock),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(13.dp)
+            )
             Text(
                 text = schedule,
                 style = MaterialTheme.typography.labelMedium,
-                color = if (overdue) scheme.error else scheme.primary
+                color = color
             )
         }
         if (repeats) {
-            Text(
-                text = stringResource(R.string.tasks_repeat_badge),
-                style = MaterialTheme.typography.labelSmall,
-                color = scheme.onSurfaceVariant
+            Icon(
+                painter = painterResource(R.drawable.ic_repeat),
+                contentDescription = stringResource(R.string.tasks_repeat_badge),
+                tint = scheme.onSurfaceVariant,
+                modifier = Modifier.size(13.dp)
             )
         }
     }
@@ -158,8 +161,8 @@ private fun StarButton(starred: Boolean, onClick: () -> Unit) {
         ),
         tint = if (starred) scheme.primary else scheme.onSurfaceVariant.copy(alpha = 0.6f),
         modifier = Modifier
-            .size(28.dp)
+            .size(30.dp)
             .clickable(onClick = onClick)
-            .padding(4.dp)
+            .padding(5.dp)
     )
 }

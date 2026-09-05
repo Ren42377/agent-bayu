@@ -276,6 +276,11 @@
     <string name="tasks_title">Tugas</string>
     <string name="tasks_add">Tambah tugas</string>
     <string name="tasks_add_hint">Tugas baru</string>
+    <string name="tasks_quick_title_hint">Tugas baru</string>
+    <string name="tasks_quick_more">Detail</string>
+    <string name="tasks_tab_starred">Berbintang</string>
+    <string name="tasks_tab_new_list">Daftar baru</string>
+    <string name="tasks_sort_menu">Urutkan</string>
     <string name="tasks_empty">Belum ada tugas di daftar ini. Ketuk tambah untuk membuat satu.</string>
     <string name="tasks_completed_section">Selesai (%1$d)</string>
     <string name="tasks_sort_my_order">Urutan saya</string>

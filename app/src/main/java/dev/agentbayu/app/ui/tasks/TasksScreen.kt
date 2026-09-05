@@ -2,30 +2,26 @@ package dev.agentbayu.app.ui.tasks
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -33,10 +29,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskItem
 import dev.agentbayu.app.domain.tasks.TaskList
 import dev.agentbayu.app.domain.tasks.TaskRow
-import dev.agentbayu.app.domain.tasks.TaskSort
-import dev.agentbayu.app.ui.ai.AiDropdown
 import dev.agentbayu.app.ui.components.GlassButton
-import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -45,16 +38,18 @@ import dev.agentbayu.app.ui.theme.glassSurface
 fun TasksScreen(
     lists: List<TaskList>,
     activeList: TaskList?,
+    starredOpen: Boolean,
     rows: List<TaskRow>,
     completed: List<TaskItem>,
-    sort: TaskSort,
     notificationsAllowed: Boolean,
     exactAlarmsAllowed: Boolean,
     onRequestNotifications: () -> Unit,
     onRequestExactAlarms: () -> Unit,
+    onSelectStarred: () -> Unit,
     onSelectList: (String) -> Unit,
+    onNewList: () -> Unit,
     onListMenu: () -> Unit,
-    onSortChange: (TaskSort) -> Unit,
+    onSortMenu: () -> Unit,
     onAddTask: () -> Unit,
     onOpenTask: (TaskItem) -> Unit,
     onToggleCompleted: (TaskItem) -> Unit,
@@ -64,156 +59,129 @@ fun TasksScreen(
 ) {
     val insets = LocalScreenInsets.current
     var completedOpen by rememberSaveable { mutableStateOf(false) }
-    val sorts = remember { TaskSort.entries }
-    val sortLabels = sorts.map { sortLabel(it) }
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(top = insets.calculateTopPadding())
-    ) {
-        Row(
+    val cardTitle = if (starredOpen) {
+        stringResource(R.string.tasks_tab_starred)
+    } else {
+        activeList?.title ?: stringResource(R.string.tasks_list_default)
+    }
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .fillMaxSize()
+                .padding(top = insets.calculateTopPadding())
         ) {
             Text(
                 text = stringResource(R.string.tasks_title),
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 6.dp)
             )
-            GlassButton(
-                onClick = onListMenu,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+            TaskListTabs(
+                lists = lists,
+                activeListId = activeList?.id,
+                starredOpen = starredOpen,
+                onSelectStarred = onSelectStarred,
+                onSelectList = onSelectList,
+                onNewList = onNewList,
+                modifier = Modifier.fillMaxWidth()
+            )
+            LazyColumn(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentPadding = PaddingValues(
+                    start = 12.dp,
+                    end = 12.dp,
+                    top = 10.dp,
+                    bottom = 96.dp + insets.calculateBottomPadding()
+                ),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_more_vert),
-                    contentDescription = stringResource(R.string.tasks_list_menu),
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            AiDropdown(
-                selectedLabel = activeList?.title
-                    ?: stringResource(R.string.tasks_list_default),
-                options = lists.map { it.id to it.title },
-                onSelect = onSelectList
-            )
-            GlassSegmentedSelector(
-                labels = sortLabels,
-                selectedIndex = sorts.indexOf(sort).coerceAtLeast(0),
-                onSelect = { index -> onSortChange(sorts[index]) }
-            )
-        }
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(
-                start = 16.dp,
-                end = 16.dp,
-                top = 12.dp,
-                bottom = 12.dp
-            ),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (!notificationsAllowed) {
-                item(key = "notice-notifications") {
-                    TaskNotice(
-                        title = stringResource(R.string.tasks_permission_card_title),
-                        body = stringResource(R.string.tasks_permission_card_body),
-                        action = stringResource(R.string.tasks_permission_card_action),
-                        onAction = onRequestNotifications
-                    )
-                }
-            }
-            if (notificationsAllowed && !exactAlarmsAllowed) {
-                item(key = "notice-exact") {
-                    TaskNotice(
-                        title = stringResource(R.string.tasks_exact_card_title),
-                        body = stringResource(R.string.tasks_exact_card_body),
-                        action = stringResource(R.string.tasks_exact_card_action),
-                        onAction = onRequestExactAlarms
-                    )
-                }
-            }
-            if (rows.isEmpty() && completed.isEmpty()) {
-                item(key = "empty") {
-                    Text(
-                        text = stringResource(R.string.tasks_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 24.dp)
-                    )
-                }
-            }
-            items(items = rows, key = { it.task.id }) { row ->
-                TaskRowItem(
-                    task = row.task,
-                    subtask = row.subtask,
-                    onOpen = { onOpenTask(row.task) },
-                    onToggleCompleted = { onToggleCompleted(row.task) },
-                    onToggleStarred = { onToggleStarred(row.task) },
-                    onMenu = { onRowMenu(row.task) }
-                )
-            }
-            if (completed.isNotEmpty()) {
-                item(key = "completed-header") {
-                    CompletedHeader(
-                        count = completed.size,
-                        expanded = completedOpen,
-                        onToggle = { completedOpen = !completedOpen }
-                    )
-                }
-                if (completedOpen) {
-                    items(items = completed, key = { it.id }) { task ->
-                        TaskRowItem(
-                            task = task,
-                            subtask = task.parentId != null,
-                            onOpen = { onOpenTask(task) },
-                            onToggleCompleted = { onToggleCompleted(task) },
-                            onToggleStarred = { onToggleStarred(task) },
-                            onMenu = { onRowMenu(task) }
+                if (!notificationsAllowed) {
+                    item(key = "notice-notifications") {
+                        TaskNotice(
+                            title = stringResource(R.string.tasks_permission_card_title),
+                            body = stringResource(R.string.tasks_permission_card_body),
+                            action = stringResource(R.string.tasks_permission_card_action),
+                            onAction = onRequestNotifications
                         )
+                    }
+                }
+                if (notificationsAllowed && !exactAlarmsAllowed) {
+                    item(key = "notice-exact") {
+                        TaskNotice(
+                            title = stringResource(R.string.tasks_exact_card_title),
+                            body = stringResource(R.string.tasks_exact_card_body),
+                            action = stringResource(R.string.tasks_exact_card_action),
+                            onAction = onRequestExactAlarms
+                        )
+                    }
+                }
+                item(key = "card") {
+                    TaskCard(
+                        title = cardTitle,
+                        onSort = if (starredOpen) null else onSortMenu,
+                        onMenu = if (starredOpen) null else onListMenu
+                    ) {
+                        if (rows.isEmpty() && completed.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.tasks_empty),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)
+                            )
+                        }
+                        rows.forEach { row ->
+                            TaskRowItem(
+                                task = row.task,
+                                subtask = row.subtask,
+                                onOpen = { onOpenTask(row.task) },
+                                onToggleCompleted = { onToggleCompleted(row.task) },
+                                onToggleStarred = { onToggleStarred(row.task) },
+                                onMenu = { onRowMenu(row.task) }
+                            )
+                        }
+                        if (completed.isNotEmpty()) {
+                            CompletedHeader(
+                                count = completed.size,
+                                expanded = completedOpen,
+                                onToggle = { completedOpen = !completedOpen }
+                            )
+                            if (completedOpen) {
+                                completed.forEach { task ->
+                                    TaskRowItem(
+                                        task = task,
+                                        subtask = task.parentId != null,
+                                        onOpen = { onOpenTask(task) },
+                                        onToggleCompleted = { onToggleCompleted(task) },
+                                        onToggleStarred = { onToggleStarred(task) },
+                                        onMenu = { onRowMenu(task) }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
         }
-        Row(
+        GlassButton(
+            onClick = onAddTask,
             modifier = Modifier
-                .fillMaxWidth()
+                .align(Alignment.BottomEnd)
                 .padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    bottom = 12.dp + insets.calculateBottomPadding()
+                    end = 20.dp,
+                    bottom = 20.dp + insets.calculateBottomPadding()
                 )
+                .size(56.dp),
+            tint = MaterialTheme.colorScheme.primary,
+            shape = GlassCardShape,
+            contentPadding = PaddingValues(0.dp)
         ) {
-            GlassButton(
-                onClick = onAddTask,
-                modifier = Modifier.fillMaxWidth(),
-                tint = MaterialTheme.colorScheme.primary,
-                contentPadding = PaddingValues(vertical = 14.dp),
-                horizontalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_add),
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.tasks_add),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = Color.White
-                )
-            }
+            Icon(
+                painter = painterResource(R.drawable.ic_add),
+                contentDescription = stringResource(R.string.tasks_add),
+                modifier = Modifier.size(24.dp)
+            )
         }
     }
 }
@@ -244,17 +212,13 @@ private fun TaskNotice(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
-        Spacer(modifier = Modifier.width(10.dp))
         GlassButton(
             onClick = onAction,
+            modifier = Modifier.padding(start = 10.dp),
             tint = MaterialTheme.colorScheme.primary,
             contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
         ) {
-            Text(
-                text = action,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimary
-            )
+            Text(text = action, style = MaterialTheme.typography.labelMedium)
         }
     }
 }
@@ -269,7 +233,7 @@ private fun CompletedHeader(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onToggle)
-            .padding(horizontal = 8.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
