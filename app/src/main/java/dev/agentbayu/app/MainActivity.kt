@@ -61,6 +61,9 @@ import dev.agentbayu.app.ui.components.GlassTabsProgress
 import dev.agentbayu.app.ui.components.LocalGlassOverlay
 import dev.agentbayu.app.ui.components.PageStackProgress
 import dev.agentbayu.app.ui.components.ToolApprovalSheet
+import dev.agentbayu.app.ui.history.HistoryDrawer
+import dev.agentbayu.app.ui.history.HistoryDrawerState
+import dev.agentbayu.app.ui.history.rememberHistoryDrawerState
 import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
@@ -133,6 +136,7 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
     val pageController = remember { AppPageController() }
     val pageProgress = remember { PageStackProgress() }
     val tabProgress = remember { GlassTabsProgress() }
+    val historyDrawer = rememberHistoryDrawerState()
     val destinations = AgentBayuDestination.entries
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     val onMessage: (String) -> Unit = { message -> messages.value = message }
@@ -247,7 +251,8 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                                     TabContent(
                                         destination = destinations[page],
                                         controller = pageController,
-                                        onMessage = onMessage
+                                        onMessage = onMessage,
+                                        drawer = historyDrawer
                                     )
                                 }
                             }
@@ -264,6 +269,8 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                     }
                 }
             }
+
+            HistoryDrawer(state = historyDrawer, onMessage = onMessage)
 
             ToolApprovalHost()
 
@@ -340,13 +347,14 @@ private fun permissionBody(kind: PermissionKind): Int = when (kind) {
 private fun TabContent(
     destination: AgentBayuDestination,
     controller: AppPageController,
-    onMessage: (String) -> Unit
+    onMessage: (String) -> Unit,
+    drawer: HistoryDrawerState
 ) {
     when (destination) {
         AgentBayuDestination.CHAT -> ChatRoute(
             onMessage = onMessage,
             onOpenProviders = { controller.openProviders() },
-            onOpenHistory = { controller.openHistory() },
+            drawer = drawer,
             modifier = Modifier.fillMaxSize()
         )
 

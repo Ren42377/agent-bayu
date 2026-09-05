@@ -15,7 +15,7 @@ class MessageMarkupTest {
 
     @Test
     fun displayMathBecomesItsOwnBlock() {
-        val blocks = splitMarkup("Rumusnya:\n\n$$x^2 + y^2 = z^2$$\n\nSelesai.")
+        val blocks = splitMarkup("Rumusnya:\n\n\$\$x^2 + y^2 = z^2\$\$\n\nSelesai.")
 
         assertEquals(3, blocks.size)
         assertTrue(blocks[0] is MarkupBlock.Markdown)

@@ -36,13 +36,14 @@ import dev.agentbayu.app.ui.components.AttachmentThumbnails
 import dev.agentbayu.app.ui.components.GlassDialog
 import dev.agentbayu.app.ui.components.LocalAttachmentLoader
 import dev.agentbayu.app.ui.components.defaultSuggestions
+import dev.agentbayu.app.ui.history.HistoryDrawerState
 import kotlinx.coroutines.launch
 
 @Composable
 fun ChatRoute(
     onMessage: (String) -> Unit,
     onOpenProviders: () -> Unit,
-    onOpenHistory: () -> Unit,
+    drawer: HistoryDrawerState,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -161,8 +162,8 @@ fun ChatRoute(
                 connectionStore.setEffort(connectionId, effort)
             },
             onManageProviders = onOpenProviders,
-            onOpenHistory = onOpenHistory,
             onStop = chat::cancel,
+            drawer = drawer,
             modifier = modifier,
             attachments = pending,
             canAttach = canAttach,

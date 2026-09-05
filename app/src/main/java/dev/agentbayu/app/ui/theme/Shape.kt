@@ -19,6 +19,8 @@ val GlassBadgeShape = RoundedCornerShape(12.dp)
 
 val PanelShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
 
+val PanelStartShape = RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp)
+
 val UserBubbleShape = RoundedCornerShape(
     topStart = 20.dp,
     topEnd = 20.dp,

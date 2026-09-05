@@ -52,6 +52,8 @@ import dev.agentbayu.app.ui.components.GlassButtonDefaults
 import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionChips
+import dev.agentbayu.app.ui.history.HistoryDrawerState
+import dev.agentbayu.app.ui.history.historyDrawerEdge
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -73,8 +75,8 @@ fun ChatScreen(
     onSelectModel: (String, String) -> Unit,
     onSelectEffort: (String, ReasoningEffort) -> Unit,
     onManageProviders: () -> Unit,
-    onOpenHistory: () -> Unit,
     onStop: () -> Unit,
+    drawer: HistoryDrawerState,
     modifier: Modifier = Modifier,
     attachments: List<MessageAttachment> = emptyList(),
     canAttach: Boolean = false,
@@ -94,7 +96,11 @@ fun ChatScreen(
     val messagesBackdrop = rememberLayerBackdrop()
     val overlayBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, messagesBackdrop)
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .historyDrawerEdge(drawer)
+    ) {
         if (messages.isEmpty()) {
             EmptyState(
                 suggestions = suggestions,
@@ -157,9 +163,9 @@ fun ChatScreen(
                         .padding(horizontal = HEADER_ACTION_RESERVE)
                 )
                 GlassButton(
-                    onClick = onOpenHistory,
+                    onClick = drawer::open,
                     modifier = Modifier
-                        .align(Alignment.CenterEnd)
+                        .align(Alignment.CenterStart)
                         .size(40.dp),
                     shape = CircleShape,
                     contentPadding = GlassButtonDefaults.IconPadding
@@ -189,6 +195,7 @@ fun ChatScreen(
                 )
             }
         }
+
     }
 
     detailMessage?.let { message ->

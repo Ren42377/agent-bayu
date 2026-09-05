@@ -7,8 +7,6 @@ sealed interface AppPage {
 
     data object Providers : AppPage
 
-    data object History : AppPage
-
     data object Logs : AppPage
 
     data class Connection(val connectionId: String?) : AppPage
@@ -29,11 +27,6 @@ class AppPageController {
     fun openProviders() {
         stack.clear()
         stack.add(AppPage.Providers)
-    }
-
-    fun openHistory() {
-        stack.clear()
-        stack.add(AppPage.History)
     }
 
     fun openLogs() {
