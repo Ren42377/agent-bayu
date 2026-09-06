@@ -1,16 +1,11 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -43,18 +38,10 @@ internal fun EffortSelector(
     val selectedIndex = options.indexOf(selected).coerceAtLeast(0)
     val colors = remember(options) { options.map { effortColor(it) } }
     val stars = remember { starField() }
-    val transition = rememberInfiniteTransition(label = "effortStars")
-    val phase = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = TWO_PI,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = STAR_CYCLE_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "effortStarPhase"
-    )
+    val phase = remember { mutableFloatStateOf(0f) }
     val drift = remember { mutableFloatStateOf(0f) }
     val boost = remember { mutableFloatStateOf(0f) }
+    val pace by rememberUpdatedState(paceOf(options.getOrNull(selectedIndex)))
 
     LaunchedEffect(Unit) {
         var lastFrame = withFrameNanos { it }
@@ -62,7 +49,9 @@ internal fun EffortSelector(
             val frame = withFrameNanos { it }
             val deltaSeconds = ((frame - lastFrame) / NANOS_PER_SECOND).fastCoerceIn(0f, 0.1f)
             lastFrame = frame
-            drift.floatValue += (STAR_DRIFT_SPEED + boost.floatValue) * deltaSeconds
+            val level = pace
+            drift.floatValue += (level.driftSpeed + boost.floatValue) * deltaSeconds
+            phase.floatValue = (phase.floatValue + level.twinkleSpeed * deltaSeconds) % TWO_PI
         }
     }
 
@@ -75,8 +64,18 @@ internal fun EffortSelector(
         tintProvider = { value -> gradientColor(colors, value) },
         decoration = { value, velocity ->
             boost.floatValue = velocity.fastCoerceIn(-MAX_STAR_SPEED, MAX_STAR_SPEED)
-            drawStars(stars, phase.value, value, drift.floatValue)
+            drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
+    )
+}
+
+private class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
+
+private fun paceOf(effort: ReasoningEffort?): StarPace {
+    val step = effort?.ordinal ?: 0
+    return StarPace(
+        driftSpeed = STAR_BASE_DRIFT + step * STAR_DRIFT_STEP,
+        twinkleSpeed = STAR_BASE_TWINKLE + step * STAR_TWINKLE_STEP
     )
 }
 
@@ -138,12 +137,14 @@ private const val TWO_PI = 6.2831855f
 private const val NANOS_PER_SECOND = 1_000_000_000f
 private const val STAR_SEED = 20260901L
 private const val STAR_COUNT = 24
-private const val STAR_CYCLE_MILLIS = 4200
 private const val STAR_MIN_RADIUS = 0.6f
 private const val STAR_MAX_RADIUS = 1.4f
 private const val STAR_MIN_ALPHA = 0.12f
 private const val STAR_MAX_ALPHA = 0.85f
 private const val STAR_MARGIN = 0.12f
 private const val STAR_PARALLAX = 0.14f
-private const val STAR_DRIFT_SPEED = 16f
+private const val STAR_BASE_DRIFT = 10f
+private const val STAR_DRIFT_STEP = 26f
+private const val STAR_BASE_TWINKLE = 1f
+private const val STAR_TWINKLE_STEP = 0.55f
 private const val MAX_STAR_SPEED = 4000f
