@@ -198,7 +198,11 @@ private fun GlassOverlayPanel(
                             .fillMaxHeight(SHEET_HEIGHT_RATIO)
 
                         isMenu && anchor != null -> Modifier
-                            .width(with(density) { anchor.width.toDp() })
+                            .width(
+                                with(density) {
+                                    anchor.width.toDp().coerceIn(MENU_MIN_WIDTH, MENU_MAX_WIDTH)
+                                }
+                            )
                             .heightIn(max = MENU_MAX_HEIGHT)
 
                         else -> Modifier
@@ -302,6 +306,8 @@ private fun GlassOverlayPanel(
 private val OVERLAY_SHAPE = RoundedCornerShape(36.dp)
 private val MENU_SHAPE = RoundedCornerShape(22.dp)
 private val MENU_GAP = 6.dp
+private val MENU_MIN_WIDTH = 160.dp
+private val MENU_MAX_WIDTH = 420.dp
 private val MENU_MAX_HEIGHT = 320.dp
 private val MAX_OVERLAY_WIDTH = 480.dp
 private val OVERLAY_REFRACTION_HEIGHT = 18.dp
