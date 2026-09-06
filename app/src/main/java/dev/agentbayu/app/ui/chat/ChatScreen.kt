@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,7 +20,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -29,13 +27,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.offset
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -46,12 +45,12 @@ import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.ai.ProviderPickerDialog
 import dev.agentbayu.app.ui.ai.ReplyDetailSheet
-import dev.agentbayu.app.ui.components.GlassBadge
+import dev.agentbayu.app.ui.components.ChatSuggestion
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassButtonDefaults
 import dev.agentbayu.app.ui.components.MessageList
 import dev.agentbayu.app.ui.components.PromptBar
-import dev.agentbayu.app.ui.components.SuggestionChips
+import dev.agentbayu.app.ui.components.SuggestionRows
 import dev.agentbayu.app.ui.history.HistoryDrawerState
 import dev.agentbayu.app.ui.history.historyDrawerEdge
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
@@ -64,7 +63,7 @@ fun ChatScreen(
     messages: List<ChatMessage>,
     input: String,
     isResponding: Boolean,
-    suggestions: List<String>,
+    suggestions: List<ChatSuggestion>,
     providerHint: String,
     providerOptions: List<ProviderOption>,
     onInputChange: (String) -> Unit,
@@ -78,6 +77,7 @@ fun ChatScreen(
     onStop: () -> Unit,
     drawer: HistoryDrawerState,
     modifier: Modifier = Modifier,
+    sessionKey: String = "",
     attachments: List<MessageAttachment> = emptyList(),
     canAttach: Boolean = false,
     onAttachClick: () -> Unit = {},
@@ -90,9 +90,8 @@ fun ChatScreen(
     val density = LocalDensity.current
     val insets = LocalScreenInsets.current
     val imeInsets = WindowInsets.ime
-    val keyboardVisible by remember(imeInsets, density) {
-        derivedStateOf { imeInsets.getBottom(density) > 0 }
-    }
+    val bottomReserve = insets.calculateBottomPadding()
+    val bottomReservePx = with(density) { bottomReserve.roundToPx() }
     val messagesBackdrop = rememberLayerBackdrop()
     val overlayBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, messagesBackdrop)
 
@@ -101,33 +100,24 @@ fun ChatScreen(
             .fillMaxSize()
             .historyDrawerEdge(drawer)
     ) {
-        if (messages.isEmpty()) {
-            EmptyState(
-                suggestions = suggestions,
-                onSuggestionClick = onSuggestionClick,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .padding(top = headerHeight, bottom = footerHeight)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .layerBackdrop(messagesBackdrop)
+        ) {
+            MessageList(
+                messages = messages,
+                isResponding = isResponding,
+                modifier = Modifier.fillMaxSize(),
+                sessionKey = sessionKey,
+                contentPadding = PaddingValues(
+                    start = 16.dp,
+                    end = 16.dp,
+                    top = headerHeight + 12.dp,
+                    bottom = footerHeight + 12.dp
+                ),
+                onShowDetail = { message -> detailMessage = message }
             )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .layerBackdrop(messagesBackdrop)
-            ) {
-                MessageList(
-                    messages = messages,
-                    isResponding = isResponding,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = headerHeight + 12.dp,
-                        bottom = footerHeight + 12.dp
-                    ),
-                    onShowDetail = { message -> detailMessage = message }
-                )
-            }
         }
 
         val headerModifier = Modifier
@@ -145,9 +135,13 @@ fun ChatScreen(
             .onSizeChanged { size ->
                 footerHeight = with(density) { size.height.toDp() }
             }
-            .padding(
-                bottom = if (keyboardVisible) 0.dp else insets.calculateBottomPadding()
-            )
+            .layout { measurable, constraints ->
+                val reserve = (bottomReservePx - imeInsets.getBottom(this)).coerceAtLeast(0)
+                val placeable = measurable.measure(constraints.offset(vertical = -reserve))
+                layout(placeable.width, placeable.height + reserve) {
+                    placeable.place(0, 0)
+                }
+            }
 
         CompositionLocalProvider(
             LocalGlassBackdrop provides overlayBackdrop,
@@ -180,6 +174,15 @@ fun ChatScreen(
             }
 
             Column(modifier = footerModifier) {
+                if (messages.isEmpty()) {
+                    SuggestionRows(
+                        suggestions = suggestions,
+                        onSelect = onSuggestionClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
+                    )
+                }
                 PromptBar(
                     value = input,
                     onValueChange = onInputChange,
@@ -272,48 +275,6 @@ private fun ProviderCapsule(
                 modifier = Modifier.size(12.dp)
             )
         }
-    }
-}
-
-@Composable
-private fun EmptyState(
-    suggestions: List<String>,
-    onSuggestionClick: (String) -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        GlassBadge(
-            icon = painterResource(R.drawable.ic_spark),
-            containerColor = MaterialTheme.colorScheme.primary,
-            size = 56.dp,
-            iconSize = 28.dp,
-            shape = CircleShape
-        )
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = stringResource(R.string.chat_empty_title),
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = stringResource(R.string.chat_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center
-        )
-        Spacer(modifier = Modifier.height(24.dp))
-        SuggestionChips(
-            suggestions = suggestions,
-            onSelect = onSuggestionClick,
-            modifier = Modifier.fillMaxWidth()
-        )
     }
 }
 

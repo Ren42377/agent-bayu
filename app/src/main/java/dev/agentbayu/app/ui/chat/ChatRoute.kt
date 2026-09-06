@@ -52,12 +52,14 @@ fun ChatRoute(
     val credentials = remember(context) { AppGraph.credentials(context) }
     val connectionStore = remember(context) { AppGraph.connections(context) }
     val attachmentStore = remember(context) { AppGraph.attachments(context) }
+    val sessionManager = remember(context) { AppGraph.sessions(context) }
     val thumbnails = remember(attachmentStore) {
         AttachmentThumbnails { id, edge -> attachmentStore.thumbnail(id, edge) }
     }
     val scope = rememberCoroutineScope()
     val messages by chat.messages.collectAsState()
     val isResponding by chat.isResponding.collectAsState()
+    val activeSessionId by sessionManager.activeSessionId.collectAsState()
     val connections by connectionStore.connections.collectAsState()
     val activeId by connectionStore.activeConnectionId.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
@@ -165,6 +167,7 @@ fun ChatRoute(
             onStop = chat::cancel,
             drawer = drawer,
             modifier = modifier,
+            sessionKey = activeSessionId.orEmpty(),
             attachments = pending,
             canAttach = canAttach,
             onAttachClick = {
