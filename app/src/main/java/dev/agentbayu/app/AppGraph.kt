@@ -27,6 +27,7 @@ import dev.agentbayu.app.ai.oauth.CodexDeviceFlow
 import dev.agentbayu.app.ai.oauth.GoogleCodeFlow
 import dev.agentbayu.app.ai.oauth.TokenRefresher
 import dev.agentbayu.app.ai.tools.CompleteTaskTool
+import dev.agentbayu.app.ai.tools.CreateAlarmTool
 import dev.agentbayu.app.ai.tools.CreateTaskTool
 import dev.agentbayu.app.ai.tools.DeleteFileTool
 import dev.agentbayu.app.ai.tools.EditFileTool
@@ -38,6 +39,7 @@ import dev.agentbayu.app.ai.tools.RequestPermissionTool
 import dev.agentbayu.app.ai.tools.SearchFilesTool
 import dev.agentbayu.app.ai.tools.ToolRegistry
 import dev.agentbayu.app.ai.tools.ViewImageTool
+import dev.agentbayu.app.ai.tools.WebSearchTool
 import dev.agentbayu.app.ai.tools.WriteFileTool
 import dev.agentbayu.app.domain.Attachments
 import dev.agentbayu.app.domain.ChatController
@@ -275,7 +277,9 @@ object AppGraph {
             contextBuilder = ContextBuilder(
                 systemPrompt = context.getString(R.string.agent_system_prompt),
                 screenContextTemplate = context.getString(R.string.agent_screen_context_prompt),
-                images = { list -> list.mapNotNull(attachments::image) }
+                momentTemplate = context.getString(R.string.agent_moment_prompt),
+                images = { list -> list.mapNotNull(attachments::image) },
+                clock = clock
             ),
             copy = providerCopy(context),
             tools = ToolRegistry(
@@ -286,6 +290,8 @@ object AppGraph {
                     ),
                     ListTasksTool { tasks(context) },
                     CompleteTaskTool { tasks(context) },
+                    CreateAlarmTool(context),
+                    WebSearchTool(client),
                     ListFilesTool { files.value },
                     ReadFileTool { files.value },
                     SearchFilesTool { files.value },

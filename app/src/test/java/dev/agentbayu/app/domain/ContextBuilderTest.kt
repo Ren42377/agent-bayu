@@ -1,7 +1,9 @@
 package dev.agentbayu.app.domain
 
+import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.ChatRole
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -192,5 +194,32 @@ class ContextBuilderTest {
         )
 
         assertTrue(request.turns.last().images.isEmpty())
+    }
+
+    @Test
+    fun theMomentStampLandsInTheSystemPrompt() {
+        val fixed = object : Clock {
+            override fun nowMillis(): Long = 1_788_000_000_000L
+        }
+        val stamped = ContextBuilder(
+            systemPrompt = systemPrompt,
+            screenContextTemplate = screenTemplate,
+            momentTemplate = "Now %s.",
+            clock = fixed,
+            zone = { ZoneId.of("Asia/Jakarta") }
+        )
+
+        val request = stamped.build(AgentRequest(prompt = "jam berapa"))
+
+        assertTrue(request.systemPrompt.startsWith(systemPrompt))
+        assertTrue(request.systemPrompt.contains("2026-08-29"))
+        assertTrue(request.systemPrompt.contains("Now "))
+    }
+
+    @Test
+    fun withoutATemplateTheSystemPromptIsUntouched() {
+        val request = builder().build(AgentRequest(prompt = "halo"))
+
+        assertEquals(systemPrompt, request.systemPrompt)
     }
 }

@@ -9,6 +9,8 @@ internal fun toolDisplayName(name: String): String = when (name) {
     "create_task" -> stringResource(R.string.tool_name_create_task)
     "list_tasks" -> stringResource(R.string.tool_name_list_tasks)
     "complete_task" -> stringResource(R.string.tool_name_complete_task)
+    "create_alarm" -> stringResource(R.string.tool_name_create_alarm)
+    "web_search" -> stringResource(R.string.tool_name_web_search)
     "list_files" -> stringResource(R.string.tool_name_list_files)
     "read_file" -> stringResource(R.string.tool_name_read_file)
     "search_files" -> stringResource(R.string.tool_name_search_files)

@@ -77,8 +77,9 @@
     <string name="settings_logs_title">Logs</string>
     <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
 
-    <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu punya tool untuk mengurus tugas pemilik, menjelajah dan membaca berkas di penyimpanan ponsel, melihat gambar, serta menulis dan menyunting berkas teks. Pakai tool itu kalau memang dibutuhkan, dan baru katakan sesuatu sudah dikerjakan setelah tool benar-benar mengembalikan hasilnya. Kalau pemilik menolak sebuah tool, sampaikan apa adanya dan jangan mencoba jalan lain tanpa diminta. Kalau sebuah tool gagal karena izin belum ada, panggil tool request_permission untuk meminta izinnya, jangan menyuruh pemilik membuka pengaturan sendiri. Untuk hal di luar tool yang kamu punya, misalnya membuka aplikasi lain, mengirim pesan, atau mengubah kalender, katakan bahwa kamu belum bisa melakukannya.</string>
+    <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu punya tool untuk mengurus tugas pemilik, membuat alarm di aplikasi jam ponsel, mencari di web, menjelajah dan membaca berkas di penyimpanan ponsel, melihat gambar, serta menulis dan menyunting berkas teks. Pakai tool itu kalau memang dibutuhkan, dan baru katakan sesuatu sudah dikerjakan setelah tool benar-benar mengembalikan hasilnya. Kalau butuh fakta yang lebih baru dari ingatanmu, harga, atau kabar terkini, pakai web_search dulu dan sebutkan sumbernya. Kalau pemilik menolak sebuah tool, sampaikan apa adanya dan jangan mencoba jalan lain tanpa diminta. Kalau sebuah tool gagal karena izin belum ada, panggil tool request_permission untuk meminta izinnya, jangan menyuruh pemilik membuka pengaturan sendiri. Untuk hal di luar tool yang kamu punya, misalnya membuka aplikasi lain, mengirim pesan, atau mengubah kalender, katakan bahwa kamu belum bisa melakukannya.</string>
     <string name="agent_screen_context_prompt">Pemilik sedang melihat layar dengan teks berikut. Pakai ini hanya kalau relevan dengan pertanyaannya.\n\n%1$s</string>
+    <string name="agent_moment_prompt">Sekarang %1$s menurut jam dan zona waktu ponsel pemilik. Pakai ini sebagai acuan tanggal dan waktu, jangan menebak dan jangan memakai tanggal dari ingatanmu.</string>
     <string name="agent_no_connection">Belum ada koneksi AI yang aktif. Buka Pengaturan lalu Provider AI untuk memilih penyedia.</string>
     <string name="agent_unknown_provider">Penyedia untuk koneksi ini tidak ada di katalog. Ubah koneksinya di layar Provider AI.</string>
     <string name="agent_missing_credential">Koneksi aktif belum punya kunci. Isi kuncinya di layar Provider AI.</string>
@@ -401,6 +402,8 @@
     <string name="tool_name_create_task">Membuat tugas</string>
     <string name="tool_name_list_tasks">Membaca daftar tugas</string>
     <string name="tool_name_complete_task">Menyelesaikan tugas</string>
+    <string name="tool_name_create_alarm">Membuat alarm</string>
+    <string name="tool_name_web_search">Mencari di web</string>
     <string name="tool_name_list_files">Melihat isi folder</string>
     <string name="tool_name_read_file">Membaca berkas</string>
     <string name="tool_name_search_files">Mencari di berkas</string>
