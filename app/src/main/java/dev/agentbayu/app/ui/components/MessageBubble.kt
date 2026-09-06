@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -29,6 +28,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
@@ -83,9 +83,9 @@ fun MessageBubble(
                 contentAlignment = Alignment.CenterStart
             ) {
                 Icon(
-                    painter = painterResource(R.drawable.ic_more_horiz),
+                    painter = painterResource(R.drawable.ic_more_vert),
                     contentDescription = stringResource(R.string.route_show),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)
                 )
             }
@@ -159,7 +159,7 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
             modifier = Modifier
                 .clip(GlassBadgeShape)
                 .clickable { expanded = !expanded }
-                .padding(horizontal = 4.dp, vertical = 2.dp),
+                .padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
@@ -178,13 +178,18 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
             )
         }
         if (expanded && segment.text.isNotBlank()) {
+            val body = segment.text.trim()
+            val codeColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val rendered = remember(body, codeColor) {
+                buildAnnotatedString { appendInlineMarkdown(body, codeColor) }
+            }
             Text(
-                text = segment.text.trim(),
+                text = rendered,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 10.dp, top = 4.dp, end = 8.dp)
+                    .padding(top = 4.dp, end = 8.dp)
             )
         }
     }
@@ -194,18 +199,10 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
 private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
     val mutating = segment.name !in READ_ONLY_TOOLS
     val argument = argumentOf(segment.label)
-    val rowModifier = if (mutating) {
-        Modifier
-            .fillMaxWidth()
-            .glassSurface(shape = GlassBadgeShape)
-            .padding(horizontal = 10.dp, vertical = 7.dp)
-    } else {
-        Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 1.dp)
-    }
     Row(
-        modifier = rowModifier,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 1.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -219,7 +216,11 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
         Text(
             text = toolDisplayName(segment.name),
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (mutating) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
             maxLines = 1
         )
         if (argument.isNotEmpty()) {
@@ -233,7 +234,6 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
             )
         }
         if (mutating && !segment.running) {
-            Spacer(modifier = Modifier.weight(1f))
             Icon(
                 painter = painterResource(if (segment.ok) R.drawable.ic_check else R.drawable.ic_close),
                 contentDescription = stringResource(
