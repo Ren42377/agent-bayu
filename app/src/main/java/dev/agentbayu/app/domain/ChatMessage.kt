@@ -43,6 +43,10 @@ sealed interface MessageSegment {
         val running: Boolean = true,
         val ok: Boolean = false
     ) : MessageSegment
+
+    @Serializable
+    @SerialName("auto_approve")
+    data class AutoApprove(val reason: String) : MessageSegment
 }
 
 @Serializable

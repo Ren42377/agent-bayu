@@ -121,6 +121,11 @@ class ChatController(
                             repository.finishToolRun(placeholder.id, event.name, event.ok)
                         }
 
+                        is AgentEvent.AutoApproved -> {
+                            flush()
+                            repository.appendAutoApprove(placeholder.id, event.reason)
+                        }
+
                         is AgentEvent.Completed -> {
                             closeThinking()
                             flush()

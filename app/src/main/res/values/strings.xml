@@ -364,7 +364,7 @@
 
     <string name="settings_tools">Tool dan berkas</string>
     <string name="settings_tool_approval_title">Izin tool</string>
-    <string name="settings_tool_approval_body">Pilih kapan Agent Bayu harus minta izin sebelum mengubah berkas.</string>
+    <string name="settings_tool_approval_body">Pilih kapan Agent Bayu harus minta izin sebelum mengubah berkas. Tanya berarti setiap perubahan ditanyakan dulu. Otomatis berarti AI kedua yang menilai alasan perubahannya, dan alasan itu muncul di chat sebagai Auto Approve. Lewati berarti tidak ada pemeriksaan sama sekali.</string>
     <string name="settings_storage_title">Akses semua berkas</string>
     <string name="settings_storage_body">Tanpa izin ini Agent Bayu tidak bisa membuka berkas apa pun di penyimpanan.</string>
     <string name="settings_storage_unavailable">Halaman izin berkas tidak tersedia di perangkat ini.</string>
@@ -391,6 +391,7 @@
     <string name="tool_run_failed">Gagal</string>
     <string name="chat_thought">Berpikir</string>
     <string name="chat_thought_seconds">Berpikir %1$ds</string>
+    <string name="chat_auto_approve">Auto Approve: %1$s</string>
     <string name="code_copy">Salin</string>
     <string name="code_plain">Kode</string>
     <string name="code_markdown">Markdown</string>

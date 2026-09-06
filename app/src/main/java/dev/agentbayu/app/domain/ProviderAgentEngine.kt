@@ -13,6 +13,7 @@ import dev.agentbayu.app.ai.adapter.ChatTurn
 import dev.agentbayu.app.ai.tools.ToolCall
 import dev.agentbayu.app.ai.tools.ToolRegistry
 import dev.agentbayu.app.ai.tools.ToolResult
+import dev.agentbayu.app.domain.tools.ToolApprovalNotes
 import dev.agentbayu.app.domain.tools.ToolIntent
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -40,7 +41,8 @@ class ProviderAgentEngine(
     private val contextBuilder: ContextBuilder,
     private val copy: ProviderCopy,
     private val tools: ToolRegistry = ToolRegistry(),
-    private val intent: ToolIntent = ToolIntent()
+    private val intent: ToolIntent = ToolIntent(),
+    private val notes: ToolApprovalNotes = ToolApprovalNotes()
 ) : AgentEngine {
 
     override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {
@@ -102,6 +104,7 @@ class ProviderAgentEngine(
             val results = ArrayList<ToolResult>(calls.size)
             for (call in calls) {
                 currentCoroutineContext().ensureActive()
+                notes.take()
                 emit(AgentEvent.ToolStarted(call.name, labelOf(call)))
                 val result = if (seen.add(call.name + "|" + call.arguments)) {
                     tools.run(call)
@@ -113,6 +116,8 @@ class ProviderAgentEngine(
                         isError = true
                     )
                 }
+                val note = notes.take()
+                if (note.isNotEmpty()) emit(AgentEvent.AutoApproved(note))
                 emit(AgentEvent.ToolFinished(call.name, !result.isError))
                 results += result
             }

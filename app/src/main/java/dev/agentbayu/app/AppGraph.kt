@@ -54,6 +54,9 @@ import dev.agentbayu.app.domain.tools.AiToolJudge
 import dev.agentbayu.app.domain.tools.JudgingToolApprovalGate
 import dev.agentbayu.app.domain.tools.PermissionKind
 import dev.agentbayu.app.domain.tools.PermissionRequests
+import dev.agentbayu.app.domain.tools.ToolApprovalDecision
+import dev.agentbayu.app.domain.tools.ToolApprovalMode
+import dev.agentbayu.app.domain.tools.ToolApprovalNotes
 import dev.agentbayu.app.domain.tools.ToolApprovalRouter
 import dev.agentbayu.app.domain.tools.ToolIntent
 import dev.agentbayu.app.domain.tools.UiToolApprovalGate
@@ -254,6 +257,7 @@ object AppGraph {
             clock = clock
         )
         val intent = ToolIntent()
+        val notes = ToolApprovalNotes()
         val approvals = UiToolApprovalGate()
         val gate = ToolApprovalRouter(
             mode = { settings(context).toolApprovalMode.value },
@@ -261,9 +265,18 @@ object AppGraph {
             auto = JudgingToolApprovalGate(
                 judge = AiToolJudge(aiClient),
                 fallback = approvals,
-                userIntent = { intent.text }
+                userIntent = { intent.text },
+                notes = notes
             )
         )
+        scope.launch {
+            settings(context).toolApprovalMode.collect { mode ->
+                approvals.clearSession()
+                if (mode == ToolApprovalMode.BYPASS) {
+                    approvals.releaseIfOpen(ToolApprovalDecision.ALLOW_ONCE)
+                }
+            }
+        }
         val files = lazy { FileAccess.of(context) }
         val permissions = PermissionRequests { kind ->
             when (kind) {
@@ -303,7 +316,8 @@ object AppGraph {
                     RequestPermissionTool { permissions }
                 )
             ),
-            intent = intent
+            intent = intent,
+            notes = notes
         )
         val conversationStore = ConversationStore(secureStore)
         val sessionManager = ConversationSessionManager(
@@ -313,6 +327,9 @@ object AppGraph {
             clock = clock
         )
         sessionManager.attach(scope)
+        scope.launch {
+            sessionManager.activeSessionId.collect { approvals.clearSession() }
+        }
         val chatController = ChatController(
             repository = conversation,
             engine = engine,

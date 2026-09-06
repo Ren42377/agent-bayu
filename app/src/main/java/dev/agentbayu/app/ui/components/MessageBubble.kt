@@ -72,6 +72,8 @@ fun MessageBubble(
                 }
 
                 is MessageSegment.Tool -> ToolRow(segment = segment, isDark = isDark)
+
+                is MessageSegment.AutoApprove -> AutoApproveRow(segment = segment)
             }
         }
         if (message.detail != null && onShowDetail != null) {
@@ -248,6 +250,18 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
             )
         }
     }
+}
+
+@Composable
+private fun AutoApproveRow(segment: MessageSegment.AutoApprove) {
+    Text(
+        text = stringResource(R.string.chat_auto_approve, segment.reason),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 1.dp)
+    )
 }
 
 private val READ_ONLY_TOOLS = setOf(

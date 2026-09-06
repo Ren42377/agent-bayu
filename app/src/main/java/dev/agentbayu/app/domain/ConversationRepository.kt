@@ -69,6 +69,13 @@ class ConversationRepository {
         }
     }
 
+    fun appendAutoApprove(id: Long, reason: String) {
+        if (reason.isEmpty()) return
+        mutate(id) { message ->
+            message.copy(segments = message.segments + MessageSegment.AutoApprove(reason))
+        }
+    }
+
     fun finishToolRun(id: Long, name: String, ok: Boolean) {
         mutate(id) { message ->
             val index = message.segments.indexOfLast { segment ->

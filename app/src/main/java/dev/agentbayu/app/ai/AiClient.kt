@@ -39,7 +39,11 @@ class AiClient(
     private val pause: suspend (Long) -> Unit = { delay(it) }
 ) {
 
-    fun stream(request: ChatRequest, countRequest: Boolean = true): Flow<ReplyEvent> = flow {
+    fun stream(
+        request: ChatRequest,
+        countRequest: Boolean = true,
+        sideChannel: Boolean = false
+    ): Flow<ReplyEvent> = flow {
         when (val resolution = activeProvider.resolve()) {
             is ActiveResolution.Unavailable -> {
                 logStore.warning(SOURCE, "No usable connection", resolution.problem.name)
@@ -49,7 +53,8 @@ class AiClient(
             is ActiveResolution.Ready -> streamCandidate(
                 resolution.candidate,
                 request,
-                countRequest
+                countRequest,
+                sideChannel
             )
         }
     }
@@ -57,7 +62,8 @@ class AiClient(
     private suspend fun FlowCollector<ReplyEvent>.streamCandidate(
         candidate: Candidate,
         request: ChatRequest,
-        countRequest: Boolean
+        countRequest: Boolean,
+        sideChannel: Boolean
     ) {
         val detail = detailOf(candidate)
         val route = candidate.provider.id + " " + candidate.model.id
@@ -71,7 +77,7 @@ class AiClient(
         val effective = request.copy(
             turns = fitToContext(visionAware(candidate, request), candidate.model),
             maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens),
-            effort = candidate.effort,
+            effort = if (sideChannel) request.effort else candidate.effort,
             tools = toolsFor(candidate, request)
         )
         val connectionId = candidate.connection.id
@@ -86,7 +92,8 @@ class AiClient(
                 reportFailure(
                     candidate,
                     resolution.failure,
-                    detail.copy(totalMillis = clock.nowMillis() - startedAt)
+                    detail.copy(totalMillis = clock.nowMillis() - startedAt),
+                    sideChannel
                 )
                 return
             }
@@ -103,7 +110,7 @@ class AiClient(
         suspend fun markFirstToken() {
             if (firstTokenMillis != 0L) return
             firstTokenMillis = (clock.nowMillis() - startedAt).coerceAtLeast(1L)
-            usageTracker.recordFirstToken(connectionId, firstTokenMillis)
+            if (!sideChannel) usageTracker.recordFirstToken(connectionId, firstTokenMillis)
             emit(ReplyEvent.Started(detail.copy(firstTokenMillis = firstTokenMillis)))
         }
 
@@ -139,6 +146,7 @@ class AiClient(
                 }
 
             if (outputChars > 0 || toolCalls > 0) break
+            if (sideChannel) break
             val pending = failure ?: emptyReply()
             val wait = retryDelayFor(pending, attempt) ?: break
             logStore.warning(SOURCE, "Retrying request", route + " " + pending.logLabel)
@@ -151,13 +159,13 @@ class AiClient(
             totalMillis = clock.nowMillis() - startedAt
         )
         if (reported != null) {
-            reportFailure(candidate, reported, complete)
+            reportFailure(candidate, reported, complete, sideChannel)
             return
         }
 
         val usage = usageOf(candidate, effective, wireUsage, outputChars + toolChars)
         usageTracker.recordSuccess(connectionId, usage)
-        connections.markHealth(connectionId, ConnectionHealth.READY, null)
+        if (!sideChannel) connections.markHealth(connectionId, ConnectionHealth.READY, null)
         logStore.info(
             SOURCE,
             "Reply completed",
@@ -170,13 +178,16 @@ class AiClient(
     private suspend fun FlowCollector<ReplyEvent>.reportFailure(
         candidate: Candidate,
         failure: RouteFailure,
-        detail: ReplyDetail
+        detail: ReplyDetail,
+        sideChannel: Boolean = false
     ) {
         val connectionId = candidate.connection.id
         val route = candidate.provider.id + " " + candidate.model.id
         usageTracker.recordFailure(connectionId, failure)
-        healthFor(failure)?.let { health ->
-            connections.markHealth(connectionId, health, failure.logLabel)
+        if (!sideChannel) {
+            healthFor(failure)?.let { health ->
+                connections.markHealth(connectionId, health, failure.logLabel)
+            }
         }
         logStore.error(SOURCE, failure.message, route + " " + failure.logLabel)
         Log.e(TAG, "Reply failed: " + route + " " + failure.logLabel)

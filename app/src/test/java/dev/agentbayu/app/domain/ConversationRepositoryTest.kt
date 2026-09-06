@@ -220,6 +220,19 @@ class ConversationRepositoryTest {
         assertEquals(listOf(MessageSegment.Prose("jawaban lama")), message.displaySegments)
     }
 
+    @Test
+    fun anAutoApprovalBecomesItsOwnSegment() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+        repository.startToolRun(placeholder.id, "write_file", "")
+        repository.appendAutoApprove(placeholder.id, "menulis ulang catatan")
+        repository.appendAutoApprove(placeholder.id, "")
+
+        val segments = repository.messages.value.single().segments
+        assertEquals(2, segments.size)
+        assertEquals(MessageSegment.AutoApprove("menulis ulang catatan"), segments.last())
+    }
+
     private fun detail(): ReplyDetail = ReplyDetail(
         providerId = "kilocode",
         providerLabel = "Kilo Code",
