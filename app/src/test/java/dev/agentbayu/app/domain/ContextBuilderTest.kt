@@ -210,10 +210,11 @@ class ContextBuilderTest {
         )
 
         val request = stamped.build(AgentRequest(prompt = "jam berapa"))
+        val system = request.systemPrompt.orEmpty()
 
-        assertTrue(request.systemPrompt.startsWith(systemPrompt))
-        assertTrue(request.systemPrompt.contains("2026-08-29"))
-        assertTrue(request.systemPrompt.contains("Now "))
+        assertTrue(system.startsWith(systemPrompt))
+        assertTrue(system.contains("2026-08-29"))
+        assertTrue(system.contains("Now "))
     }
 
     @Test
