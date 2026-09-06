@@ -130,13 +130,29 @@ fun rememberHistoryDrawerState(): HistoryDrawerState {
 
 fun Modifier.historyDrawerEdge(state: HistoryDrawerState): Modifier = this.pointerInput(state) {
     val edgePx = EDGE_WIDTH.toPx()
+    val slop = viewConfiguration.touchSlop
     var armed = false
+    var claimed = false
+    var travel = 0f
     inspectDragGestures(
-        onDragStart = { down -> armed = down.position.x <= edgePx || state.isOpen },
-        onDragEnd = { if (armed) state.settle() },
-        onDragCancel = { if (armed) state.settle() }
+        onDragStart = { down ->
+            armed = down.position.x <= edgePx || state.isOpen
+            claimed = state.isOpen
+            travel = 0f
+        },
+        onDragEnd = { if (claimed) state.settle() },
+        onDragCancel = { if (claimed) state.settle() }
     ) { _, dragAmount ->
-        if (armed) state.drag(dragAmount.x)
+        if (!armed) return@inspectDragGestures
+        if (claimed) {
+            state.drag(dragAmount.x)
+            return@inspectDragGestures
+        }
+        travel += dragAmount.x
+        if (travel > slop) {
+            claimed = true
+            state.drag(travel)
+        }
     }
 }
 
@@ -223,7 +239,7 @@ fun HistoryDrawer(
 }
 
 private const val PANEL_FRACTION = 0.84f
-private val EDGE_WIDTH = 28.dp
+private val EDGE_WIDTH = 88.dp
 
 @Composable
 private fun ColumnScope.HistoryDrawerContent(
