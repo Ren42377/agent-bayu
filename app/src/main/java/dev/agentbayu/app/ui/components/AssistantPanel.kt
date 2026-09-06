@@ -73,7 +73,7 @@ fun AssistantPanel(
     messages: List<ChatMessage>,
     input: String,
     isResponding: Boolean,
-    suggestions: List<String>,
+    suggestions: List<ChatSuggestion>,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onSuggestionClick: (String) -> Unit,
@@ -316,7 +316,10 @@ private fun PanelHeader(isResponding: Boolean, detailLabel: String?, onDismiss: 
 }
 
 @Composable
-private fun PanelGreeting(suggestions: List<String>, onSuggestionClick: (String) -> Unit) {
+private fun PanelGreeting(
+    suggestions: List<ChatSuggestion>,
+    onSuggestionClick: (String) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -327,14 +330,8 @@ private fun PanelGreeting(suggestions: List<String>, onSuggestionClick: (String)
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface
         )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = stringResource(R.string.chat_empty_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
         Spacer(modifier = Modifier.height(12.dp))
-        SuggestionChips(
+        SuggestionRows(
             suggestions = suggestions,
             onSelect = onSuggestionClick,
             modifier = Modifier.fillMaxWidth()

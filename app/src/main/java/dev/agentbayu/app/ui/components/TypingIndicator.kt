@@ -6,10 +6,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -18,53 +15,37 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
-import dev.agentbayu.app.ui.theme.CapsuleShape
-import dev.agentbayu.app.ui.theme.glassSurface
-
-private const val DOT_COUNT = 3
 
 @Composable
 fun TypingIndicator(modifier: Modifier = Modifier) {
     val transition = rememberInfiniteTransition(label = "typing")
+    val pulse = transition.animateFloat(
+        initialValue = MIN_SCALE,
+        targetValue = MAX_SCALE,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = PULSE_MILLIS),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "typingPulse"
+    )
     Box(
-        modifier = modifier
-            .glassSurface(shape = CapsuleShape)
-            .padding(horizontal = 14.dp, vertical = 10.dp)
+        modifier = modifier.size(DOT_BOX),
+        contentAlignment = Alignment.CenterStart
     ) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            repeat(DOT_COUNT) { index ->
-                val dotAlpha = transition.animateFloat(
-                    initialValue = 0.3f,
-                    targetValue = 1f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = 600, delayMillis = index * 150),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "dotAlpha"
-                )
-                val dotScale = transition.animateFloat(
-                    initialValue = 0.8f,
-                    targetValue = 1.15f,
-                    animationSpec = infiniteRepeatable(
-                        animation = tween(durationMillis = 600, delayMillis = index * 150),
-                        repeatMode = RepeatMode.Reverse
-                    ),
-                    label = "dotScale"
-                )
-                Box(
-                    modifier = Modifier
-                        .size(7.dp)
-                        .graphicsLayer {
-                            scaleX = dotScale.value
-                            scaleY = dotScale.value
-                            alpha = dotAlpha.value
-                        }
-                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                )
-            }
-        }
+        Box(
+            modifier = Modifier
+                .size(DOT_SIZE)
+                .graphicsLayer {
+                    scaleX = pulse.value
+                    scaleY = pulse.value
+                }
+                .background(MaterialTheme.colorScheme.onSurface, CircleShape)
+        )
     }
 }
+
+private const val MIN_SCALE = 0.55f
+private const val MAX_SCALE = 1f
+private const val PULSE_MILLIS = 620
+private val DOT_SIZE = 12.dp
+private val DOT_BOX = 20.dp
