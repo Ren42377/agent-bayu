@@ -21,8 +21,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
@@ -30,6 +32,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
@@ -37,7 +40,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
-import androidx.compose.ui.util.lerp
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
@@ -70,6 +75,8 @@ internal fun GlassSegmentedSelector(
     )
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val backdrop = LocalGlassBackdrop.current
+    val labelsBackdrop = rememberLayerBackdrop()
+    val indicatorBackdrop = rememberCombinedBackdrop(backdrop, labelsBackdrop)
     val animationScope = rememberCoroutineScope()
     val currentOnSelect by rememberUpdatedState(onSelect)
     val touchSlop = LocalViewConfiguration.current.touchSlop
@@ -109,11 +116,18 @@ internal fun GlassSegmentedSelector(
                         (targetValue + dragAmount.x / segmentWidthPx)
                             .fastCoerceIn(0f, lastIndex.toFloat())
                     )
+                },
+                onDragCanceled = {
+                    animateToValue(currentIndex.toFloat())
                 }
             )
         }
         LaunchedEffect(selectedIndex) {
             currentIndex = selectedIndex
+        }
+        LaunchedEffect(dragAnimation) {
+            withFrameNanos { }
+            dragAnimation.prewarm()
         }
         LaunchedEffect(dragAnimation) {
             snapshotFlow { currentIndex }
@@ -128,13 +142,63 @@ internal fun GlassSegmentedSelector(
                 .matchParentSize()
                 .background(color = trackColor, shape = CapsuleShape)
         )
+        Row(
+            modifier = Modifier
+                .clearAndSetSemantics {}
+                .alpha(0f)
+                .layerBackdrop(labelsBackdrop)
+                .fillMaxSize()
+        ) {
+            labels.forEach { label ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = tint
+                    )
+                }
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .selectableGroup()
+        ) {
+            labels.forEachIndexed { index, label ->
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Tab
+                            selected = index == currentIndex
+                            onClick {
+                                currentIndex = index
+                                true
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = labelColor
+                    )
+                }
+            }
+        }
         Box(
             modifier = Modifier
                 .width(segmentWidth)
                 .fillMaxHeight()
                 .graphicsLayer { translationX = dragAnimation.value * segmentWidthPx }
                 .drawBackdrop(
-                    backdrop = backdrop,
+                    backdrop = indicatorBackdrop,
                     shape = { CapsuleShape },
                     effects = {
                         val progress = dragAnimation.pressProgress
@@ -166,8 +230,10 @@ internal fun GlassSegmentedSelector(
                     onDrawSurface = {
                         val progress = dragAnimation.pressProgress
                         val activeTint = tintProvider?.invoke(dragAnimation.value) ?: tint
-                        val alpha = lerp(SELECTOR_TINT_ALPHA, SELECTOR_GLASS_TINT_ALPHA, progress)
-                        drawRect(activeTint.copy(alpha = alpha))
+                        drawRect(
+                            activeTint.copy(alpha = SELECTOR_TINT_ALPHA),
+                            alpha = 1f - progress
+                        )
                     }
                 )
                 .then(
@@ -187,36 +253,23 @@ internal fun GlassSegmentedSelector(
         )
         Row(
             modifier = Modifier
+                .clearAndSetSemantics {}
                 .fillMaxSize()
-                .selectableGroup()
         ) {
             labels.forEachIndexed { index, label ->
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight()
-                        .semantics(mergeDescendants = true) {
-                            role = Role.Tab
-                            selected = index == currentIndex
-                            onClick {
-                                currentIndex = index
-                                true
-                            }
-                        },
+                        .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = labelColor
-                    )
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelMedium,
                         color = Color.White,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - abs(index - dragAnimation.value))
-                                .fastCoerceIn(0f, 1f)
+                                .fastCoerceIn(0f, 1f) * (1f - dragAnimation.pressProgress)
                         }
                     )
                 }
@@ -232,12 +285,11 @@ internal fun GlassSegmentedSelector(
 
 private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
-private const val SELECTOR_TINT_ALPHA = 0.88f
-private const val SELECTOR_GLASS_TINT_ALPHA = 0.45f
-private const val SELECTOR_PRESSED_SCALE = 1.1f
+private const val SELECTOR_TINT_ALPHA = 0.92f
+private const val SELECTOR_PRESSED_SCALE = 44f / 36f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f
 private val SELECTOR_HEIGHT = 36.dp
-private val SELECTOR_LENS_HEIGHT = 8.dp
-private val SELECTOR_LENS_AMOUNT = 12.dp
-private val SELECTOR_INNER_SHADOW = 6.dp
+private val SELECTOR_LENS_HEIGHT = 10.dp
+private val SELECTOR_LENS_AMOUNT = 14.dp
+private val SELECTOR_INNER_SHADOW = 8.dp
