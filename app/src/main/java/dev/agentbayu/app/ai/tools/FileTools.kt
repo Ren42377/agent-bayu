@@ -35,8 +35,9 @@ class ListFilesTool(private val files: () -> FileAccess) : ToolHandler {
         val path = arguments.text("path") ?: STORAGE_ROOT
         val limit = arguments.number("limit", FileAccess.MAX_ENTRIES)
             .coerceIn(1, FileAccess.MAX_ENTRIES)
+        val access = files()
         try {
-            call.reply(clipOutput(files().list(path, limit)))
+            call.reply(clipOutput(access.list(path, limit)), displayPath = access.resolve(path).path)
         } catch (error: FileAccessException) {
             call.problem(error.message.orEmpty())
         }
@@ -70,8 +71,9 @@ class ReadFileTool(private val files: () -> FileAccess) : ToolHandler {
             ?: return@withContext call.problem("A path is required")
         val maxBytes = arguments.number("max_bytes", DEFAULT_READ_BYTES)
             .coerceIn(1, FileAccess.MAX_READ_BYTES)
+        val access = files()
         try {
-            call.reply(clipOutput(files().read(path, maxBytes)))
+            call.reply(clipOutput(access.read(path, maxBytes)), displayPath = access.resolve(path).path)
         } catch (error: FileAccessException) {
             call.problem(error.message.orEmpty())
         }
@@ -120,17 +122,19 @@ class SearchFilesTool(private val files: () -> FileAccess) : ToolHandler {
         val limit = arguments.number("limit", FileAccess.MAX_MATCHES)
             .coerceIn(1, FileAccess.MAX_MATCHES)
         val job = currentCoroutineContext()[Job]
+        val access = files()
         try {
             call.reply(
                 clipOutput(
-                    files().search(
+                    access.search(
                         path = path,
                         query = query,
                         extension = arguments.text("extension"),
                         limit = limit,
                         active = { job?.isActive != false }
                     )
-                )
+                ),
+                displayPath = access.resolve(path).path
             )
         } catch (error: FileAccessException) {
             currentCoroutineContext().ensureActive()

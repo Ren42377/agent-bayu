@@ -20,9 +20,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -44,6 +46,7 @@ internal fun TaskRowItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .clip(GlassTileShape)
             .combinedClickable(onLongClick = onMenu, onClick = onOpen)
             .padding(
                 start = if (subtask) 44.dp else 16.dp,
@@ -135,6 +138,7 @@ private fun CompleteCircle(completed: Boolean, onClick: () -> Unit) {
                 color = if (completed) scheme.primary else scheme.outline,
                 shape = CircleShape
             )
+            .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
@@ -161,8 +165,9 @@ private fun StarButton(starred: Boolean, onClick: () -> Unit) {
         ),
         tint = if (starred) scheme.primary else scheme.onSurfaceVariant.copy(alpha = 0.6f),
         modifier = Modifier
-            .size(30.dp)
+            .size(32.dp)
+            .clip(CircleShape)
             .clickable(onClick = onClick)
-            .padding(5.dp)
+            .padding(6.dp)
     )
 }

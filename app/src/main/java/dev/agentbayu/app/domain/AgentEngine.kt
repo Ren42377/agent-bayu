@@ -20,9 +20,7 @@ sealed interface AgentEvent {
 
     data class ToolStarted(val name: String, val label: String) : AgentEvent
 
-    data class AutoApproved(val reason: String) : AgentEvent
-
-    data class ToolFinished(val name: String, val ok: Boolean) : AgentEvent
+    data class ToolFinished(val name: String, val ok: Boolean, val path: String = "") : AgentEvent
 
     data class Completed(val detail: ReplyDetail?, val usage: TokenUsage?) : AgentEvent
 

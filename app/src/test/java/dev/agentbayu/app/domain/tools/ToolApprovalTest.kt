@@ -1,7 +1,6 @@
 package dev.agentbayu.app.domain.tools
 
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -59,117 +58,18 @@ class ToolApprovalTest {
     }
 
     @Test
-    fun autoModeRunsWithoutAskingWhenTheJudgeApproves() = runTest {
-        val notes = ToolApprovalNotes()
-        val gate = JudgingToolApprovalGate(
-            judge = FixedJudge(JudgeOutcome.ACCEPTED),
-            fallback = DenyingGate(),
-            notes = notes
-        )
-        assertEquals(
-            ToolApprovalDecision.ALLOW_ONCE,
-            gate.confirm(requestFor("edit_file", "notes/one.txt", "menyimpan catatan"))
-        )
-        assertEquals("menyimpan catatan", notes.take())
-        assertEquals("", notes.take())
-    }
-
-    @Test
-    fun autoModeDeniesWhenTheJudgeRejects() = runTest {
-        val fallback = DenyingGate()
-        val gate = JudgingToolApprovalGate(
-            judge = FixedJudge(JudgeOutcome.REJECTED),
-            fallback = fallback
-        )
-        assertEquals(
-            ToolApprovalDecision.DENY,
-            gate.confirm(requestFor("delete_file", "notes/one.txt"))
-        )
-        assertEquals(0, fallback.calls)
-    }
-
-    @Test
-    fun autoModeFallsBackWhenTheJudgeIsUnusable() = runTest {
-        val fallback = DenyingGate()
-        val unsure = JudgingToolApprovalGate(
-            judge = FixedJudge(JudgeOutcome.UNUSABLE),
-            fallback = fallback
-        )
-        assertEquals(
-            ToolApprovalDecision.DENY,
-            unsure.confirm(requestFor("edit_file", "notes/one.txt"))
-        )
-        assertEquals(1, fallback.calls)
-    }
-
-    @Test
-    fun autoModeWithoutAReasonStillNamesTheAction() = runTest {
-        val notes = ToolApprovalNotes()
-        val gate = JudgingToolApprovalGate(
-            judge = FixedJudge(JudgeOutcome.ACCEPTED),
-            fallback = DenyingGate(),
-            notes = notes
-        )
-        gate.confirm(requestFor("write_file", "notes/one.txt"))
-        assertEquals("write_file notes/one.txt", notes.take())
-    }
-
-    @Test
-    fun autoModeFallsBackWhenTheJudgeNeverAnswers() = runTest {
-        val fallback = DenyingGate()
-        val gate = JudgingToolApprovalGate(
-            judge = object : ToolApprovalJudge {
-                override suspend fun review(
-                    request: ToolApprovalRequest,
-                    userIntent: String
-                ): JudgeOutcome {
-                    awaitCancellation()
-                }
-            },
-            fallback = fallback,
-            timeoutMillis = 5_000L
-        )
-
-        assertEquals(
-            ToolApprovalDecision.DENY,
-            gate.confirm(requestFor("edit_file", "notes/one.txt"))
-        )
-        assertEquals(1, fallback.calls)
-    }
-
-    @Test
     fun routerPicksTheGateForTheStoredMode() = runTest {
         var mode = ToolApprovalMode.BYPASS
         val ask = DenyingGate()
-        val auto = JudgingToolApprovalGate(
-            judge = FixedJudge(JudgeOutcome.ACCEPTED),
-            fallback = ask
-        )
-        val router = ToolApprovalRouter(mode = { mode }, ask = ask, auto = auto)
+        val router = ToolApprovalRouter(mode = { mode }, ask = ask)
         val request = requestFor("edit_file", "notes/one.txt")
 
-        assertEquals(ToolApprovalDecision.ALLOW_ONCE, router.confirm(request))
-        assertEquals(0, ask.calls)
-
-        mode = ToolApprovalMode.AUTO
         assertEquals(ToolApprovalDecision.ALLOW_ONCE, router.confirm(request))
         assertEquals(0, ask.calls)
 
         mode = ToolApprovalMode.ASK
         assertEquals(ToolApprovalDecision.DENY, router.confirm(request))
         assertEquals(1, ask.calls)
-    }
-
-    @Test
-    fun theJudgeSeesTheOwnerIntent() = runTest {
-        val judge = FixedJudge(JudgeOutcome.ACCEPTED)
-        val gate = JudgingToolApprovalGate(
-            judge = judge,
-            fallback = DenyingGate(),
-            userIntent = { "rename my notes" }
-        )
-        gate.confirm(requestFor("move_file", "notes/one.txt"))
-        assertEquals("rename my notes", judge.seenIntent)
     }
 
     @Test
@@ -182,29 +82,12 @@ class ToolApprovalTest {
         assertNull(gate.pending.value)
     }
 
-    private fun requestFor(
-        toolName: String,
-        path: String,
-        reason: String = ""
-    ) = ToolApprovalRequest(
+    private fun requestFor(toolName: String, path: String) = ToolApprovalRequest(
         id = 1L,
         toolName = toolName,
         kind = ToolApprovalKind.EDIT,
-        path = path,
-        reason = reason
+        path = path
     )
-
-    private class FixedJudge(private val outcome: JudgeOutcome) : ToolApprovalJudge {
-        var seenIntent: String? = null
-
-        override suspend fun review(
-            request: ToolApprovalRequest,
-            userIntent: String
-        ): JudgeOutcome {
-            seenIntent = userIntent
-            return outcome
-        }
-    }
 
     private class DenyingGate : ToolApprovalGate {
         var calls = 0

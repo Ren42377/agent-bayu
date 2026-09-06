@@ -118,12 +118,7 @@ class ChatController(
 
                         is AgentEvent.ToolFinished -> {
                             flush()
-                            repository.finishToolRun(placeholder.id, event.name, event.ok)
-                        }
-
-                        is AgentEvent.AutoApproved -> {
-                            flush()
-                            repository.appendAutoApprove(placeholder.id, event.reason)
+                            repository.finishToolRun(placeholder.id, event.name, event.ok, event.path)
                         }
 
                         is AgentEvent.Completed -> {
@@ -155,6 +150,24 @@ class ChatController(
                 }
             }
         }
+    }
+
+    fun truncateFrom(message: ChatMessage) {
+        cancel()
+        repository.truncateFrom(message.id)
+    }
+
+    fun restartFrom(message: ChatMessage, text: String = message.text) {
+        cancel()
+        repository.truncateFrom(message.id)
+        send(text, attachments = message.attachments)
+    }
+
+    fun regenerate(reply: ChatMessage, prompt: ChatMessage) {
+        if (reply.id <= prompt.id) return
+        cancel()
+        repository.truncateFrom(prompt.id)
+        send(prompt.text, attachments = prompt.attachments)
     }
 
     fun cancel() {

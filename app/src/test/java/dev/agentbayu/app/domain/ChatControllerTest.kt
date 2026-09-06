@@ -289,38 +289,6 @@ class ChatControllerTest {
     }
 
     @Test
-    fun anAutoApprovalLandsBetweenTheToolAndTheReply() = runTest {
-        val chat = controller(
-            engine {
-                listOf(
-                    AgentEvent.ToolStarted("write_file", "write_file {\"path\":\"a.txt\"}"),
-                    AgentEvent.AutoApproved("menyimpan catatan"),
-                    AgentEvent.ToolFinished("write_file", true),
-                    AgentEvent.Delta("Sudah.")
-                )
-            }
-        )
-
-        chat.send("hi")
-        dispatcher.scheduler.advanceUntilIdle()
-
-        val agent = repository.messages.value.last()
-        assertEquals(
-            listOf(
-                MessageSegment.Tool(
-                    name = "write_file",
-                    label = "write_file {\"path\":\"a.txt\"}",
-                    running = false,
-                    ok = true
-                ),
-                MessageSegment.AutoApprove("menyimpan catatan"),
-                MessageSegment.Prose("Sudah.")
-            ),
-            agent.segments
-        )
-    }
-
-    @Test
     fun cancelReleasesTheStopButtonBeforeTheChainUnwinds() = runTest {
         val stubborn = object : AgentEngine {
             override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {

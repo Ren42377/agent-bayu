@@ -164,6 +164,31 @@ class ListTasksTool(private val store: () -> TaskStore) : ToolHandler {
     }
 }
 
+class DeleteTaskTool(private val store: () -> TaskStore) : ToolHandler {
+
+    override val spec: ToolSpec = ToolSpec(
+        name = NAME,
+        description = "Delete one task and its subtasks. Read the ids with list_tasks first.",
+        parameters = toolSchema(
+            ToolField("task_id", "string", "Id of the task, as reported by list_tasks")
+        )
+    )
+
+    override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
+        val taskId = ToolArguments(call.arguments).text("task_id")
+            ?: return@withContext call.problem("A task_id is required")
+        val tasks = store()
+        val target = tasks.find(taskId)
+            ?: return@withContext call.problem("No task with id " + taskId)
+        tasks.removeTask(taskId)
+        call.reply("Deleted " + target.title)
+    }
+
+    private companion object {
+        const val NAME = "delete_task"
+    }
+}
+
 class CompleteTaskTool(private val store: () -> TaskStore) : ToolHandler {
 
     override val spec: ToolSpec = ToolSpec(

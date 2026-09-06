@@ -5,6 +5,7 @@ import dev.agentbayu.app.ai.ActiveProvider
 import dev.agentbayu.app.ai.AiClient
 import dev.agentbayu.app.ai.AntigravityProjectResolver
 import dev.agentbayu.app.ai.Clock
+import dev.agentbayu.app.ai.CrashLog
 import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ConnectionStore
@@ -29,6 +30,8 @@ import dev.agentbayu.app.ai.oauth.TokenRefresher
 import dev.agentbayu.app.ai.tools.CompleteTaskTool
 import dev.agentbayu.app.ai.tools.CreateAlarmTool
 import dev.agentbayu.app.ai.tools.CreateTaskTool
+import dev.agentbayu.app.ai.tools.DeleteAlarmTool
+import dev.agentbayu.app.ai.tools.DeleteTaskTool
 import dev.agentbayu.app.ai.tools.DeleteFileTool
 import dev.agentbayu.app.ai.tools.EditFileTool
 import dev.agentbayu.app.ai.tools.ListFilesTool
@@ -50,15 +53,11 @@ import dev.agentbayu.app.domain.ConversationStore
 import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
 import dev.agentbayu.app.domain.tasks.TaskStore
-import dev.agentbayu.app.domain.tools.AiToolJudge
-import dev.agentbayu.app.domain.tools.JudgingToolApprovalGate
 import dev.agentbayu.app.domain.tools.PermissionKind
 import dev.agentbayu.app.domain.tools.PermissionRequests
 import dev.agentbayu.app.domain.tools.ToolApprovalDecision
 import dev.agentbayu.app.domain.tools.ToolApprovalMode
-import dev.agentbayu.app.domain.tools.ToolApprovalNotes
 import dev.agentbayu.app.domain.tools.ToolApprovalRouter
-import dev.agentbayu.app.domain.tools.ToolIntent
 import dev.agentbayu.app.domain.tools.UiToolApprovalGate
 import dev.agentbayu.app.platform.AppSettings
 import dev.agentbayu.app.platform.FileStorage
@@ -212,6 +211,9 @@ object AppGraph {
         val connectionStore = ConnectionStore(secureStore, clock)
         val usageTracker = UsageTracker(clock)
         val logStore = LogStore(clock)
+        CrashLog.take(context)?.let { crash ->
+            logStore.error("Crash", crash.type, crash.detail)
+        }
         seedDefaultConnection(context, catalog, connectionStore)
         val client = OkHttpClient.Builder()
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
@@ -257,18 +259,10 @@ object AppGraph {
             storage = FileStorage(context, ATTACHMENT_DIRECTORY),
             clock = clock
         )
-        val intent = ToolIntent()
-        val notes = ToolApprovalNotes()
         val approvals = UiToolApprovalGate()
         val gate = ToolApprovalRouter(
             mode = { settings(context).toolApprovalMode.value },
-            ask = approvals,
-            auto = JudgingToolApprovalGate(
-                judge = AiToolJudge(aiClient),
-                fallback = approvals,
-                userIntent = { intent.text },
-                notes = notes
-            )
+            ask = approvals
         )
         scope.launch {
             settings(context).toolApprovalMode.collect { mode ->
@@ -304,7 +298,9 @@ object AppGraph {
                     ),
                     ListTasksTool { tasks(context) },
                     CompleteTaskTool { tasks(context) },
+                    DeleteTaskTool { tasks(context) },
                     CreateAlarmTool(context),
+                    DeleteAlarmTool(context),
                     WebSearchTool(client),
                     ListFilesTool { files.value },
                     ReadFileTool { files.value },
@@ -316,9 +312,7 @@ object AppGraph {
                     MoveFileTool({ files.value }, gate),
                     RequestPermissionTool { permissions }
                 )
-            ),
-            intent = intent,
-            notes = notes
+            )
         )
         val conversationStore = ConversationStore(secureStore)
         val sessionManager = ConversationSessionManager(
@@ -330,6 +324,9 @@ object AppGraph {
         sessionManager.attach(scope)
         scope.launch {
             sessionManager.activeSessionId.collect { approvals.clearSession() }
+        }
+        scope.launch {
+            sessionManager.incognito.collect { approvals.clearSession() }
         }
         val chatController = ChatController(
             repository = conversation,

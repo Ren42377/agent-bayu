@@ -23,8 +23,7 @@ class WriteFileTool(
             "missing. The owner sees the change before it lands.",
         parameters = toolSchema(
             ToolField("path", "string", "File to write"),
-            ToolField("content", "string", "The full new content of the file"),
-            reasonField()
+            ToolField("content", "string", "The full new content of the file")
         )
     )
 
@@ -50,7 +49,10 @@ class WriteFileTool(
         ) {
             try {
                 access.write(path, content)
-                call.reply(summarize(if (existed) "Wrote " else "Created ", target.path, preview))
+                call.reply(
+                    summarize(if (existed) "Wrote " else "Created ", target.path, preview),
+                    displayPath = target.path
+                )
             } catch (error: FileAccessException) {
                 call.problem(error.message.orEmpty())
             }
@@ -74,8 +76,7 @@ class EditFileTool(
         parameters = toolSchema(
             ToolField("path", "string", "File to change"),
             ToolField("old_string", "string", "The exact text to look for"),
-            ToolField("new_string", "string", "The text that replaces it, empty to remove it"),
-            reasonField()
+            ToolField("new_string", "string", "The text that replaces it, empty to remove it")
         )
     )
 
@@ -113,7 +114,7 @@ class EditFileTool(
         call.gated(gate, ToolApprovalKind.EDIT, target.path, preview = preview) {
             try {
                 access.write(path, after)
-                call.reply(summarize("Edited ", target.path, preview))
+                call.reply(summarize("Edited ", target.path, preview), displayPath = target.path)
             } catch (error: FileAccessException) {
                 call.problem(error.message.orEmpty())
             }
@@ -134,8 +135,7 @@ class DeleteFileTool(
         name = NAME,
         description = "Delete one file, or one folder that is already empty.",
         parameters = toolSchema(
-            ToolField("path", "string", "File or empty folder to delete"),
-            reasonField()
+            ToolField("path", "string", "File or empty folder to delete")
         )
     )
 
@@ -153,7 +153,7 @@ class DeleteFileTool(
         call.gated(gate, ToolApprovalKind.DELETE, target.path, preview = preview) {
             try {
                 access.delete(path)
-                call.reply("Deleted " + target.path)
+                call.reply("Deleted " + target.path, displayPath = target.path)
             } catch (error: FileAccessException) {
                 call.problem(error.message.orEmpty())
             }
@@ -175,8 +175,7 @@ class MoveFileTool(
         description = "Move or rename a file. The destination must not exist yet.",
         parameters = toolSchema(
             ToolField("from", "string", "File to move"),
-            ToolField("to", "string", "Where the file should end up"),
-            reasonField()
+            ToolField("to", "string", "Where the file should end up")
         )
     )
 
@@ -204,7 +203,10 @@ class MoveFileTool(
         call.gated(gate, ToolApprovalKind.MOVE, source.path, destination.path) {
             try {
                 access.move(from, to)
-                call.reply("Moved " + source.path + " to " + destination.path)
+                call.reply(
+                    "Moved " + source.path + " to " + destination.path,
+                    displayPath = destination.path
+                )
             } catch (error: FileAccessException) {
                 call.problem(error.message.orEmpty())
             }
@@ -231,8 +233,7 @@ private suspend fun ToolCall.gated(
             kind = kind,
             path = path,
             destination = destination,
-            preview = preview,
-            reason = ToolArguments(arguments).text(REASON_FIELD).orEmpty()
+            preview = preview
         )
     )
     if (decision == ToolApprovalDecision.DENY) {
@@ -240,14 +241,6 @@ private suspend fun ToolCall.gated(
     }
     return perform()
 }
-
-internal const val REASON_FIELD = "reason"
-
-internal fun reasonField(): ToolField = ToolField(
-    name = REASON_FIELD,
-    type = "string",
-    description = "One short sentence saying why this change is needed, in the owner language"
-)
 
 private fun summarize(prefix: String, path: String, preview: List<DiffLine>): String =
     prefix + path + ", +" + TextDiff.added(preview) + " -" + TextDiff.removed(preview)

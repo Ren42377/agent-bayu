@@ -69,14 +69,7 @@ class ConversationRepository {
         }
     }
 
-    fun appendAutoApprove(id: Long, reason: String) {
-        if (reason.isEmpty()) return
-        mutate(id) { message ->
-            message.copy(segments = message.segments + MessageSegment.AutoApprove(reason))
-        }
-    }
-
-    fun finishToolRun(id: Long, name: String, ok: Boolean) {
+    fun finishToolRun(id: Long, name: String, ok: Boolean, path: String = "") {
         mutate(id) { message ->
             val index = message.segments.indexOfLast { segment ->
                 segment is MessageSegment.Tool && segment.name == name && segment.running
@@ -86,7 +79,7 @@ class ConversationRepository {
             } else {
                 val segments = message.segments.toMutableList()
                 val tool = segments[index] as MessageSegment.Tool
-                segments[index] = tool.copy(running = false, ok = ok)
+                segments[index] = tool.copy(running = false, ok = ok, path = path.ifEmpty { tool.path })
                 message.copy(segments = segments)
             }
         }
@@ -123,6 +116,10 @@ class ConversationRepository {
                 message
             }
         }
+    }
+
+    fun truncateFrom(id: Long) {
+        state.update { current -> current.takeWhile { message -> message.id != id } }
     }
 
     fun clear() {

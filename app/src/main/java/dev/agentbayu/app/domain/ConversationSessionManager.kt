@@ -24,9 +24,11 @@ class ConversationSessionManager(
     private val mutex = Mutex()
     private val sessionsState = MutableStateFlow<List<ChatSessionMeta>>(emptyList())
     private val activeState = MutableStateFlow<String?>(null)
+    private val incognitoState = MutableStateFlow(false)
 
     val sessions: StateFlow<List<ChatSessionMeta>> = sessionsState.asStateFlow()
     val activeSessionId: StateFlow<String?> = activeState.asStateFlow()
+    val incognito: StateFlow<Boolean> = incognitoState.asStateFlow()
 
     @Volatile
     private var cancelStreaming: (() -> Unit)? = null
@@ -53,8 +55,19 @@ class ConversationSessionManager(
         }
     }
 
+    fun startIncognito() {
+        switchSession {
+            persistSnapshotLocked(repository.messages.value)
+            repository.clear()
+            activeState.value = null
+            incognitoState.value = true
+            saveIndexLocked()
+        }
+    }
+
     fun newSession() {
         switchSession {
+            incognitoState.value = false
             val snapshot = repository.messages.value
             if (snapshot.isEmpty()) {
                 return@switchSession
@@ -71,6 +84,7 @@ class ConversationSessionManager(
             return
         }
         switchSession {
+            incognitoState.value = false
             if (sessionsState.value.none { it.id == sessionId }) {
                 return@switchSession
             }
@@ -166,6 +180,7 @@ class ConversationSessionManager(
     }
 
     private fun persistSnapshotLocked(messages: List<ChatMessage>) {
+        if (incognitoState.value) return
         val snapshot = messages.filter { !it.streaming || it.text.isNotBlank() }
         if (snapshot.isEmpty()) {
             return

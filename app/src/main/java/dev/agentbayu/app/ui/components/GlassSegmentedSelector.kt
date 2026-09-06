@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -75,8 +76,8 @@ internal fun GlassSegmentedSelector(
     )
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val backdrop = LocalGlassBackdrop.current
-    val labelsBackdrop = rememberLayerBackdrop()
-    val indicatorBackdrop = rememberCombinedBackdrop(backdrop, labelsBackdrop)
+    val containerBackdrop = rememberLayerBackdrop()
+    val indicatorBackdrop = rememberCombinedBackdrop(backdrop, containerBackdrop)
     val animationScope = rememberCoroutineScope()
     val currentOnSelect by rememberUpdatedState(onSelect)
     val touchSlop = LocalViewConfiguration.current.touchSlop
@@ -140,27 +141,39 @@ internal fun GlassSegmentedSelector(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(color = trackColor, shape = CapsuleShape)
-        )
-        Row(
-            modifier = Modifier
-                .clearAndSetSemantics {}
-                .alpha(0f)
-                .layerBackdrop(labelsBackdrop)
-                .fillMaxSize()
+                .layerBackdrop(containerBackdrop)
         ) {
-            labels.forEach { label ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = tint
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(color = trackColor, shape = CapsuleShape)
+                    .border(
+                        width = 1.dp,
+                        color = MaterialTheme.colorScheme.onSurface.copy(
+                            alpha = if (darkTheme) DARK_BORDER_ALPHA else BORDER_ALPHA
+                        ),
+                        shape = CapsuleShape
                     )
+            )
+            Row(
+                modifier = Modifier
+                    .clearAndSetSemantics {}
+                    .alpha(0f)
+                    .fillMaxSize()
+            ) {
+                labels.forEach { label ->
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = tint
+                        )
+                    }
                 }
             }
         }
@@ -285,11 +298,13 @@ internal fun GlassSegmentedSelector(
 
 private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
+private const val BORDER_ALPHA = 0.08f
+private const val DARK_BORDER_ALPHA = 0.06f
 private const val SELECTOR_TINT_ALPHA = 0.92f
-private const val SELECTOR_PRESSED_SCALE = 44f / 36f
+private const val SELECTOR_PRESSED_SCALE = 48f / 36f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f
 private val SELECTOR_HEIGHT = 36.dp
-private val SELECTOR_LENS_HEIGHT = 10.dp
-private val SELECTOR_LENS_AMOUNT = 14.dp
-private val SELECTOR_INNER_SHADOW = 8.dp
+private val SELECTOR_LENS_HEIGHT = 12.dp
+private val SELECTOR_LENS_AMOUNT = 18.dp
+private val SELECTOR_INNER_SHADOW = 10.dp

@@ -97,3 +97,38 @@ class CreateAlarmTool(private val context: Context) : ToolHandler {
         )
     }
 }
+
+class DeleteAlarmTool(private val context: Context) : ToolHandler {
+
+    override val spec: ToolSpec = ToolSpec(
+        name = NAME,
+        description = "Ask the phone clock app to dismiss an alarm that is currently ringing. " +
+            "It cannot delete the saved alarm definition from another app.",
+        parameters = toolSchema(
+            ToolField(
+                name = "alarm_title",
+                type = "string",
+                description = "Name of the alarm when known",
+                required = false
+            )
+        )
+    )
+
+    override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.Main) {
+        val intent = Intent(AlarmClock.ACTION_DISMISS_ALARM)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.EXTRA_ALARM_SEARCH_MODE_ALL)
+        try {
+            context.startActivity(intent)
+        } catch (error: ActivityNotFoundException) {
+            return@withContext call.problem(
+                "This phone has no clock app that accepts alarm dismiss requests from another app"
+            )
+        }
+        call.reply("Handed an alarm dismiss request to the clock app")
+    }
+
+    private companion object {
+        const val NAME = "delete_alarm"
+    }
+}

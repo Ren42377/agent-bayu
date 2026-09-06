@@ -21,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
@@ -253,7 +255,6 @@ private fun ToolApprovalModeSelector(
     val labels = options.map { option ->
         when (option) {
             ToolApprovalMode.ASK -> stringResource(R.string.tool_mode_ask)
-            ToolApprovalMode.AUTO -> stringResource(R.string.tool_mode_auto)
             ToolApprovalMode.BYPASS -> stringResource(R.string.tool_mode_bypass)
         }
     }
@@ -275,8 +276,9 @@ private fun NavigationSettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(GlassTileShape)
             .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         GlassBadge(icon = icon, containerColor = iconColor)

@@ -1,7 +1,6 @@
 package dev.agentbayu.app.ui.components
 
 import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
@@ -15,6 +14,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -27,6 +27,7 @@ import dev.agentbayu.app.domain.MessageAuthor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.distinctUntilChanged
 
 @Composable
 fun MessageList(
@@ -35,7 +36,11 @@ fun MessageList(
     modifier: Modifier = Modifier,
     sessionKey: String = "",
     contentPadding: PaddingValues = PaddingValues(0.dp),
-    onShowDetail: ((ChatMessage) -> Unit)? = null
+    onShowDetail: ((ChatMessage) -> Unit)? = null,
+    onCopy: ((ChatMessage) -> Unit)? = null,
+    onRegenerate: ((ChatMessage) -> Unit)? = null,
+    onEdit: ((ChatMessage) -> Unit)? = null,
+    onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
     key(sessionKey) {
         MessageListBody(
@@ -43,7 +48,11 @@ fun MessageList(
             isResponding = isResponding,
             modifier = modifier,
             contentPadding = contentPadding,
-            onShowDetail = onShowDetail
+            onShowDetail = onShowDetail,
+            onCopy = onCopy,
+            onRegenerate = onRegenerate,
+            onEdit = onEdit,
+            onOpenAttachment = onOpenAttachment
         )
     }
 }
@@ -54,7 +63,11 @@ private fun MessageListBody(
     isResponding: Boolean,
     modifier: Modifier,
     contentPadding: PaddingValues,
-    onShowDetail: ((ChatMessage) -> Unit)?
+    onShowDetail: ((ChatMessage) -> Unit)?,
+    onCopy: ((ChatMessage) -> Unit)?,
+    onRegenerate: ((ChatMessage) -> Unit)?,
+    onEdit: ((ChatMessage) -> Unit)?,
+    onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)?
 ) {
     val listState = rememberLazyListState()
     val visible = remember(messages) {
@@ -69,7 +82,9 @@ private fun MessageListBody(
     val followGuard = remember(follow) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-                if (available.y > 0f) follow.value = false
+                if (source == NestedScrollSource.UserInput && available.y > 0f) {
+                    follow.value = false
+                }
                 return Offset.Zero
             }
 
@@ -78,13 +93,29 @@ private fun MessageListBody(
                 available: Offset,
                 source: NestedScrollSource
             ): Offset {
-                if (available.y < 0f) follow.value = true
+                if (
+                    source == NestedScrollSource.UserInput &&
+                    available.y < 0f &&
+                    listState.bottomOverflow() <= FOLLOW_TOLERANCE_PIXELS
+                ) {
+                    follow.value = true
+                }
                 return Offset.Zero
             }
         }
     }
 
-    LaunchedEffect(itemCount) {
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }
+            .distinctUntilChanged()
+            .collect { scrolling ->
+                if (!scrolling && listState.bottomOverflow() <= FOLLOW_TOLERANCE_PIXELS) {
+                    follow.value = true
+                }
+            }
+    }
+
+    LaunchedEffect(itemCount, visible.lastOrNull()?.text, visible.lastOrNull()?.segments) {
         if (itemCount == 0) return@LaunchedEffect
         if (visible.lastOrNull()?.author == MessageAuthor.USER) follow.value = true
         if (scrolledCount.intValue == 0) {
@@ -92,33 +123,15 @@ private fun MessageListBody(
             listState.scrollToItem(itemCount - 1)
             return@LaunchedEffect
         }
-        if (!follow.value || itemCount == scrolledCount.intValue) return@LaunchedEffect
+        if (!follow.value || listState.isScrollInProgress) return@LaunchedEffect
         scrolledCount.intValue = itemCount
         withFrameNanos { }
         val overflow = listState.bottomOverflow()
-        if (overflow > 0f && !listState.isScrollInProgress) {
-            try {
-                listState.animateScrollBy(overflow)
-            } catch (cancellation: CancellationException) {
-                currentCoroutineContext().ensureActive()
-            }
-        }
-    }
-
-    LaunchedEffect(isResponding) {
-        if (!isResponding) return@LaunchedEffect
-        while (true) {
-            withFrameNanos { }
-            if (!follow.value) continue
-            if (listState.isScrollInProgress) continue
-            val overflow = listState.bottomOverflow()
-            if (overflow > 0f) {
-                try {
-                    listState.scrollBy(overflow)
-                } catch (cancellation: CancellationException) {
-                    currentCoroutineContext().ensureActive()
-                }
-            }
+        if (overflow <= 0f) return@LaunchedEffect
+        try {
+            listState.animateScrollBy(overflow)
+        } catch (cancellation: CancellationException) {
+            currentCoroutineContext().ensureActive()
         }
     }
 
@@ -132,7 +145,11 @@ private fun MessageListBody(
             MessageBubble(
                 message = message,
                 modifier = Modifier.animateItem(fadeOutSpec = null, placementSpec = null),
-                onShowDetail = onShowDetail
+                onShowDetail = onShowDetail,
+                onCopy = onCopy,
+                onRegenerate = onRegenerate,
+                onEdit = onEdit,
+                onOpenAttachment = onOpenAttachment
             )
         }
         if (showTyping) {
@@ -156,3 +173,4 @@ private fun LazyListState.bottomOverflow(): Float {
 }
 
 private const val TYPING_KEY = "typing"
+private const val FOLLOW_TOLERANCE_PIXELS = 24f

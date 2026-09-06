@@ -26,8 +26,9 @@ class ViewImageTool(
     override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
         val path = ToolArguments(call.arguments).text("path")
             ?: return@withContext call.problem("A path is required")
+        val access = files()
         val bytes = try {
-            files().bytes(path)
+            access.bytes(path)
         } catch (error: FileAccessException) {
             return@withContext call.problem(error.message.orEmpty())
         }
@@ -35,8 +36,10 @@ class ViewImageTool(
             ?: return@withContext call.problem("That file is not an image: " + path)
         val encoded = Base64.encodeToString(prepared.bytes, Base64.NO_WRAP)
         call.reply(
-            content = "Attached " + path + " at " + prepared.width + "x" + prepared.height,
-            images = listOf(ChatImage(mimeType = prepared.mimeType, data = encoded))
+            content = "Attached " + access.resolve(path).path + " at " + prepared.width + "x" +
+                prepared.height,
+            images = listOf(ChatImage(mimeType = prepared.mimeType, data = encoded)),
+            displayPath = access.resolve(path).path
         )
     }
 

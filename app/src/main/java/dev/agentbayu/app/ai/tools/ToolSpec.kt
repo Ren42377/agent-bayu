@@ -37,7 +37,8 @@ data class ToolResult(
     val name: String,
     val content: String,
     val isError: Boolean = false,
-    val images: List<ChatImage> = emptyList()
+    val images: List<ChatImage> = emptyList(),
+    val displayPath: String = ""
 )
 
 interface ToolHandler {
@@ -77,8 +78,17 @@ class ToolArguments(raw: String) {
     fun number(field: String, fallback: Int): Int = root?.intField(field) ?: fallback
 }
 
-fun ToolCall.reply(content: String, images: List<ChatImage> = emptyList()): ToolResult =
-    ToolResult(callId = id, name = name, content = content, images = images)
+fun ToolCall.reply(
+    content: String,
+    images: List<ChatImage> = emptyList(),
+    displayPath: String = ""
+): ToolResult = ToolResult(
+    callId = id,
+    name = name,
+    content = content,
+    images = images,
+    displayPath = displayPath
+)
 
 fun ToolCall.problem(reason: String): ToolResult =
     ToolResult(callId = id, name = name, content = reason, isError = true)

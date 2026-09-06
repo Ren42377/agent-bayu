@@ -176,6 +176,7 @@ private fun MonthHeader(
                 tint = scheme.primary,
                 modifier = Modifier
                     .size(28.dp)
+                    .clip(CircleShape)
                     .rotate(180f)
                     .clickable(onClick = onPrevious)
             )
@@ -203,6 +204,7 @@ private fun MonthHeader(
                 tint = scheme.primary,
                 modifier = Modifier
                     .size(28.dp)
+                    .clip(CircleShape)
                     .clickable(onClick = onNext)
             )
         }
@@ -295,6 +297,7 @@ private fun DayCell(
                 color = if (selected) scheme.primary else Color.Transparent,
                 shape = CircleShape
             )
+            .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
     ) {

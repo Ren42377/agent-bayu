@@ -40,13 +40,14 @@ sealed interface MessageSegment {
     data class Tool(
         val name: String,
         val label: String = "",
+        val path: String = "",
         val running: Boolean = true,
         val ok: Boolean = false
     ) : MessageSegment
 
     @Serializable
     @SerialName("auto_approve")
-    data class AutoApprove(val reason: String) : MessageSegment
+    data class LegacyAutoApprove(val reason: String = "") : MessageSegment
 }
 
 @Serializable
@@ -61,9 +62,12 @@ data class ChatMessage(
     val segments: List<MessageSegment> = emptyList()
 ) {
     val displaySegments: List<MessageSegment>
-        get() = if (segments.isNotEmpty() || text.isEmpty()) {
-            segments
-        } else {
-            listOf(MessageSegment.Prose(text))
+        get() {
+            val visible = segments.filterNot { it is MessageSegment.LegacyAutoApprove }
+            return if (visible.isNotEmpty() || text.isEmpty()) {
+                visible
+            } else {
+                listOf(MessageSegment.Prose(text))
+            }
         }
 }

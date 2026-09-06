@@ -8,7 +8,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withTimeoutOrNull
 
 enum class ToolApprovalKind {
     CREATE,
@@ -26,7 +25,6 @@ enum class ToolApprovalDecision {
 
 enum class ToolApprovalMode {
     ASK,
-    AUTO,
     BYPASS
 }
 
@@ -36,8 +34,7 @@ data class ToolApprovalRequest(
     val kind: ToolApprovalKind,
     val path: String,
     val destination: String? = null,
-    val preview: List<DiffLine> = emptyList(),
-    val reason: String = ""
+    val preview: List<DiffLine> = emptyList()
 ) {
     val added: Int get() = TextDiff.added(preview)
 
@@ -106,77 +103,15 @@ class UiToolApprovalGate : ToolApprovalGate {
     }
 }
 
-enum class JudgeOutcome {
-    ACCEPTED,
-    REJECTED,
-    UNUSABLE
-}
-
-class ToolIntent {
-
-    @Volatile
-    var text: String = ""
-}
-
-class ToolApprovalNotes {
-
-    @Volatile
-    var lastAutoApproved: String = ""
-
-    fun take(): String {
-        val value = lastAutoApproved
-        lastAutoApproved = ""
-        return value
-    }
-}
-
-interface ToolApprovalJudge {
-    suspend fun review(request: ToolApprovalRequest, userIntent: String): JudgeOutcome
-}
-
-class JudgingToolApprovalGate(
-    private val judge: ToolApprovalJudge,
-    private val fallback: ToolApprovalGate,
-    private val userIntent: () -> String = { "" },
-    private val notes: ToolApprovalNotes = ToolApprovalNotes(),
-    private val timeoutMillis: Long = JUDGE_TIMEOUT_MILLIS
-) : ToolApprovalGate {
-
-    override suspend fun confirm(request: ToolApprovalRequest): ToolApprovalDecision {
-        val outcome = withTimeoutOrNull(timeoutMillis) {
-            judge.review(request, userIntent())
-        } ?: JudgeOutcome.UNUSABLE
-        return when (outcome) {
-            JudgeOutcome.ACCEPTED -> {
-                notes.lastAutoApproved = request.reason.ifBlank { defaultReason(request) }
-                ToolApprovalDecision.ALLOW_ONCE
-            }
-
-            JudgeOutcome.REJECTED -> ToolApprovalDecision.DENY
-
-            JudgeOutcome.UNUSABLE -> fallback.confirm(request)
-        }
-    }
-
-    private fun defaultReason(request: ToolApprovalRequest): String =
-        request.toolName + " " + request.path
-
-    private companion object {
-        const val JUDGE_TIMEOUT_MILLIS = 25_000L
-    }
-}
-
 class ToolApprovalRouter(
     private val mode: () -> ToolApprovalMode,
     private val ask: ToolApprovalGate,
-    private val auto: ToolApprovalGate,
     private val bypass: ToolApprovalGate = OpenToolApprovalGate
 ) : ToolApprovalGate {
 
     override suspend fun confirm(request: ToolApprovalRequest): ToolApprovalDecision =
         when (mode()) {
             ToolApprovalMode.ASK -> ask.confirm(request)
-            ToolApprovalMode.AUTO -> auto.confirm(request)
             ToolApprovalMode.BYPASS -> bypass.confirm(request)
         }
 }

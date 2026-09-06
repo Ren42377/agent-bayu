@@ -2,6 +2,7 @@ package dev.agentbayu.app.ui.chat
 
 import android.Manifest
 import android.content.ActivityNotFoundException
+import android.content.ClipData
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -20,6 +21,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.ContextCompat
@@ -31,6 +34,7 @@ import dev.agentbayu.app.ai.availableEfforts
 import dev.agentbayu.app.ai.resolveActiveConnection
 import dev.agentbayu.app.ai.resolveEffort
 import dev.agentbayu.app.domain.MessageAttachment
+import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.components.AttachmentThumbnails
 import dev.agentbayu.app.ui.components.GlassDialog
@@ -47,6 +51,7 @@ fun ChatRoute(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val clipboard = LocalClipboard.current
     val chat = remember(context) { AppGraph.chat(context) }
     val catalog = remember(context) { AppGraph.catalog(context) }
     val credentials = remember(context) { AppGraph.credentials(context) }
@@ -60,6 +65,7 @@ fun ChatRoute(
     val messages by chat.messages.collectAsState()
     val isResponding by chat.isResponding.collectAsState()
     val activeSessionId by sessionManager.activeSessionId.collectAsState()
+    val incognito by sessionManager.incognito.collectAsState()
     val connections by connectionStore.connections.collectAsState()
     val activeId by connectionStore.activeConnectionId.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
@@ -70,6 +76,7 @@ fun ChatRoute(
     val settingsUnavailable = stringResource(R.string.dialog_settings_unavailable)
     val attachFailed = stringResource(R.string.chat_attach_failed)
     val attachLimit = stringResource(R.string.chat_attach_limit, MAX_ATTACHMENTS)
+    val copiedMessage = stringResource(R.string.chat_copied)
 
     val microphoneLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -165,9 +172,35 @@ fun ChatRoute(
             },
             onManageProviders = onOpenProviders,
             onStop = chat::cancel,
+            incognito = incognito,
+            onSessionAction = {
+                if (messages.isEmpty() || incognito) {
+                    sessionManager.startIncognito()
+                } else {
+                    sessionManager.newSession()
+                }
+            },
+            onCopy = { message ->
+                scope.launch {
+                    clipboard.setClipEntry(
+                        ClipEntry(ClipData.newPlainText("Agent Bayu", message.text))
+                    )
+                    onMessage(copiedMessage)
+                }
+            },
+            onRegenerate = { message ->
+                val index = messages.indexOfFirst { it.id == message.id }
+                val prompt = messages.subList(0, index).lastOrNull { it.author == MessageAuthor.USER }
+                if (prompt != null) chat.regenerate(message, prompt)
+            },
+            onEdit = { message ->
+                input = message.text
+                pending = message.attachments
+                chat.truncateFrom(message)
+            },
             drawer = drawer,
             modifier = modifier,
-            sessionKey = activeSessionId.orEmpty(),
+            sessionKey = if (incognito) "incognito" else activeSessionId.orEmpty(),
             attachments = pending,
             canAttach = canAttach,
             onAttachClick = {

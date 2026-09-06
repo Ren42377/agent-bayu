@@ -58,7 +58,7 @@ internal fun EffortSelector(
     GlassSegmentedSelector(
         labels = options.map { it.label },
         selectedIndex = selectedIndex,
-        onSelect = { index -> onSelect(options[index]) },
+        onSelect = { index -> options.getOrNull(index)?.let(onSelect) },
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
@@ -72,11 +72,23 @@ internal fun EffortSelector(
 private class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
 
 private fun paceOf(effort: ReasoningEffort?): StarPace {
-    val step = effort?.ordinal ?: 0
-    return StarPace(
-        driftSpeed = STAR_BASE_DRIFT + step * STAR_DRIFT_STEP,
-        twinkleSpeed = STAR_BASE_TWINKLE + step * STAR_TWINKLE_STEP
-    )
+    val drift = when (effort) {
+        ReasoningEffort.LOW -> 16f
+        ReasoningEffort.MEDIUM -> 50f
+        ReasoningEffort.HIGH -> 120f
+        ReasoningEffort.XHIGH -> 220f
+        ReasoningEffort.MAX -> 360f
+        null -> 16f
+    }
+    val twinkle = when (effort) {
+        ReasoningEffort.LOW -> 1.2f
+        ReasoningEffort.MEDIUM -> 2.5f
+        ReasoningEffort.HIGH -> 4.5f
+        ReasoningEffort.XHIGH -> 7.0f
+        ReasoningEffort.MAX -> 10.0f
+        null -> 1.2f
+    }
+    return StarPace(driftSpeed = drift, twinkleSpeed = twinkle)
 }
 
 private fun effortColor(effort: ReasoningEffort): Color = when (effort) {

@@ -34,7 +34,11 @@ fun GlassCard(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val clickModifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier
+    val clickModifier = if (onClick != null) {
+        Modifier.clip(shape).clickable(onClick = onClick)
+    } else {
+        Modifier
+    }
     Column(
         modifier = modifier
             .fillMaxWidth()

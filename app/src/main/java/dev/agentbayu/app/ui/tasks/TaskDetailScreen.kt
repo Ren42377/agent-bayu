@@ -176,6 +176,7 @@ fun TaskDetailScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(CapsuleShape)
                         .clickable(onClick = onDelete)
                         .padding(vertical = 12.dp)
                 )
@@ -270,7 +271,8 @@ private fun SubtaskRow(
                     color = if (task.completed) scheme.primary else scheme.outlineVariant,
                     shape = CircleShape
                 )
-                .clickable(onClick = onToggle),
+                .clip(CircleShape)
+            .clickable(onClick = onToggle),
             contentAlignment = Alignment.Center
         ) {
             if (task.completed) {
@@ -296,8 +298,10 @@ private fun SubtaskRow(
             contentDescription = stringResource(R.string.tasks_delete),
             tint = scheme.onSurfaceVariant,
             modifier = Modifier
-                .size(18.dp)
+                .size(24.dp)
+                .clip(CircleShape)
                 .clickable(onClick = onDelete)
+                .padding(3.dp)
         )
     }
 }

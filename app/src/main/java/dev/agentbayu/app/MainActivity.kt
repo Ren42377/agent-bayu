@@ -47,6 +47,7 @@ import androidx.core.view.WindowCompat
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import dev.agentbayu.app.ai.CrashLog
 import dev.agentbayu.app.domain.tools.PermissionKind
 import dev.agentbayu.app.platform.NotificationAccess
 import dev.agentbayu.app.platform.files.AllFilesAccess
@@ -88,6 +89,7 @@ class MainActivity : ComponentActivity() {
         pendingTaskId.value = intent?.getStringExtra(EXTRA_TASK_ID)
         splashScreen.setKeepOnScreenCondition { !AppGraph.readiness.value }
         AppGraph.warmUp(applicationContext)
+        installCrashLogger(applicationContext)
         setContent {
             val ready by AppGraph.readiness.collectAsState()
             if (ready) {
@@ -103,6 +105,14 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         intent.getStringExtra(EXTRA_TASK_ID)?.let { pendingTaskId.value = it }
+    }
+
+    private fun installCrashLogger(context: android.content.Context) {
+        val previous = Thread.getDefaultUncaughtExceptionHandler()
+        Thread.setDefaultUncaughtExceptionHandler { thread, error ->
+            runCatching { CrashLog.record(context, error) }
+            previous?.uncaughtException(thread, error)
+        }
     }
 }
 

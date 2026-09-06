@@ -17,11 +17,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
@@ -59,8 +61,8 @@ internal fun TaskFieldRow(
 ) {
     val base = Modifier
         .fillMaxWidth()
-        .let { if (onClick == null) it else it.clickable(onClick = onClick) }
-        .padding(vertical = 6.dp)
+        .let { if (onClick == null) it else it.clip(GlassTileShape).clickable(onClick = onClick) }
+        .padding(horizontal = 4.dp, vertical = 6.dp)
     Row(modifier = base, verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = label,

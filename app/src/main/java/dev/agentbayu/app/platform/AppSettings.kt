@@ -52,7 +52,10 @@ class AppSettings(context: Context) {
     private fun readToolApprovalMode(): ToolApprovalMode {
         val stored = preferences.getString(KEY_TOOL_APPROVAL_MODE, null)
             ?: return ToolApprovalMode.ASK
-        return ToolApprovalMode.entries.firstOrNull { it.name == stored } ?: ToolApprovalMode.ASK
+        return ToolApprovalMode.entries.firstOrNull { it.name == stored } ?: run {
+            preferences.edit().remove(KEY_TOOL_APPROVAL_MODE).apply()
+            ToolApprovalMode.ASK
+        }
     }
 
     fun completeOnboarding() {

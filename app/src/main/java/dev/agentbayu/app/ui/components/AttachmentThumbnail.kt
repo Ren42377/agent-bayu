@@ -3,6 +3,7 @@ package dev.agentbayu.app.ui.components
 import android.graphics.Bitmap
 import android.util.LruCache
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
@@ -21,6 +22,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.agentbayu.app.platform.ImagePipeline
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
@@ -55,7 +57,8 @@ fun AttachmentThumbnail(
     attachment: MessageAttachment,
     modifier: Modifier = Modifier,
     size: Dp = DEFAULT_THUMBNAIL_SIZE,
-    shape: Shape = GlassBadgeShape
+    shape: Shape = GlassBadgeShape,
+    onClick: (() -> Unit)? = null
 ) {
     val loader = LocalAttachmentLoader.current
     var bitmap by remember(attachment.id) { mutableStateOf<ImageBitmap?>(null) }
@@ -67,6 +70,7 @@ fun AttachmentThumbnail(
             .size(size)
             .glassSurface(shape = shape)
             .clip(shape)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
     ) {
         bitmap?.let { image ->
             Image(
@@ -79,5 +83,6 @@ fun AttachmentThumbnail(
     }
 }
 
-private val DEFAULT_THUMBNAIL_SIZE = 64.dp
+internal val DEFAULT_THUMBNAIL_SIZE = 64.dp
 private const val THUMBNAIL_EDGE = 256
+internal const val PREVIEW_EDGE = ImagePipeline.MAX_EDGE

@@ -225,6 +225,7 @@ private fun WeekdayPicker(selected: List<Int>, onToggle: (Int) -> Unit) {
                         },
                         shape = CircleShape
                     )
+                    .clip(CircleShape)
                     .clickable { onToggle(day.value) },
                 contentAlignment = Alignment.Center
             ) {

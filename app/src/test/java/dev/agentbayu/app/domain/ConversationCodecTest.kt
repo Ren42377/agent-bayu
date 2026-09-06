@@ -188,6 +188,17 @@ class ConversationCodecTest {
     }
 
     @Test
+    fun legacyAutoApprovalsDecodeButDoNotRender() {
+        val raw = """{"version":1,"messages":[{"id":3,"author":"AGENT","text":"lama","segments":[{"type":"auto_approve","reason":"old rule"}]}]}"""
+
+        val decoded = ConversationCodec.decode(raw)
+
+        assertEquals(1, decoded.size)
+        assertEquals("lama", decoded.single().text)
+        assertEquals(listOf(MessageSegment.Prose("lama")), decoded.single().displaySegments)
+    }
+
+    @Test
     fun conversationsWrittenBeforeSegmentsStillDecode() {
         val raw = """{"version":1,"messages":[{"id":3,"author":"AGENT","text":"lama",""" +
             """"toolRuns":[{"name":"read_file","running":false,"ok":true}]}]}"""

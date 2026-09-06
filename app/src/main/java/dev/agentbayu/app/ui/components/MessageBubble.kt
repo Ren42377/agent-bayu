@@ -1,5 +1,10 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,11 +54,21 @@ import kotlinx.coroutines.delay
 fun MessageBubble(
     message: ChatMessage,
     modifier: Modifier = Modifier,
-    onShowDetail: ((ChatMessage) -> Unit)? = null
+    onShowDetail: ((ChatMessage) -> Unit)? = null,
+    onCopy: ((ChatMessage) -> Unit)? = null,
+    onRegenerate: ((ChatMessage) -> Unit)? = null,
+    onEdit: ((ChatMessage) -> Unit)? = null,
+    onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
     val isDark = LocalDarkTheme.current
     if (message.author == MessageAuthor.USER) {
-        UserMessage(message = message, modifier = modifier, isDark = isDark)
+        UserMessage(
+            message = message,
+            modifier = modifier,
+            isDark = isDark,
+            onEdit = onEdit,
+            onOpenAttachment = onOpenAttachment
+        )
         return
     }
     Column(
@@ -72,31 +87,80 @@ fun MessageBubble(
                 }
 
                 is MessageSegment.Tool -> ToolRow(segment = segment, isDark = isDark)
-
-                is MessageSegment.AutoApprove -> AutoApproveRow(segment = segment)
             }
         }
-        if (message.detail != null && onShowDetail != null) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .clickable { onShowDetail(message) },
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_more_vert),
-                    contentDescription = stringResource(R.string.route_show),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
+        if (!message.streaming && (message.text.isNotBlank() || message.detail != null)) {
+            ReplyActions(
+                message = message,
+                onShowDetail = onShowDetail,
+                onCopy = onCopy,
+                onRegenerate = onRegenerate
+            )
         }
     }
 }
 
 @Composable
-private fun UserMessage(message: ChatMessage, isDark: Boolean, modifier: Modifier = Modifier) {
+private fun ReplyActions(
+    message: ChatMessage,
+    onShowDetail: ((ChatMessage) -> Unit)?,
+    onCopy: ((ChatMessage) -> Unit)?,
+    onRegenerate: ((ChatMessage) -> Unit)?
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (onCopy != null && message.text.isNotBlank()) {
+            ReplyActionButton(
+                icon = R.drawable.ic_copy,
+                description = R.string.chat_copy_reply,
+                onClick = { onCopy(message) }
+            )
+        }
+        if (onRegenerate != null && message.text.isNotBlank()) {
+            ReplyActionButton(
+                icon = R.drawable.ic_refresh,
+                description = R.string.chat_regenerate_reply,
+                onClick = { onRegenerate(message) }
+            )
+        }
+        if (onShowDetail != null && message.detail != null) {
+            ReplyActionButton(
+                icon = R.drawable.ic_more_vert,
+                description = R.string.route_show,
+                onClick = { onShowDetail(message) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReplyActionButton(icon: Int, description: Int, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = stringResource(description),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun UserMessage(
+    message: ChatMessage,
+    isDark: Boolean,
+    modifier: Modifier = Modifier,
+    onEdit: ((ChatMessage) -> Unit)? = null,
+    onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
+) {
     val userTint = if (isDark) AppleBlueDark else AppleBlueLight
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -111,7 +175,8 @@ private fun UserMessage(message: ChatMessage, isDark: Boolean, modifier: Modifie
                     AttachmentThumbnail(
                         attachment = attachment,
                         size = 96.dp,
-                        shape = UserBubbleShape
+                        shape = UserBubbleShape,
+                        onClick = onOpenAttachment?.let { open -> { open(attachment) } }
                     )
                 }
             }
@@ -129,6 +194,13 @@ private fun UserMessage(message: ChatMessage, isDark: Boolean, modifier: Modifie
                     color = Color.White
                 )
             }
+        }
+        if (!message.streaming && onEdit != null) {
+            ReplyActionButton(
+                icon = R.drawable.ic_edit,
+                description = R.string.chat_edit_message,
+                onClick = { onEdit(message) }
+            )
         }
     }
 }
@@ -179,7 +251,11 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
                     .rotate(if (expanded) 270f else 90f)
             )
         }
-        if (expanded && segment.text.isNotBlank()) {
+        AnimatedVisibility(
+            visible = expanded && segment.text.isNotBlank(),
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+        ) {
             val body = segment.text.trim()
             val codeColor = MaterialTheme.colorScheme.onSurfaceVariant
             val rendered = remember(body, codeColor) {
@@ -200,7 +276,7 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
 @Composable
 private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
     val mutating = segment.name !in READ_ONLY_TOOLS
-    val argument = argumentOf(segment.label)
+    val argument = segment.path.ifEmpty { argumentOf(segment.label) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -218,11 +294,7 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
         Text(
             text = toolDisplayName(segment.name),
             style = MaterialTheme.typography.labelMedium,
-            color = if (mutating) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1
         )
         if (argument.isNotEmpty()) {
@@ -231,7 +303,7 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+                overflow = TextOverflow.StartEllipsis,
                 modifier = Modifier.weight(1f, fill = false)
             )
         }
@@ -252,18 +324,6 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
     }
 }
 
-@Composable
-private fun AutoApproveRow(segment: MessageSegment.AutoApprove) {
-    Text(
-        text = stringResource(R.string.chat_auto_approve, segment.reason),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 1.dp)
-    )
-}
-
 private val READ_ONLY_TOOLS = setOf(
     "list_files",
     "read_file",
@@ -273,12 +333,10 @@ private val READ_ONLY_TOOLS = setOf(
     "web_search"
 )
 
-private val ARGUMENT_PATTERN = Regex("\"(path|from|title|query|time)\"\\s*:\\s*\"([^\"]*)\"")
+private val ARGUMENT_PATTERN = Regex("\"(path|from|title|query|time|task_id|alarm_title)\"\\s*:\\s*\"([^\"]*)\"")
 
-private fun argumentOf(label: String): String {
-    val value = ARGUMENT_PATTERN.find(label)?.groupValues?.get(2) ?: return ""
-    return if (value.startsWith("/")) value.substringAfterLast('/') else value
-}
+private fun argumentOf(label: String): String =
+    ARGUMENT_PATTERN.find(label)?.groupValues?.get(2).orEmpty()
 
 private const val NANOS_PER_MILLI = 1_000_000L
 private const val MILLIS_PER_SECOND = 1_000L

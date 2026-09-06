@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.ai
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,18 +12,22 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.LogLevel
 import dev.agentbayu.app.ai.LogStore
-import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleOrangeLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
@@ -54,7 +59,19 @@ fun LogsScreen(
             .fillMaxSize()
             .padding(top = insets.calculateTopPadding())
     ) {
-        AiScreenHeader(title = stringResource(R.string.logs_title), onBack = onBack)
+        AiScreenHeader(
+            title = stringResource(R.string.logs_title),
+            onBack = onBack,
+            action = {
+                GlassIconButton(onClick = onClear, enabled = rows.isNotEmpty()) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_delete),
+                        contentDescription = stringResource(R.string.logs_clear),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        )
         LazyColumn(
             modifier = Modifier
                 .weight(1f)
@@ -89,39 +106,24 @@ fun LogsScreen(
                 items(items = rows, key = { row -> row.id }) { row -> LogCard(row = row) }
             }
         }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 12.dp,
-                    bottom = 12.dp + insets.calculateBottomPadding()
-                )
-        ) {
-            GlassButton(
-                onClick = onClear,
-                enabled = rows.isNotEmpty(),
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
-                Text(
-                    text = stringResource(R.string.logs_clear),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
     }
 }
 
 @Composable
 private fun LogCard(row: LogRowState) {
+    val expandable = !row.detail.isNullOrBlank()
+    val expanded = remember(row.id) { mutableStateOf(false) }
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .glassSurface(shape = GlassTileShape)
+            .then(
+                if (expandable) {
+                    Modifier.clickable { expanded.value = !expanded.value }
+                } else {
+                    Modifier
+                }
+            )
             .padding(14.dp)
     ) {
         Column(
@@ -160,12 +162,14 @@ private fun LogCard(row: LogRowState) {
                     MaterialTheme.colorScheme.onSurface
                 }
             )
-            row.detail?.let { detail ->
-                Text(
-                    text = detail,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+            if (expanded.value) {
+                row.detail?.let { detail ->
+                    Text(
+                        text = detail,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
