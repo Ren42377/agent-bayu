@@ -11,9 +11,11 @@ import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
@@ -32,8 +34,12 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.Layout
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.rememberBackdrop
@@ -71,10 +77,12 @@ internal class GlassOverlayEntry {
 
     var presentation: GlassOverlayPresentation by mutableStateOf(GlassOverlayPresentation.DIALOG)
 
+    var anchor: IntRect? by mutableStateOf(null)
+
     var content: (@Composable () -> Unit)? by mutableStateOf(null)
 }
 
-enum class GlassOverlayPresentation { DIALOG, SHEET }
+enum class GlassOverlayPresentation { DIALOG, SHEET, MENU }
 
 val LocalGlassOverlay = staticCompositionLocalOf { GlassOverlayController() }
 
@@ -82,6 +90,7 @@ val LocalGlassOverlay = staticCompositionLocalOf { GlassOverlayController() }
 fun GlassOverlay(
     visible: Boolean = true,
     presentation: GlassOverlayPresentation = GlassOverlayPresentation.DIALOG,
+    anchor: IntRect? = null,
     onDismiss: () -> Unit,
     content: @Composable () -> Unit
 ) {
@@ -91,6 +100,7 @@ fun GlassOverlay(
         if (visible) {
             entry.onDismiss = onDismiss
             entry.presentation = presentation
+            entry.anchor = anchor
             entry.content = content
         }
     }
@@ -153,7 +163,13 @@ private fun GlassOverlayPanel(
         }
     }
     val isSheet = entry.presentation == GlassOverlayPresentation.SHEET
-    val panelShape = if (isSheet) PanelShape else OVERLAY_SHAPE
+    val isMenu = entry.presentation == GlassOverlayPresentation.MENU
+    val anchor = entry.anchor
+    val panelShape = when {
+        isSheet -> PanelShape
+        isMenu -> MENU_SHAPE
+        else -> OVERLAY_SHAPE
+    }
     val dimColor = if (darkTheme) GlassOverlayDimDark else GlassOverlayDimLight
     val fillColor = if (darkTheme) GlassOverlayFillDark else GlassOverlayFillLight
     val panelBrightness = if (darkTheme) 0f else 0.2f
@@ -165,88 +181,128 @@ private fun GlassOverlayPanel(
     }
     val dimmedBackdrop = rememberBackdrop(backdrop) { drawBackdrop ->
         drawBackdrop()
-        drawRect(color = dimColor)
+        if (!isMenu) drawRect(color = dimColor)
     }
     val panelBackdrop = rememberLayerBackdrop()
+    val density = LocalDensity.current
 
     BackHandler(enabled = visible && focused) { entry.onDismiss() }
+
+    val panel: @Composable () -> Unit = {
+        Box(
+            modifier = Modifier
+                .then(
+                    when {
+                        isSheet -> Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(SHEET_HEIGHT_RATIO)
+
+                        isMenu && anchor != null -> Modifier
+                            .width(with(density) { anchor.width.toDp() })
+                            .heightIn(max = MENU_MAX_HEIGHT)
+
+                        else -> Modifier
+                            .padding(horizontal = 24.dp)
+                            .widthIn(max = MAX_OVERLAY_WIDTH)
+                            .fillMaxWidth()
+                    }
+                )
+                .drawBackdrop(
+                    backdrop = dimmedBackdrop,
+                    shape = { panelShape },
+                    effects = {
+                        colorControls(brightness = panelBrightness, saturation = 1.5f)
+                        vibrancy()
+                        if (size.isSpecified) {
+                            lens(
+                                OVERLAY_REFRACTION_HEIGHT.toPx(),
+                                OVERLAY_REFRACTION_AMOUNT.toPx(),
+                                depthEffect = true
+                            )
+                        }
+                    },
+                    highlight = { Highlight.Plain },
+                    shadow = {
+                        Shadow(radius = 28.dp, color = ScrimBlack.copy(alpha = 0.3f))
+                    },
+                    layerBlock = {
+                        val progress = animation.value
+                        alpha = progress
+                        when {
+                            isSheet -> translationY = size.height * (1f - progress)
+
+                            isMenu -> {
+                                val scale = OVERLAY_MIN_SCALE +
+                                    (1f - OVERLAY_MIN_SCALE) * progress
+                                scaleX = scale
+                                scaleY = scale
+                                transformOrigin = TransformOrigin(0.5f, 0f)
+                            }
+
+                            else -> {
+                                val scale = OVERLAY_MIN_SCALE +
+                                    (1f - OVERLAY_MIN_SCALE) * progress
+                                scaleX = scale
+                                scaleY = scale
+                            }
+                        }
+                    },
+                    exportedBackdrop = panelBackdrop,
+                    onDrawSurface = { drawRect(color = fillColor) }
+                )
+                .pointerInput(Unit) { detectTapGestures { } }
+                .then(if (isSheet || isMenu) Modifier else Modifier.padding(20.dp))
+        ) {
+            CompositionLocalProvider(
+                LocalGlassBackdrop provides panelBackdrop,
+                LocalScreenInsets provides panelInsets
+            ) {
+                body()
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = animation.value }
-                .background(dimColor)
+                .then(if (isMenu) Modifier else Modifier.background(dimColor))
                 .pointerInput(entry) { detectTapGestures { entry.onDismiss() } }
         )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .imePadding(),
-            contentAlignment = if (isSheet) Alignment.BottomCenter else Alignment.Center
-        ) {
+        if (isMenu && anchor != null) {
+            val gap = with(density) { MENU_GAP.roundToPx() }
+            Layout(content = { panel() }, modifier = Modifier.fillMaxSize()) { items, constraints ->
+                val placeable = items.first().measure(
+                    constraints.copy(minWidth = 0, minHeight = 0)
+                )
+                val x = anchor.left
+                    .coerceIn(0, (constraints.maxWidth - placeable.width).coerceAtLeast(0))
+                val below = anchor.bottom + gap
+                val y = if (below + placeable.height <= constraints.maxHeight) {
+                    below
+                } else {
+                    (anchor.top - gap - placeable.height).coerceAtLeast(0)
+                }
+                layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(x, y) }
+            }
+        } else {
             Box(
                 modifier = Modifier
-                    .then(
-                        if (isSheet) {
-                            Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(SHEET_HEIGHT_RATIO)
-                        } else {
-                            Modifier
-                                .padding(horizontal = 24.dp)
-                                .widthIn(max = MAX_OVERLAY_WIDTH)
-                                .fillMaxWidth()
-                        }
-                    )
-                    .drawBackdrop(
-                        backdrop = dimmedBackdrop,
-                        shape = { panelShape },
-                        effects = {
-                            colorControls(brightness = panelBrightness, saturation = 1.5f)
-                            vibrancy()
-                            if (size.isSpecified) {
-                                lens(
-                                    OVERLAY_REFRACTION_HEIGHT.toPx(),
-                                    OVERLAY_REFRACTION_AMOUNT.toPx(),
-                                    depthEffect = true
-                                )
-                            }
-                        },
-                        highlight = { Highlight.Plain },
-                        shadow = {
-                            Shadow(radius = 28.dp, color = ScrimBlack.copy(alpha = 0.3f))
-                        },
-                        layerBlock = {
-                            val progress = animation.value
-                            alpha = progress
-                            if (isSheet) {
-                                translationY = size.height * (1f - progress)
-                            } else {
-                                val scale = OVERLAY_MIN_SCALE +
-                                    (1f - OVERLAY_MIN_SCALE) * progress
-                                scaleX = scale
-                                scaleY = scale
-                            }
-                        },
-                        exportedBackdrop = panelBackdrop,
-                        onDrawSurface = { drawRect(color = fillColor) }
-                    )
-                    .pointerInput(Unit) { detectTapGestures { } }
-                    .then(if (isSheet) Modifier else Modifier.padding(20.dp))
+                    .fillMaxSize()
+                    .imePadding(),
+                contentAlignment = if (isSheet) Alignment.BottomCenter else Alignment.Center
             ) {
-                CompositionLocalProvider(
-                    LocalGlassBackdrop provides panelBackdrop,
-                    LocalScreenInsets provides panelInsets
-                ) {
-                    body()
-                }
+                panel()
             }
         }
     }
 }
 
 private val OVERLAY_SHAPE = RoundedCornerShape(36.dp)
+private val MENU_SHAPE = RoundedCornerShape(22.dp)
+private val MENU_GAP = 6.dp
+private val MENU_MAX_HEIGHT = 320.dp
 private val MAX_OVERLAY_WIDTH = 480.dp
 private val OVERLAY_REFRACTION_HEIGHT = 18.dp
 private val OVERLAY_REFRACTION_AMOUNT = 36.dp
