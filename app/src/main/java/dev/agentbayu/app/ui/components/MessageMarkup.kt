@@ -29,9 +29,11 @@ internal fun splitMarkup(source: String): List<MarkupBlock> {
     if (!source.contains('$') && !source.contains("\\[")) {
         return listOf(MarkupBlock.Markdown(source))
     }
+    val fenced = fencedRanges(source)
     val blocks = ArrayList<MarkupBlock>(4)
     var cursor = 0
     BLOCK_MATH.findAll(source).forEach { match ->
+        if (fenced.any { match.range.first in it }) return@forEach
         val latex = match.groupValues[1].ifEmpty { match.groupValues[2] }
         if (latex.isBlank()) return@forEach
         if (match.range.first > cursor) {

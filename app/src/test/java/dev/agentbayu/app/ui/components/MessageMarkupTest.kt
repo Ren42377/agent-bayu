@@ -84,4 +84,50 @@ class MessageMarkupTest {
         assertEquals("Bagian", markdownTitleOf("teks dulu\n\n## Bagian"))
         assertEquals(null, markdownTitleOf("tidak ada heading"))
     }
+
+    @Test
+    fun aMarkdownFenceHoldingCodeGetsALongerDelimiter() {
+        val source = "```md\n# Judul\n\n```python\nprint(1)\n```\n\nselesai\n```"
+
+        val normalised = normaliseMarkdownFences(source)
+
+        assertTrue(normalised.startsWith("````md\n"))
+        assertTrue(normalised.endsWith("\n````"))
+        assertTrue(normalised.contains("```python\nprint(1)\n```"))
+        assertTrue(normalised.contains("selesai"))
+    }
+
+    @Test
+    fun aFenceThatIsNotMarkdownIsLeftAlone() {
+        val source = "```python\nprint(1)\n```"
+
+        assertEquals(source, normaliseMarkdownFences(source))
+    }
+
+    @Test
+    fun aLongerFenceStillReportsItsLanguageAndBody() {
+        val fence = fenceOf("````md\n# Judul\n\n```py\nx\n```\n````")
+
+        assertEquals("md", fence.language)
+        assertEquals("# Judul\n\n```py\nx\n```", fence.body)
+    }
+
+    @Test
+    fun mathMarkersInsideAFenceAreNotSplitOut() {
+        val source = "Kode:\n\n```tex\n\$\$a+b\$\$\n```\n\nselesai"
+
+        val blocks = splitMarkup(source)
+
+        assertEquals(listOf(MarkupBlock.Markdown(source)), blocks)
+    }
+
+    @Test
+    fun fencedRangesCoverTheWholeFence() {
+        val source = "satu\n```\ndua\n```\ntiga"
+
+        val ranges = fencedRanges(source)
+
+        assertEquals(1, ranges.size)
+        assertEquals("```\ndua\n```", source.substring(ranges.first().first, ranges.first().last))
+    }
 }
