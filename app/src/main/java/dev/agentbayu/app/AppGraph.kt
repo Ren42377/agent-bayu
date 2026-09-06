@@ -106,6 +106,7 @@ object AppGraph {
                     container = build(context.applicationContext)
                 }
             }
+            taskHub(context.applicationContext)
             container?.credentialStore?.preload()
             readinessState.value = true
         }

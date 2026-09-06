@@ -314,6 +314,9 @@
     <string name="tasks_exact_card_title">Izinkan alarm tepat waktu</string>
     <string name="tasks_exact_card_body">Tanpa izin ini pengingat bisa terlambat beberapa menit.</string>
     <string name="tasks_exact_card_action">Buka pengaturan</string>
+    <string name="tasks_battery_card_title">Bebaskan dari hemat baterai</string>
+    <string name="tasks_battery_card_body">Selama aplikasi masih dibatasi baterai, pengingat bisa datang telat atau tertahan sampai aplikasi dibuka.</string>
+    <string name="tasks_battery_card_action">Buka pengaturan</string>
     <string name="tasks_detail_title">Detail tugas</string>
     <string name="tasks_detail_new">Tugas baru</string>
     <string name="tasks_detail_title_hint">Judul</string>
@@ -346,6 +349,7 @@
     <string name="tasks_unit_month">bulan</string>
     <string name="tasks_unit_year">tahun</string>
     <string name="tasks_clear_value">Kosongkan</string>
+    <string name="tasks_time_input_toggle">Ganti cara mengisi jam</string>
     <string name="tasks_date_none">Tidak diatur</string>
     <string name="tasks_due_today">Hari ini</string>
     <string name="tasks_due_tomorrow">Besok</string>

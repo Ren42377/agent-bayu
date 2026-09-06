@@ -46,6 +46,17 @@ object NotificationAccess {
         }
     }
 
+    fun openBatterySettings(context: Context): Boolean {
+        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return try {
+            context.startActivity(intent)
+            true
+        } catch (error: ActivityNotFoundException) {
+            false
+        }
+    }
+
     private fun isRuntimePermissionGranted(context: Context): Boolean {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
         return ContextCompat.checkSelfPermission(

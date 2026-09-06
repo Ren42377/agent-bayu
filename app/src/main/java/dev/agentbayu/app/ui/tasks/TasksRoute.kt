@@ -52,6 +52,7 @@ fun TasksRoute(
         mutableStateOf(NotificationAccess.isAllowed(context))
     }
     var exactAlarmsAllowed by remember { mutableStateOf(alarms.canScheduleExact()) }
+    var batteryUnrestricted by remember { mutableStateOf(alarms.isBatteryUnrestricted()) }
     var listMenuOpen by remember { mutableStateOf(false) }
     var newListOpen by remember { mutableStateOf(false) }
     var renameListOpen by remember { mutableStateOf(false) }
@@ -69,6 +70,7 @@ fun TasksRoute(
             if (event == Lifecycle.Event.ON_RESUME) {
                 notificationsAllowed = NotificationAccess.isAllowed(context)
                 exactAlarmsAllowed = alarms.canScheduleExact()
+                batteryUnrestricted = alarms.isBatteryUnrestricted()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -115,6 +117,7 @@ fun TasksRoute(
         completed = completed,
         notificationsAllowed = notificationsAllowed,
         exactAlarmsAllowed = exactAlarmsAllowed,
+        batteryUnrestricted = batteryUnrestricted,
         onRequestNotifications = {
             if (NotificationAccess.needsRuntimeRequest(context)) {
                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -124,6 +127,11 @@ fun TasksRoute(
         },
         onRequestExactAlarms = {
             if (!NotificationAccess.openExactAlarmSettings(context)) {
+                onMessage(settingsUnavailable)
+            }
+        },
+        onRequestBattery = {
+            if (!NotificationAccess.openBatterySettings(context)) {
                 onMessage(settingsUnavailable)
             }
         },

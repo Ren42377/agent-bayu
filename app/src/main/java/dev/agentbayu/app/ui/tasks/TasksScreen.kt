@@ -1,5 +1,11 @@
 package dev.agentbayu.app.ui.tasks
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +36,7 @@ import dev.agentbayu.app.domain.tasks.TaskItem
 import dev.agentbayu.app.domain.tasks.TaskList
 import dev.agentbayu.app.domain.tasks.TaskRow
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -43,8 +50,10 @@ fun TasksScreen(
     completed: List<TaskItem>,
     notificationsAllowed: Boolean,
     exactAlarmsAllowed: Boolean,
+    batteryUnrestricted: Boolean,
     onRequestNotifications: () -> Unit,
     onRequestExactAlarms: () -> Unit,
+    onRequestBattery: () -> Unit,
     onSelectStarred: () -> Unit,
     onSelectList: (String) -> Unit,
     onNewList: () -> Unit,
@@ -64,6 +73,18 @@ fun TasksScreen(
     } else {
         activeList?.title ?: stringResource(R.string.tasks_list_default)
     }
+    val pageIndex = if (starredOpen) {
+        0
+    } else {
+        lists.indexOfFirst { it.id == activeList?.id }.coerceAtLeast(0) + 1
+    }
+    val page = TaskPage(
+        index = pageIndex,
+        title = cardTitle,
+        rows = rows,
+        completed = completed,
+        starred = starredOpen
+    )
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -117,46 +138,77 @@ fun TasksScreen(
                         )
                     }
                 }
+                if (notificationsAllowed && exactAlarmsAllowed && !batteryUnrestricted) {
+                    item(key = "notice-battery") {
+                        TaskNotice(
+                            title = stringResource(R.string.tasks_battery_card_title),
+                            body = stringResource(R.string.tasks_battery_card_body),
+                            action = stringResource(R.string.tasks_battery_card_action),
+                            onAction = onRequestBattery
+                        )
+                    }
+                }
                 item(key = "card") {
-                    TaskCard(
-                        title = cardTitle,
-                        onSort = if (starredOpen) null else onSortMenu,
-                        onMenu = if (starredOpen) null else onListMenu
-                    ) {
-                        if (rows.isEmpty() && completed.isEmpty()) {
-                            Text(
-                                text = stringResource(R.string.tasks_empty),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)
-                            )
-                        }
-                        rows.forEach { row ->
-                            TaskRowItem(
-                                task = row.task,
-                                subtask = row.subtask,
-                                onOpen = { onOpenTask(row.task) },
-                                onToggleCompleted = { onToggleCompleted(row.task) },
-                                onToggleStarred = { onToggleStarred(row.task) },
-                                onMenu = { onRowMenu(row.task) }
-                            )
-                        }
-                        if (completed.isNotEmpty()) {
-                            CompletedHeader(
-                                count = completed.size,
-                                expanded = completedOpen,
-                                onToggle = { completedOpen = !completedOpen }
-                            )
-                            if (completedOpen) {
-                                completed.forEach { task ->
-                                    TaskRowItem(
-                                        task = task,
-                                        subtask = task.parentId != null,
-                                        onOpen = { onOpenTask(task) },
-                                        onToggleCompleted = { onToggleCompleted(task) },
-                                        onToggleStarred = { onToggleStarred(task) },
-                                        onMenu = { onRowMenu(task) }
+                    AnimatedContent(
+                        targetState = page,
+                        contentKey = { state -> state.index },
+                        transitionSpec = {
+                            val direction = if (targetState.index > initialState.index) 1 else -1
+                            (
+                                slideInHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                                    direction * width
+                                } + fadeIn(AgentBayuMotion.navFadeSpec)
+                                ) togetherWith (
+                                slideOutHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                                    -direction * width
+                                } + fadeOut(AgentBayuMotion.navFadeSpec)
+                                )
+                        },
+                        label = "taskPage"
+                    ) { current ->
+                        TaskCard(
+                            title = current.title,
+                            onSort = if (current.starred) null else onSortMenu,
+                            onMenu = if (current.starred) null else onListMenu
+                        ) {
+                            if (current.rows.isEmpty() && current.completed.isEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.tasks_empty),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(
+                                        horizontal = 16.dp,
+                                        vertical = 18.dp
                                     )
+                                )
+                            }
+                            current.rows.forEach { row ->
+                                TaskRowItem(
+                                    task = row.task,
+                                    subtask = row.subtask,
+                                    onOpen = { onOpenTask(row.task) },
+                                    onToggleCompleted = { onToggleCompleted(row.task) },
+                                    onToggleStarred = { onToggleStarred(row.task) },
+                                    onMenu = { onRowMenu(row.task) }
+                                )
+                            }
+                            if (current.completed.isNotEmpty()) {
+                                CompletedHeader(
+                                    count = current.completed.size,
+                                    expanded = completedOpen,
+                                    onToggle = { completedOpen = !completedOpen }
+                                )
+                                if (completedOpen) {
+                                    current.completed.forEach { task ->
+                                        TaskRowItem(
+                                            task = task,
+                                            subtask = task.parentId != null,
+                                            onOpen = { onOpenTask(task) },
+                                            onToggleCompleted = { onToggleCompleted(task) },
+                                            onToggleStarred = { onToggleStarred(task) },
+                                            onMenu = { onRowMenu(task) }
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -185,6 +237,14 @@ fun TasksScreen(
         }
     }
 }
+
+private data class TaskPage(
+    val index: Int,
+    val title: String,
+    val rows: List<TaskRow>,
+    val completed: List<TaskItem>,
+    val starred: Boolean
+)
 
 @Composable
 private fun TaskNotice(
