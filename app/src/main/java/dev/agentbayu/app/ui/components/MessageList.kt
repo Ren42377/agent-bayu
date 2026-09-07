@@ -161,7 +161,11 @@ private fun MessageListBody(
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(items = visible, key = { message -> message.id }) { message ->
+        items(
+            items = visible,
+            key = { message -> message.id },
+            contentType = { message -> message.author }
+        ) { message ->
             MessageBubble(
                 message = message,
                 modifier = Modifier.animateItem(fadeOutSpec = null, placementSpec = null),
@@ -173,7 +177,7 @@ private fun MessageListBody(
             )
         }
         if (showTyping) {
-            item(key = TYPING_KEY) {
+            item(key = TYPING_KEY, contentType = TYPING_TYPE) {
                 TypingIndicator(
                     modifier = Modifier
                         .animateItem(fadeOutSpec = null, placementSpec = null)
@@ -203,4 +207,5 @@ private fun LazyListState.bottomOverflow(): Float {
 }
 
 private const val TYPING_KEY = "typing"
+private const val TYPING_TYPE = "typing"
 private const val FOLLOW_TOLERANCE_PIXELS = 24f

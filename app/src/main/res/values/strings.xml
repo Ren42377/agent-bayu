@@ -275,7 +275,6 @@
 
     <string name="tasks_title">Tugas</string>
     <string name="tasks_add">Tambah tugas</string>
-    <string name="tasks_add_hint">Tugas baru</string>
     <string name="tasks_quick_title_hint">Tugas baru</string>
     <string name="tasks_quick_more">Detail</string>
     <string name="tasks_tab_starred">Berbintang</string>
@@ -295,7 +294,6 @@
     <string name="tasks_list_name_hint">Nama daftar</string>
     <string name="tasks_clear_completed">Hapus semua yang selesai</string>
     <string name="tasks_clear_completed_body">Semua tugas yang sudah selesai di daftar ini akan dihapus.</string>
-    <string name="tasks_row_menu">Pilihan tugas</string>
     <string name="tasks_move_to_list">Pindahkan ke daftar</string>
     <string name="tasks_permission_denied">Izin notifikasi ditolak. Aktifkan dari pengaturan aplikasi.</string>
     <string name="tasks_move_up">Naikkan</string>
@@ -389,7 +387,6 @@
     <string name="tool_approval_allow_session">Izinkan untuk sesi ini</string>
     <string name="tool_approval_deny">Tolak</string>
 
-    <string name="tool_run_pending">Sedang jalan</string>
     <string name="tool_run_done">Selesai</string>
     <string name="tool_run_failed">Gagal</string>
     <string name="chat_copy_reply">Salin jawaban</string>

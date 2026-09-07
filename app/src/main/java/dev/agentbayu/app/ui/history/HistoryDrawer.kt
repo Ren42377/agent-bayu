@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -22,8 +23,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -239,6 +240,9 @@ fun HistoryDrawer(
 }
 
 private const val PANEL_FRACTION = 0.84f
+private const val EMPTY_HISTORY_KEY = "empty"
+private const val EMPTY_HISTORY_TYPE = "empty"
+private const val HISTORY_SESSION_TYPE = "session"
 private val EDGE_WIDTH = 88.dp
 
 @Composable
@@ -276,23 +280,31 @@ private fun ColumnScope.HistoryDrawerContent(
             )
         }
     }
-    Column(
+    LazyColumn(
         modifier = Modifier
             .weight(1f)
-            .fillMaxWidth()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .fillMaxWidth(),
+        contentPadding = PaddingValues(
+            horizontal = 12.dp,
+            vertical = 4.dp
+        ),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         if (sessions.isEmpty()) {
-            Text(
-                text = stringResource(R.string.history_empty),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp)
-            )
+            item(key = EMPTY_HISTORY_KEY, contentType = EMPTY_HISTORY_TYPE) {
+                Text(
+                    text = stringResource(R.string.history_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp)
+                )
+            }
         }
-        sessions.forEach { session ->
+        items(
+            items = sessions,
+            key = { session -> session.id },
+            contentType = { HISTORY_SESSION_TYPE }
+        ) { session ->
             SessionRow(
                 session = session,
                 isActive = session.id == activeSessionId,

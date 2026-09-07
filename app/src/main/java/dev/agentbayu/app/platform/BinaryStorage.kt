@@ -58,20 +58,3 @@ class FileStorage(context: Context, directoryName: String) : BinaryStorage {
         const val TEMP_SUFFIX = ".tmp"
     }
 }
-
-class InMemoryBinaryStorage : BinaryStorage {
-
-    private val entries = LinkedHashMap<String, ByteArray>()
-
-    override fun read(name: String): ByteArray? = synchronized(entries) { entries[name] }
-
-    override fun write(name: String, content: ByteArray) {
-        synchronized(entries) { entries[name] = content }
-    }
-
-    override fun delete(name: String) {
-        synchronized(entries) { entries.remove(name) }
-    }
-
-    override fun names(): List<String> = synchronized(entries) { entries.keys.toList() }
-}
