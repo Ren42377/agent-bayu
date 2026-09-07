@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -102,7 +103,6 @@ internal fun GlassSegmentedSelector(
                 onDragStarted = { position ->
                     travel = 0f
                     downIndex = (position.x / segmentWidthPx).toInt().fastCoerceIn(0, lastIndex)
-                    currentOnValueChange?.invoke(currentIndex.toFloat())
                 },
                 onDragStopped = {
                     val selected = if (travel < touchSlop) {
@@ -112,7 +112,6 @@ internal fun GlassSegmentedSelector(
                     }
                     currentIndex = selected
                     animateToValue(selected.toFloat(), pressed = false)
-                    currentOnValueChange?.invoke(selected.toFloat())
                     currentOnSelect(selected)
                 },
                 onDrag = { _, dragAmount ->
@@ -120,11 +119,9 @@ internal fun GlassSegmentedSelector(
                     val target = (targetValue + dragAmount.x / segmentWidthPx)
                         .fastCoerceIn(0f, lastIndex.toFloat())
                     updateValue(target)
-                    currentOnValueChange?.invoke(target)
                 },
                 onDragCanceled = {
                     animateToValue(currentIndex.toFloat(), pressed = false)
-                    currentOnValueChange?.invoke(currentIndex.toFloat())
                 }
             )
         }
@@ -132,7 +129,11 @@ internal fun GlassSegmentedSelector(
             val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
             currentIndex = safeIndex
             dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
-            currentOnValueChange?.invoke(safeIndex.toFloat())
+        }
+        LaunchedEffect(dragAnimation) {
+            snapshotFlow { dragAnimation.value }.collect { value ->
+                currentOnValueChange?.invoke(value)
+            }
         }
         LaunchedEffect(dragAnimation) {
             withFrameNanos { }
