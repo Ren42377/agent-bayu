@@ -40,7 +40,6 @@ internal fun EffortSelector(
     val stars = remember { starField() }
     val phase = remember { mutableFloatStateOf(0f) }
     val drift = remember { mutableFloatStateOf(0f) }
-    val boost = remember { mutableFloatStateOf(0f) }
     val pace by rememberUpdatedState(paceOf(options.getOrNull(selectedIndex)))
 
     LaunchedEffect(Unit) {
@@ -50,7 +49,7 @@ internal fun EffortSelector(
             val deltaSeconds = ((frame - lastFrame) / NANOS_PER_SECOND).fastCoerceIn(0f, 0.1f)
             lastFrame = frame
             val level = pace
-            drift.floatValue += (level.driftSpeed + boost.floatValue) * deltaSeconds
+            drift.floatValue += level.driftSpeed * deltaSeconds
             phase.floatValue = (phase.floatValue + level.twinkleSpeed * deltaSeconds) % TWO_PI
         }
     }
@@ -62,8 +61,7 @@ internal fun EffortSelector(
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
-        decoration = { value, velocity ->
-            boost.floatValue = velocity.fastCoerceIn(-MAX_STAR_SPEED, MAX_STAR_SPEED)
+        decoration = { value, _ ->
             drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
     )
@@ -155,8 +153,3 @@ private const val STAR_MIN_ALPHA = 0.12f
 private const val STAR_MAX_ALPHA = 0.85f
 private const val STAR_MARGIN = 0.12f
 private const val STAR_PARALLAX = 0.14f
-private const val STAR_BASE_DRIFT = 10f
-private const val STAR_DRIFT_STEP = 26f
-private const val STAR_BASE_TWINKLE = 1f
-private const val STAR_TWINKLE_STEP = 0.55f
-private const val MAX_STAR_SPEED = 4000f

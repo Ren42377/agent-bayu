@@ -97,6 +97,30 @@ class GeminiAdapterTest {
     }
 
     @Test
+    fun anUpstreamModelIdIsUsedInTheRequestPath() {
+        server.enqueue(sseResponse(textDelta("ok")))
+        collectEvents(
+            adapter.stream(
+                testCandidate(
+                    providerId = "google",
+                    modelId = "friendly-model",
+                    upstreamModelId = "gemini-provider-model",
+                    baseUrl = server.url("/").toString(),
+                    authHeader = AuthHeader.X_GOOG_API_KEY,
+                    wireFormat = WireFormat.GEMINI
+                ),
+                "key",
+                request()
+            )
+        )
+
+        assertEquals(
+            "/v1beta/models/gemini-provider-model:streamGenerateContent?alt=sse",
+            server.takeRequest().path
+        )
+    }
+
+    @Test
     fun requestedOutputLimitsAndUnsupportedTemperatureAreHonoured() {
         server.enqueue(sseResponse(textDelta("hi")))
         collectEvents(
@@ -287,7 +311,7 @@ class GeminiAdapterTest {
             sseResponse(
                 textDelta("sebentar"),
                 "{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[{\"functionCall\":" +
-                    "{\"name\":\"create_task\",\"args\":{\"title\":\"beli susu\"}}}]}}]}",
+                    "{\"id\":\"provider-call-7\",\"name\":\"create_task\",\"args\":{\"title\":\"beli susu\"}}}]}}]}",
                 "{\"candidates\":[{\"finishReason\":\"STOP\"}]}"
             )
         )
@@ -296,7 +320,13 @@ class GeminiAdapterTest {
 
         assertEquals("sebentar", events.deltaText())
         assertEquals(
-            listOf(ToolCall(id = "call_1", name = "create_task", arguments = "{\"title\":\"beli susu\"}")),
+            listOf(
+                ToolCall(
+                    id = "provider-call-7",
+                    name = "create_task",
+                    arguments = "{\"title\":\"beli susu\"}"
+                )
+            ),
             events.toolCalls()
         )
         assertTrue(events.completed())
@@ -378,6 +408,7 @@ class GeminiAdapterTest {
         val calls = body?.parts("contents", 1).orEmpty()
         assertEquals(2, calls.size)
         assertEquals("create_task", calls.first().objectField("functionCall")?.stringField("name"))
+        assertEquals("call_1", calls.first().objectField("functionCall")?.stringField("id"))
         assertEquals(
             "beli susu",
             calls.first().objectField("functionCall")?.objectField("args")?.stringField("title")
@@ -387,8 +418,10 @@ class GeminiAdapterTest {
         assertEquals(2, results.size)
         val first = results.first().objectField("functionResponse")
         assertEquals("create_task", first?.stringField("name"))
+        assertEquals("call_1", first?.stringField("id"))
         assertEquals("Task created", first?.objectField("response")?.stringField("result"))
         val second = results.last().objectField("functionResponse")
+        assertEquals("call_2", second?.stringField("id"))
         assertEquals("No list", second?.objectField("response")?.stringField("error"))
     }
 }

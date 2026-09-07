@@ -37,6 +37,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.GlassOverlay
+import dev.agentbayu.app.ui.components.GlassOverlayPresentation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,8 +70,15 @@ internal fun TaskTimePickerDialog(
         timeSelectorUnselectedContainerColor = scheme.onSurface.copy(alpha = DIAL_ALPHA),
         timeSelectorUnselectedContentColor = scheme.onSurface
     )
-    GlassOverlay(visible = visible, onDismiss = onDismiss) {
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    GlassOverlay(
+        visible = visible,
+        presentation = GlassOverlayPresentation.WIDE_DIALOG,
+        onDismiss = onDismiss
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,

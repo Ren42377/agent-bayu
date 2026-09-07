@@ -38,9 +38,9 @@ internal class ToolCallBuffer {
         slot.arguments.append(arguments)
     }
 
-    fun whole(name: String, arguments: String) {
-        val id = nextId()
-        val slot = slots.getOrPut(id) { Slot(id) }
+    fun whole(name: String, arguments: String, id: String? = null) {
+        val slotId = id?.takeIf { it.isNotBlank() } ?: nextId()
+        val slot = slots.getOrPut(slotId) { Slot(slotId) }
         slot.name = name
         slot.arguments.append(arguments)
     }
@@ -198,6 +198,7 @@ internal fun anthropicToolResultBlock(turn: ChatTurn): JsonObject = buildJsonObj
 
 internal fun geminiFunctionCallPart(call: ToolCall): JsonObject = buildJsonObject {
     putJsonObject("functionCall") {
+        call.id.takeIf { it.isNotBlank() }?.let { put("id", it) }
         put("name", call.name)
         put("args", argumentsObject(call.arguments))
     }
@@ -208,12 +209,17 @@ internal fun collectFunctionCalls(parts: JsonArray, tools: ToolCallBuffer) {
         val call = (element as? JsonObject)?.objectField("functionCall") ?: return@forEach
         val name = call.stringField("name")
         if (name.isNullOrEmpty()) return@forEach
-        tools.whole(name, call.objectField("args")?.toString() ?: EMPTY_TOOL_ARGUMENTS)
+        tools.whole(
+            name = name,
+            arguments = call.objectField("args")?.toString() ?: EMPTY_TOOL_ARGUMENTS,
+            id = call.stringField("id")
+        )
     }
 }
 
 internal fun geminiFunctionResponsePart(turn: ChatTurn): JsonObject = buildJsonObject {
     putJsonObject("functionResponse") {
+        turn.toolCallId?.takeIf { it.isNotBlank() }?.let { put("id", it) }
         put("name", turn.toolName.orEmpty())
         putJsonObject("response") {
             if (turn.toolFailed) put("error", turn.content) else put("result", turn.content)

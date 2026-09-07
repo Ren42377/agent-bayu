@@ -82,7 +82,7 @@ internal class GlassOverlayEntry {
     var content: (@Composable () -> Unit)? by mutableStateOf(null)
 }
 
-enum class GlassOverlayPresentation { DIALOG, SHEET, MENU }
+enum class GlassOverlayPresentation { DIALOG, WIDE_DIALOG, SHEET, MENU }
 
 val LocalGlassOverlay = staticCompositionLocalOf { GlassOverlayController() }
 
@@ -163,6 +163,7 @@ private fun GlassOverlayPanel(
         }
     }
     val isSheet = entry.presentation == GlassOverlayPresentation.SHEET
+    val isWideDialog = entry.presentation == GlassOverlayPresentation.WIDE_DIALOG
     val isMenu = entry.presentation == GlassOverlayPresentation.MENU
     val anchor = entry.anchor
     val panelShape = when {
@@ -204,6 +205,11 @@ private fun GlassOverlayPanel(
                                 }
                             )
                             .heightIn(max = MENU_MAX_HEIGHT)
+
+                        isWideDialog -> Modifier
+                            .padding(horizontal = 8.dp)
+                            .fillMaxWidth()
+                            .widthIn(max = MAX_OVERLAY_WIDTH)
 
                         else -> Modifier
                             .padding(horizontal = 24.dp)
@@ -255,7 +261,9 @@ private fun GlassOverlayPanel(
                     onDrawSurface = { drawRect(color = fillColor) }
                 )
                 .pointerInput(Unit) { detectTapGestures { } }
-                .then(if (isSheet || isMenu) Modifier else Modifier.padding(20.dp))
+                .then(
+                    if (isSheet || isMenu || isWideDialog) Modifier else Modifier.padding(20.dp)
+                )
         ) {
             CompositionLocalProvider(
                 LocalGlassBackdrop provides panelBackdrop,

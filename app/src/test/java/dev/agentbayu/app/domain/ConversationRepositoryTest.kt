@@ -130,13 +130,75 @@ class ConversationRepositoryTest {
     }
 
     @Test
-    fun restoreIgnoresAnEmptyHistory() {
+    fun restoreClearsTheCurrentConversationForAnEmptyHistory() {
         val repository = ConversationRepository()
         repository.append(MessageAuthor.USER, "ada")
 
         repository.restore(emptyList())
 
-        assertEquals(listOf("ada"), repository.messages.value.map { it.text })
+        assertTrue(repository.messages.value.isEmpty())
+    }
+
+    @Test
+    fun restartFromReplacesTheBranchInOneStateUpdate() {
+        val repository = ConversationRepository()
+        val first = repository.append(MessageAuthor.USER, "first")
+        repository.append(MessageAuthor.AGENT, "first reply")
+        val edited = repository.append(MessageAuthor.USER, "old")
+        repository.append(MessageAuthor.AGENT, "old reply")
+
+        val turn = repository.restartFrom(edited.id, " replacement ", emptyList())
+
+        assertEquals(listOf(first.id, 2L), turn?.history?.map { it.id })
+        assertEquals("replacement", turn?.prompt?.text)
+        assertTrue(turn?.placeholder?.streaming == true)
+        assertEquals(
+            listOf("first", "first reply", "replacement", ""),
+            repository.messages.value.map { it.text }
+        )
+    }
+
+    @Test
+    fun restartFromRejectsAnAgentMessageWithoutChangingState() {
+        val repository = ConversationRepository()
+        val message = repository.append(MessageAuthor.AGENT, "reply")
+        val before = repository.messages.value
+
+        val turn = repository.restartFrom(message.id, "replacement", emptyList())
+
+        assertNull(turn)
+        assertEquals(before, repository.messages.value)
+    }
+
+    @Test
+    fun regenerateFromRejectsUnrelatedMessagesWithoutChangingState() {
+        val repository = ConversationRepository()
+        val prompt = repository.append(MessageAuthor.USER, "prompt")
+        val secondPrompt = repository.append(MessageAuthor.USER, "second")
+        val before = repository.messages.value
+
+        val turn = repository.regenerateFrom(prompt.id, secondPrompt.id)
+
+        assertNull(turn)
+        assertEquals(before, repository.messages.value)
+    }
+
+    @Test
+    fun attachmentIdsFromReturnsOnlyTheSelectedBranch() {
+        val repository = ConversationRepository()
+        val earlier = MessageAttachment(id = "earlier", mimeType = "image/jpeg")
+        val selected = MessageAttachment(id = "selected", mimeType = "image/jpeg")
+        val later = MessageAttachment(id = "later", mimeType = "image/jpeg")
+        repository.append(MessageAuthor.USER, "earlier", attachments = listOf(earlier))
+        val target = repository.append(
+            MessageAuthor.USER,
+            "target",
+            attachments = listOf(selected)
+        )
+        repository.append(MessageAuthor.AGENT, "reply")
+        repository.append(MessageAuthor.USER, "later", attachments = listOf(later))
+
+        assertEquals(setOf("selected", "later"), repository.attachmentIdsFrom(target.id))
     }
 
     @Test

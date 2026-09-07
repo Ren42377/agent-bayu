@@ -77,6 +77,25 @@ class OpenAiCompatibleAdapterTest {
     }
 
     @Test
+    fun anUpstreamModelIdIsSentOnTheWire() {
+        server.enqueue(sseResponse("[DONE]"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(
+                    baseUrl = baseUrl(),
+                    modelId = "friendly-model",
+                    upstreamModelId = "provider-model"
+                ),
+                "key",
+                request()
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals("provider-model", body?.stringField("model"))
+    }
+
+    @Test
     fun usageIsRequestedOnlyWhenTheProviderSupportsIt() {
         server.enqueue(sseResponse("[DONE]"))
         collectEvents(

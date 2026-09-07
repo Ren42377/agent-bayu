@@ -16,7 +16,9 @@ class ChatController(
     private val engine: AgentEngine,
     private val errorReply: String,
     private val logStore: LogStore,
-    private val scope: CoroutineScope
+    private val scope: CoroutineScope,
+    private val discardAttachments: (Set<String>) -> Unit = {},
+    private val keepAttachments: (Set<String>) -> Unit = {}
 ) {
 
     private val respondingState = MutableStateFlow(false)
@@ -28,6 +30,9 @@ class ChatController(
     @Volatile
     private var streamingId: Long? = null
 
+    @Volatile
+    private var sessionSwitching = false
+
     val messages: StateFlow<List<ChatMessage>> = repository.messages
     val isResponding: StateFlow<Boolean> = respondingState.asStateFlow()
 
@@ -35,14 +40,37 @@ class ChatController(
         text: String,
         screenContext: String? = null,
         attachments: List<MessageAttachment> = emptyList()
-    ) {
+    ): Boolean {
         val prompt = text.trim()
-        if ((prompt.isEmpty() && attachments.isEmpty()) || respondingState.value) {
-            return
+        if (
+            (prompt.isEmpty() && attachments.isEmpty()) ||
+            respondingState.value ||
+            sessionSwitching
+        ) {
+            return false
         }
         val history = repository.messages.value
-        repository.append(MessageAuthor.USER, prompt, attachments = attachments)
+        val promptMessage = repository.append(
+            MessageAuthor.USER,
+            prompt,
+            attachments = attachments
+        )
         val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+        launchReply(
+            history = history,
+            prompt = promptMessage,
+            placeholder = placeholder,
+            screenContext = screenContext
+        )
+        return true
+    }
+
+    private fun launchReply(
+        history: List<ChatMessage>,
+        prompt: ChatMessage,
+        placeholder: ChatMessage,
+        screenContext: String? = null
+    ) {
         respondingState.value = true
         streamingId = placeholder.id
         val token = sends.incrementAndGet()
@@ -83,10 +111,10 @@ class ChatController(
             try {
                 engine.reply(
                     AgentRequest(
-                        prompt = prompt,
+                        prompt = prompt.text,
                         screenContext = screenContext,
                         history = history,
-                        attachments = attachments
+                        attachments = prompt.attachments
                     )
                 ).collect { event ->
                     when (event) {
@@ -157,17 +185,43 @@ class ChatController(
         repository.truncateFrom(message.id)
     }
 
-    fun restartFrom(message: ChatMessage, text: String = message.text) {
+    fun restartFrom(
+        message: ChatMessage,
+        text: String = message.text,
+        attachments: List<MessageAttachment> = message.attachments
+    ): Boolean {
+        if (
+            message.author != MessageAuthor.USER ||
+            (text.isBlank() && attachments.isEmpty()) ||
+            sessionSwitching ||
+            !repository.contains(message.id, MessageAuthor.USER)
+        ) {
+            return false
+        }
         cancel()
-        repository.truncateFrom(message.id)
-        send(text, attachments = message.attachments)
+        val removedAttachments = repository.attachmentIdsFrom(message.id) -
+            attachments.map { attachment -> attachment.id }.toSet()
+        val turn = repository.restartFrom(message.id, text, attachments) ?: return false
+        keepAttachments(repository.allAttachmentIds())
+        discardAttachments(removedAttachments)
+        launchReply(turn.history, turn.prompt, turn.placeholder)
+        return true
     }
 
-    fun regenerate(reply: ChatMessage, prompt: ChatMessage) {
-        if (reply.id <= prompt.id) return
+    fun regenerate(reply: ChatMessage, prompt: ChatMessage): Boolean {
+        if (sessionSwitching || !repository.canRegenerateFrom(prompt.id, reply.id)) return false
         cancel()
-        repository.truncateFrom(prompt.id)
-        send(prompt.text, attachments = prompt.attachments)
+        val removedAttachments = repository.attachmentIdsFrom(reply.id)
+        val turn = repository.regenerateFrom(prompt.id, reply.id) ?: return false
+        keepAttachments(repository.allAttachmentIds())
+        discardAttachments(removedAttachments)
+        launchReply(turn.history, turn.prompt, turn.placeholder)
+        return true
+    }
+
+    fun setSessionSwitching(switching: Boolean) {
+        sessionSwitching = switching
+        if (switching) cancel()
     }
 
     fun cancel() {

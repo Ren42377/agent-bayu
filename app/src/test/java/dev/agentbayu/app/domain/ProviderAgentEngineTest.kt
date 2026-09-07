@@ -416,6 +416,9 @@ class ProviderAgentEngineTest {
         assertEquals(8, adapter.requests.size)
         assertTrue(adapter.requests.last().tools.isEmpty())
         assertEquals(1, tool.calls.size)
-        assertTrue(events.last() is AgentEvent.Completed)
+        assertEquals(
+            AgentEvent.Failed("The model kept requesting tools without sending a final reply."),
+            events.last()
+        )
     }
 }

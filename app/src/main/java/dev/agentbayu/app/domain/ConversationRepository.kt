@@ -8,6 +8,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
+internal data class ConversationTurn(
+    val history: List<ChatMessage>,
+    val prompt: ChatMessage,
+    val placeholder: ChatMessage
+)
+
 class ConversationRepository {
 
     private val nextId = AtomicLong(1L)
@@ -106,7 +112,10 @@ class ConversationRepository {
     }
 
     fun restore(messages: List<ChatMessage>) {
-        if (messages.isEmpty()) return
+        if (messages.isEmpty()) {
+            state.value = emptyList()
+            return
+        }
         val highestId = messages.maxOf { it.id }
         nextId.set(highestId + 1L)
         state.value = messages.map { message ->
@@ -118,13 +127,91 @@ class ConversationRepository {
         }
     }
 
+    fun contains(id: Long, author: MessageAuthor): Boolean =
+        state.value.any { message -> message.id == id && message.author == author }
+
+    fun allAttachmentIds(): Set<String> = state.value.attachmentIds()
+
+    fun attachmentIdsFrom(id: Long): Set<String> {
+        val current = state.value
+        val index = current.indexOfFirst { message -> message.id == id }
+        return if (index < 0) emptySet() else current.drop(index).attachmentIds()
+    }
+
+    fun restartFrom(
+        id: Long,
+        text: String,
+        attachments: List<MessageAttachment>
+    ): ConversationTurn? {
+        val current = state.value
+        val index = current.indexOfFirst { message -> message.id == id }
+        if (index < 0 || current[index].author != MessageAuthor.USER) return null
+        val history = current.take(index)
+        return replaceBranch(
+            history = history,
+            text = text,
+            attachments = attachments
+        )
+    }
+
+    fun canRegenerateFrom(promptId: Long, replyId: Long): Boolean {
+        val current = state.value
+        val promptIndex = current.indexOfFirst { message -> message.id == promptId }
+        val replyIndex = current.indexOfFirst { message -> message.id == replyId }
+        return promptIndex >= 0 &&
+            replyIndex == promptIndex + 1 &&
+            current[promptIndex].author == MessageAuthor.USER &&
+            current[replyIndex].author == MessageAuthor.AGENT
+    }
+
+    fun regenerateFrom(promptId: Long, replyId: Long): ConversationTurn? {
+        val current = state.value
+        if (!canRegenerateFrom(promptId, replyId)) return null
+        val promptIndex = current.indexOfFirst { message -> message.id == promptId }
+        val replyIndex = promptIndex + 1
+        val prompt = current[promptIndex]
+        val placeholder = agentPlaceholder()
+        state.value = current.take(replyIndex) + placeholder
+        return ConversationTurn(current.take(promptIndex), prompt, placeholder)
+    }
+
     fun truncateFrom(id: Long) {
         state.update { current -> current.takeWhile { message -> message.id != id } }
+    }
+
+    fun truncateAfter(id: Long) {
+        state.update { current ->
+            val index = current.indexOfFirst { message -> message.id == id }
+            if (index < 0) current else current.take(index + 1)
+        }
     }
 
     fun clear() {
         state.value = emptyList()
     }
+
+    private fun replaceBranch(
+        history: List<ChatMessage>,
+        text: String,
+        attachments: List<MessageAttachment>
+    ): ConversationTurn {
+        val prompt = ChatMessage(
+            id = nextId.getAndIncrement(),
+            author = MessageAuthor.USER,
+            text = text.trim(),
+            attachments = attachments
+        )
+        val placeholder = agentPlaceholder()
+        state.value = history + prompt + placeholder
+        return ConversationTurn(history, prompt, placeholder)
+    }
+
+    private fun agentPlaceholder(): ChatMessage = ChatMessage(
+        id = nextId.getAndIncrement(),
+        author = MessageAuthor.AGENT,
+        text = "",
+        streaming = true
+    )
 
     private fun mutate(id: Long, block: (ChatMessage) -> ChatMessage) {
         state.update { current ->
@@ -137,6 +224,9 @@ class ConversationRepository {
         }
     }
 }
+
+private fun List<ChatMessage>.attachmentIds(): Set<String> =
+    flatMap { message -> message.attachments.map { attachment -> attachment.id } }.toSet()
 
 private fun List<MessageSegment>.withProse(text: String): List<MessageSegment> {
     val last = lastOrNull()

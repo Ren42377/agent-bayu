@@ -65,7 +65,7 @@ fun PromptBar(
     val haptics = LocalHapticFeedback.current
     val barBackdrop = rememberLayerBackdrop()
     val buttonBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, barBackdrop)
-    val canSend = enabled && (value.isNotBlank() || attachments.isNotEmpty())
+    val canSend = enabled && !isResponding && (value.isNotBlank() || attachments.isNotEmpty())
     val trailingActive = isResponding || canSend
     val barShape = if (attachments.isEmpty()) CapsuleShape else GlassCardShape
     val sendScale by animateFloatAsState(
@@ -97,6 +97,7 @@ fun PromptBar(
                 if (attachments.isNotEmpty()) {
                     AttachmentStrip(
                         attachments = attachments,
+                        enabled = enabled && !isResponding,
                         onRemove = onRemoveAttachment
                     )
                 }
@@ -108,6 +109,7 @@ fun PromptBar(
                 ) {
                     GlassButton(
                         onClick = onMicClick,
+                        enabled = enabled && !isResponding,
                         modifier = Modifier.size(40.dp),
                         shape = CircleShape,
                         contentPadding = GlassButtonDefaults.IconPadding
@@ -124,6 +126,7 @@ fun PromptBar(
                         Spacer(modifier = Modifier.width(6.dp))
                         GlassButton(
                             onClick = onAttachClick,
+                            enabled = enabled && !isResponding,
                             modifier = Modifier.size(40.dp),
                             shape = CircleShape,
                             contentPadding = GlassButtonDefaults.IconPadding
@@ -155,7 +158,7 @@ fun PromptBar(
                         BasicTextField(
                             value = value,
                             onValueChange = onValueChange,
-                            enabled = enabled,
+                            enabled = enabled && !isResponding,
                             textStyle = MaterialTheme.typography.bodyLarge.copy(
                                 color = MaterialTheme.colorScheme.onSurface
                             ),
@@ -218,6 +221,7 @@ fun PromptBar(
 @Composable
 private fun AttachmentStrip(
     attachments: List<MessageAttachment>,
+    enabled: Boolean,
     onRemove: (MessageAttachment) -> Unit
 ) {
     Row(
@@ -232,6 +236,7 @@ private fun AttachmentStrip(
                 AttachmentThumbnail(attachment = attachment, size = 56.dp)
                 GlassButton(
                     onClick = { onRemove(attachment) },
+                    enabled = enabled,
                     modifier = Modifier
                         .align(Alignment.TopEnd)
                         .size(22.dp),

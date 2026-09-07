@@ -21,7 +21,7 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         request: ChatRequest,
         authHeaders: Map<String, String>
     ): Flow<WireEvent> {
-        val path = MODELS_PATH + candidate.model.id + STREAM_SUFFIX
+        val path = MODELS_PATH + candidate.model.wireId + STREAM_SUFFIX
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, path))
             .header("Accept", "text/event-stream")

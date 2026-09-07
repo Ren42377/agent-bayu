@@ -18,6 +18,7 @@ import androidx.compose.ui.util.fastCoerceIn
 import com.kyant.backdrop.RuntimeShader
 import com.kyant.backdrop.asComposeShader
 import com.kyant.backdrop.isRuntimeShaderSupported
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 @Stable
@@ -48,6 +49,7 @@ private class LiquidIndicationNode(
     private var pressCenter = Offset.Zero
     private var shader: RuntimeShader? = null
     private var shaderBrush: ShaderBrush? = null
+    private var animationJob: Job? = null
 
     override fun onAttach() {
         coroutineScope.launch {
@@ -57,11 +59,17 @@ private class LiquidIndicationNode(
                     is PressInteraction.Press -> {
                         pressCenter = interaction.pressPosition
                         prepareShader()
-                        launch { progress.animateTo(1f, AgentBayuMotion.pressSpring) }
+                        animationJob?.cancel()
+                        animationJob = launch {
+                            progress.animateTo(1f, AgentBayuMotion.pressSpring)
+                        }
                     }
 
-                    is PressInteraction.Release -> launch { settle() }
-                    is PressInteraction.Cancel -> launch { settle() }
+                    is PressInteraction.Release,
+                    is PressInteraction.Cancel -> {
+                        animationJob?.cancel()
+                        animationJob = launch { settle() }
+                    }
                 }
             }
         }

@@ -13,11 +13,13 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,6 +35,7 @@ import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.availableEfforts
 import dev.agentbayu.app.ai.resolveActiveConnection
 import dev.agentbayu.app.ai.resolveEffort
+import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.ui.ai.ProviderOption
@@ -66,11 +69,34 @@ fun ChatRoute(
     val isResponding by chat.isResponding.collectAsState()
     val activeSessionId by sessionManager.activeSessionId.collectAsState()
     val incognito by sessionManager.incognito.collectAsState()
+    val incognitoToken by sessionManager.incognitoToken.collectAsState()
+    val switching by sessionManager.switching.collectAsState()
+    val conversationKey = if (incognito) {
+        "incognito-" + incognitoToken
+    } else {
+        activeSessionId.orEmpty()
+    }
     val connections by connectionStore.connections.collectAsState()
     val activeId by connectionStore.activeConnectionId.collectAsState()
     var input by rememberSaveable { mutableStateOf("") }
     var pending by remember { mutableStateOf<List<MessageAttachment>>(emptyList()) }
+    var disposableAttachmentIds by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var editMessage by remember { mutableStateOf<ChatMessage?>(null) }
+    var attachmentRequestKey by remember { mutableStateOf<String?>(null) }
+    var attachmentRequestRoom by remember { mutableStateOf(0) }
     var micPrompt by remember { mutableStateOf(MicPrompt.NONE) }
+    val currentConversationKey by rememberUpdatedState(conversationKey)
+    LaunchedEffect(conversationKey) {
+        pending
+            .filter { attachment -> attachment.id in disposableAttachmentIds }
+            .forEach { attachment -> attachmentStore.discard(attachment.id) }
+        input = ""
+        pending = emptyList()
+        disposableAttachmentIds = emptySet()
+        attachmentRequestKey = null
+        attachmentRequestRoom = 0
+        editMessage = null
+    }
     val micPendingMessage = stringResource(R.string.mic_pending_message)
     val micGrantedMessage = stringResource(R.string.mic_granted_message)
     val settingsUnavailable = stringResource(R.string.dialog_settings_unavailable)
@@ -90,8 +116,14 @@ fun ChatRoute(
     val imageLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(MAX_ATTACHMENTS)
     ) { picked ->
-        if (picked.isEmpty()) return@rememberLauncherForActivityResult
-        val room = MAX_ATTACHMENTS - pending.size
+        val requestedFor = attachmentRequestKey
+        val requestedRoom = attachmentRequestRoom
+        attachmentRequestKey = null
+        attachmentRequestRoom = 0
+        if (picked.isEmpty() || requestedFor == null) {
+            return@rememberLauncherForActivityResult
+        }
+        val room = requestedRoom
         if (room <= 0) {
             onMessage(attachLimit)
             return@rememberLauncherForActivityResult
@@ -100,7 +132,14 @@ fun ChatRoute(
         scope.launch {
             picked.take(room).forEach { uri ->
                 val accepted = attachmentStore.accept(uri)
-                if (accepted == null) onMessage(attachFailed) else pending = pending + accepted
+                when {
+                    accepted == null -> onMessage(attachFailed)
+                    currentConversationKey != requestedFor -> attachmentStore.discard(accepted.id)
+                    else -> {
+                        pending = pending + accepted
+                        disposableAttachmentIds = disposableAttachmentIds + accepted.id
+                    }
+                }
             }
         }
     }
@@ -151,11 +190,23 @@ fun ChatRoute(
             providerOptions = options,
             onInputChange = { value -> input = value },
             onSend = {
-                chat.send(input, attachments = pending)
-                input = ""
-                pending = emptyList()
+                if (!switching) {
+                    val editing = editMessage
+                    val sentAttachments = pending
+                    val accepted = if (editing == null) {
+                        chat.send(input, attachments = sentAttachments)
+                    } else {
+                        chat.restartFrom(editing, input, sentAttachments)
+                    }
+                    if (accepted) {
+                        input = ""
+                        pending = emptyList()
+                        disposableAttachmentIds = emptySet()
+                        editMessage = null
+                    }
+                }
             },
-            onSuggestionClick = { text -> chat.send(text) },
+            onSuggestionClick = { text -> if (!switching) chat.send(text) },
             onMicClick = {
                 if (hasMicrophonePermission(context)) {
                     onMessage(micPendingMessage)
@@ -174,10 +225,12 @@ fun ChatRoute(
             onStop = chat::cancel,
             incognito = incognito,
             onSessionAction = {
-                if (messages.isEmpty() || incognito) {
-                    sessionManager.startIncognito()
-                } else {
-                    sessionManager.newSession()
+                if (!switching) {
+                    if (messages.isEmpty() || incognito) {
+                        sessionManager.startIncognito()
+                    } else {
+                        sessionManager.newSession()
+                    }
                 }
             },
             onCopy = { message ->
@@ -189,28 +242,42 @@ fun ChatRoute(
                 }
             },
             onRegenerate = { message ->
-                val index = messages.indexOfFirst { it.id == message.id }
-                val prompt = messages.subList(0, index).lastOrNull { it.author == MessageAuthor.USER }
-                if (prompt != null) chat.regenerate(message, prompt)
+                if (!switching) {
+                    val index = messages.indexOfFirst { it.id == message.id }
+                    if (index > 0 && messages[index - 1].author == MessageAuthor.USER) {
+                        chat.regenerate(message, messages[index - 1])
+                    }
+                }
             },
             onEdit = { message ->
-                input = message.text
-                pending = message.attachments
-                chat.truncateFrom(message)
+                if (!switching) {
+                    input = message.text
+                    pending = message.attachments
+                    disposableAttachmentIds = emptySet()
+                    editMessage = message
+                }
             },
             drawer = drawer,
             modifier = modifier,
-            sessionKey = if (incognito) "incognito" else activeSessionId.orEmpty(),
+            sessionKey = conversationKey,
             attachments = pending,
             canAttach = canAttach,
+            composerEnabled = !switching,
             onAttachClick = {
-                imageLauncher.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
+                if (!switching) {
+                    attachmentRequestKey = conversationKey
+                    attachmentRequestRoom = MAX_ATTACHMENTS - pending.size
+                    imageLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
             },
             onRemoveAttachment = { attachment ->
                 pending = pending - attachment
-                attachmentStore.discard(attachment.id)
+                if (attachment.id in disposableAttachmentIds) {
+                    disposableAttachmentIds = disposableAttachmentIds - attachment.id
+                    attachmentStore.discard(attachment.id)
+                }
             }
         )
     }

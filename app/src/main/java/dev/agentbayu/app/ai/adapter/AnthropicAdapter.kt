@@ -88,7 +88,7 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
     private fun blockKey(root: JsonObject): String = (root.intField("index") ?: 0).toString()
 
     private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
-        put("model", candidate.model.id)
+        put("model", candidate.model.wireId)
         put("stream", true)
         put(
             WireParams.MAX_TOKENS,

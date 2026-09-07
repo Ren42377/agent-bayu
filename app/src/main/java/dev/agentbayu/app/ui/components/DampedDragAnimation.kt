@@ -11,6 +11,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -41,6 +42,7 @@ internal class DampedDragAnimation(
 
     private val mutatorMutex = MutatorMutex()
     private val velocityTracker = VelocityTracker()
+    private var pressJob: Job? = null
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
@@ -70,7 +72,8 @@ internal class DampedDragAnimation(
 
     fun press() {
         velocityTracker.resetTracking()
-        animationScope.launch {
+        pressJob?.cancel()
+        pressJob = animationScope.launch {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
@@ -78,11 +81,15 @@ internal class DampedDragAnimation(
     }
 
     fun release() {
-        animationScope.launch {
-            withFrameNanos { }
-            launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
-            launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
-            launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
+        pressJob?.cancel()
+        pressJob = animationScope.launch {
+            try {
+                withFrameNanos { }
+            } finally {
+                launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
+                launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
+                launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
+            }
         }
     }
 
@@ -93,16 +100,16 @@ internal class DampedDragAnimation(
         }
     }
 
-    fun animateToValue(value: Float) {
+    fun animateToValue(value: Float, pressed: Boolean = true) {
         animationScope.launch {
             mutatorMutex.mutate {
-                press()
+                if (pressed) press()
                 val target = value.coerceIn(valueRange)
                 launch { valueAnimation.animateTo(target, valueAnimationSpec) }
                 if (velocity != 0f) {
                     launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
                 }
-                release()
+                if (pressed) release()
             }
         }
     }

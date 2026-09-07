@@ -38,7 +38,7 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
     }
 
     private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
-        put("model", candidate.model.id)
+        put("model", candidate.model.wireId)
         put("stream", true)
         putJsonArray("messages") {
             request.systemPrompt?.takeIf { it.isNotBlank() }?.let { prompt ->

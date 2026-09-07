@@ -21,7 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,8 +51,6 @@ import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.drop
 import kotlin.math.abs
 
 @Composable
@@ -70,6 +67,7 @@ internal fun GlassSegmentedSelector(
         return
     }
     val lastIndex = labels.lastIndex
+    val safeSelectedIndex = selectedIndex.fastCoerceIn(0, lastIndex)
     val darkTheme = LocalDarkTheme.current
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(
         alpha = if (darkTheme) DARK_TRACK_ALPHA else TRACK_ALPHA
@@ -81,20 +79,20 @@ internal fun GlassSegmentedSelector(
     val animationScope = rememberCoroutineScope()
     val currentOnSelect by rememberUpdatedState(onSelect)
     val touchSlop = LocalViewConfiguration.current.touchSlop
-    var currentIndex by remember { mutableIntStateOf(selectedIndex) }
+    var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .height(SELECTOR_HEIGHT)
     ) {
         val segmentWidth = maxWidth / labels.size
-        val segmentWidthPx = constraints.maxWidth.toFloat() / labels.size
+        val segmentWidthPx = (constraints.maxWidth.toFloat() / labels.size).coerceAtLeast(1f)
         val dragAnimation = remember(animationScope, segmentWidthPx, lastIndex) {
             var travel = 0f
-            var downIndex = selectedIndex
+            var downIndex = safeSelectedIndex
             DampedDragAnimation(
                 animationScope = animationScope,
-                initialValue = selectedIndex.toFloat(),
+                initialValue = safeSelectedIndex.toFloat(),
                 valueRange = 0f..lastIndex.toFloat(),
                 visibilityThreshold = 0.001f,
                 initialScale = 1f,
@@ -104,12 +102,14 @@ internal fun GlassSegmentedSelector(
                     downIndex = (position.x / segmentWidthPx).toInt().fastCoerceIn(0, lastIndex)
                 },
                 onDragStopped = {
-                    currentIndex = if (travel < touchSlop) {
+                    val selected = if (travel < touchSlop) {
                         downIndex
                     } else {
                         targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
                     }
-                    animateToValue(currentIndex.toFloat())
+                    currentIndex = selected
+                    animateToValue(selected.toFloat(), pressed = false)
+                    currentOnSelect(selected)
                 },
                 onDrag = { _, dragAmount ->
                     travel += abs(dragAmount.x)
@@ -119,24 +119,18 @@ internal fun GlassSegmentedSelector(
                     )
                 },
                 onDragCanceled = {
-                    animateToValue(currentIndex.toFloat())
+                    animateToValue(currentIndex.toFloat(), pressed = false)
                 }
             )
         }
         LaunchedEffect(selectedIndex) {
-            currentIndex = selectedIndex
+            val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
+            currentIndex = safeIndex
+            dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
         }
         LaunchedEffect(dragAnimation) {
             withFrameNanos { }
             dragAnimation.prewarm()
-        }
-        LaunchedEffect(dragAnimation) {
-            snapshotFlow { currentIndex }
-                .drop(1)
-                .collectLatest { index ->
-                    dragAnimation.animateToValue(index.toFloat())
-                    currentOnSelect(index)
-                }
         }
         Box(
             modifier = Modifier
@@ -192,6 +186,8 @@ internal fun GlassSegmentedSelector(
                             selected = index == currentIndex
                             onClick {
                                 currentIndex = index
+                                dragAnimation.animateToValue(index.toFloat(), pressed = false)
+                                currentOnSelect(index)
                                 true
                             }
                         },

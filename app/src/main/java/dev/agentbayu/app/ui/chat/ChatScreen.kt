@@ -98,6 +98,7 @@ fun ChatScreen(
     sessionKey: String = "",
     attachments: List<MessageAttachment> = emptyList(),
     canAttach: Boolean = false,
+    composerEnabled: Boolean = true,
     onAttachClick: () -> Unit = {},
     onRemoveAttachment: (MessageAttachment) -> Unit = {}
 ) {
@@ -235,6 +236,7 @@ fun ChatScreen(
                     onSend = onSend,
                     onMicClick = onMicClick,
                     isResponding = isResponding,
+                    enabled = composerEnabled,
                     onStop = onStop,
                     attachments = attachments,
                     canAttach = canAttach,

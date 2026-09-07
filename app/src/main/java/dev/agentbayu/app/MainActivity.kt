@@ -313,7 +313,7 @@ private fun PermissionHost(onMessage: (String) -> Unit) {
     val settingsUnavailable = stringResource(R.string.dialog_settings_unavailable)
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
-    ) { requests.resolve(true) }
+    ) { granted -> requests.resolve(granted) }
     var shown by remember { mutableStateOf(PermissionKind.STORAGE) }
 
     LaunchedEffect(pending) {

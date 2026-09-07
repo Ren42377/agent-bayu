@@ -323,19 +323,28 @@ object AppGraph {
         )
         sessionManager.attach(scope)
         scope.launch {
-            sessionManager.activeSessionId.collect { approvals.clearSession() }
+            sessionManager.activeSessionId.collect {
+                approvals.clearSession()
+                approvals.releaseIfOpen(ToolApprovalDecision.DENY)
+            }
         }
         scope.launch {
-            sessionManager.incognito.collect { approvals.clearSession() }
+            sessionManager.incognitoToken.collect {
+                approvals.clearSession()
+                approvals.releaseIfOpen(ToolApprovalDecision.DENY)
+            }
         }
         val chatController = ChatController(
             repository = conversation,
             engine = engine,
             errorReply = context.getString(R.string.agent_error_reply),
             logStore = logStore,
-            scope = scope
+            scope = scope,
+            discardAttachments = { ids -> ids.forEach(attachments::discard) },
+            keepAttachments = attachments::keep
         )
         sessionManager.bindCancel(chatController::cancel)
+        sessionManager.bindSwitching(chatController::setSessionSwitching)
         return Container(
             chatController = chatController,
             sessionManager = sessionManager,

@@ -1,6 +1,6 @@
 package dev.agentbayu.app.ui.components
 
-import androidx.compose.foundation.gestures.animateScrollBy
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
@@ -96,7 +96,7 @@ private fun MessageListBody(
                 if (
                     source == NestedScrollSource.UserInput &&
                     available.y < 0f &&
-                    listState.bottomOverflow() <= FOLLOW_TOLERANCE_PIXELS
+                    listState.isAtBottom(FOLLOW_TOLERANCE_PIXELS)
                 ) {
                     follow.value = true
                 }
@@ -109,27 +109,47 @@ private fun MessageListBody(
         snapshotFlow { listState.isScrollInProgress }
             .distinctUntilChanged()
             .collect { scrolling ->
-                if (!scrolling && listState.bottomOverflow() <= FOLLOW_TOLERANCE_PIXELS) {
+                if (!scrolling && listState.isAtBottom(FOLLOW_TOLERANCE_PIXELS)) {
                     follow.value = true
                 }
             }
     }
 
-    LaunchedEffect(itemCount, visible.lastOrNull()?.text, visible.lastOrNull()?.segments) {
+    LaunchedEffect(itemCount) {
         if (itemCount == 0) return@LaunchedEffect
-        if (visible.lastOrNull()?.author == MessageAuthor.USER) follow.value = true
-        if (scrolledCount.intValue == 0) {
-            scrolledCount.intValue = itemCount
+        val previousCount = scrolledCount.intValue
+        val itemAdded = itemCount > previousCount
+        scrolledCount.intValue = itemCount
+        val appendedUserMessage = itemAdded &&
+            visible.lastOrNull()?.author == MessageAuthor.USER
+        if (appendedUserMessage) follow.value = true
+        if (previousCount == 0) {
             listState.scrollToItem(itemCount - 1)
             return@LaunchedEffect
         }
-        if (!follow.value || listState.isScrollInProgress) return@LaunchedEffect
-        scrolledCount.intValue = itemCount
+        if (!itemAdded || !follow.value || listState.isScrollInProgress) return@LaunchedEffect
+        withFrameNanos { }
+        try {
+            val overflow = listState.bottomOverflow()
+            if (overflow > 0f) listState.scrollBy(overflow)
+        } catch (cancellation: CancellationException) {
+            currentCoroutineContext().ensureActive()
+        }
+    }
+
+    LaunchedEffect(
+        visible.lastOrNull()?.text,
+        visible.lastOrNull()?.segments,
+        showTyping
+    ) {
+        if (itemCount == 0 || !follow.value || listState.isScrollInProgress) {
+            return@LaunchedEffect
+        }
         withFrameNanos { }
         val overflow = listState.bottomOverflow()
         if (overflow <= 0f) return@LaunchedEffect
         try {
-            listState.animateScrollBy(overflow)
+            listState.scrollBy(overflow)
         } catch (cancellation: CancellationException) {
             currentCoroutineContext().ensureActive()
         }
@@ -162,6 +182,16 @@ private fun MessageListBody(
             }
         }
     }
+}
+
+private fun LazyListState.isAtBottom(tolerance: Float): Boolean {
+    val layout = layoutInfo
+    if (layout.totalItemsCount == 0) return true
+    val last = layout.visibleItemsInfo.lastOrNull() ?: return false
+    if (last.index < layout.totalItemsCount - 1) return false
+    val contentEnd = layout.viewportEndOffset - layout.afterContentPadding
+    val overflow = (last.offset + last.size - contentEnd).toFloat().coerceAtLeast(0f)
+    return overflow <= tolerance
 }
 
 private fun LazyListState.bottomOverflow(): Float {

@@ -78,6 +78,28 @@ class AnthropicAdapterTest {
     }
 
     @Test
+    fun anUpstreamModelIdIsSentOnTheWire() {
+        server.enqueue(sseResponse("{\"type\":\"message_stop\"}"))
+        collectEvents(
+            adapter.stream(
+                testCandidate(
+                    providerId = "anthropic",
+                    modelId = "friendly-model",
+                    upstreamModelId = "claude-provider-model",
+                    baseUrl = server.url("/").toString(),
+                    authHeader = AuthHeader.X_API_KEY,
+                    wireFormat = WireFormat.ANTHROPIC
+                ),
+                "key",
+                request()
+            )
+        )
+
+        val body = parseJsonObject(server.takeRequest().body.readUtf8())
+        assertEquals("claude-provider-model", body?.stringField("model"))
+    }
+
+    @Test
     fun anExplicitOutputLimitWinsOverTheModelDefault() {
         server.enqueue(sseResponse("{\"type\":\"ping\"}"))
         collectEvents(
