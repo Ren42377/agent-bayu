@@ -138,7 +138,7 @@ class ConversationRepository {
         return if (index < 0) emptySet() else current.drop(index).attachmentIds()
     }
 
-    fun restartFrom(
+    internal fun restartFrom(
         id: Long,
         text: String,
         attachments: List<MessageAttachment>
@@ -164,7 +164,7 @@ class ConversationRepository {
             current[replyIndex].author == MessageAuthor.AGENT
     }
 
-    fun regenerateFrom(promptId: Long, replyId: Long): ConversationTurn? {
+    internal fun regenerateFrom(promptId: Long, replyId: Long): ConversationTurn? {
         val current = state.value
         if (!canRegenerateFrom(promptId, replyId)) return null
         val promptIndex = current.indexOfFirst { message -> message.id == promptId }
