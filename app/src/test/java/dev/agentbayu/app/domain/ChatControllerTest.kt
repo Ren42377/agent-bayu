@@ -44,8 +44,7 @@ class ChatControllerTest {
     private fun controller(
         engine: AgentEngine,
         errorReply: String = "error",
-        discardAttachments: (Set<String>) -> Unit = {},
-        keepAttachments: (Set<String>) -> Unit = {}
+        discardAttachments: (Set<String>) -> Unit = {}
     ): ChatController =
         ChatController(
             repository = repository,
@@ -53,8 +52,7 @@ class ChatControllerTest {
             errorReply = errorReply,
             logStore = LogStore(),
             scope = CoroutineScope(SupervisorJob() + dispatcher),
-            discardAttachments = discardAttachments,
-            keepAttachments = keepAttachments
+            discardAttachments = discardAttachments
         )
 
     private fun engine(block: suspend (AgentRequest) -> List<AgentEvent>): AgentEngine =
@@ -359,19 +357,10 @@ class ChatControllerTest {
 
     @Test
     fun editProtectsAttachmentsStillReferencedEarlierInTheConversation() = runTest {
-        val kept = mutableSetOf<String>()
         val discarded = mutableSetOf<String>()
-        val storage = mutableSetOf("shared")
         val chat = controller(
             engine = engine { listOf(AgentEvent.Delta("new reply")) },
-            discardAttachments = { ids ->
-                discarded += ids
-                storage -= ids
-            },
-            keepAttachments = { ids ->
-                kept += ids
-                storage.retainAll(ids)
-            }
+            discardAttachments = discarded::addAll
         )
         val shared = MessageAttachment(id = "shared", mimeType = "image/jpeg")
         repository.append(MessageAuthor.USER, "earlier", attachments = listOf(shared))
@@ -384,9 +373,7 @@ class ChatControllerTest {
         chat.restartFrom(edited, "updated", emptyList())
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(setOf("shared"), kept)
-        assertEquals(setOf("shared"), discarded)
-        assertTrue("shared" in storage)
+        assertTrue(discarded.isEmpty())
     }
 
     @Test

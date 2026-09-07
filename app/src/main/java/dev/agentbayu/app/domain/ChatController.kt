@@ -17,8 +17,7 @@ class ChatController(
     private val errorReply: String,
     private val logStore: LogStore,
     private val scope: CoroutineScope,
-    private val discardAttachments: (Set<String>) -> Unit = {},
-    private val keepAttachments: (Set<String>) -> Unit = {}
+    private val discardAttachments: (Set<String>) -> Unit = {}
 ) {
 
     private val respondingState = MutableStateFlow(false)
@@ -202,8 +201,7 @@ class ChatController(
         val removedAttachments = repository.attachmentIdsFrom(message.id) -
             attachments.map { attachment -> attachment.id }.toSet()
         val turn = repository.restartFrom(message.id, text, attachments) ?: return false
-        keepAttachments(repository.allAttachmentIds())
-        discardAttachments(removedAttachments)
+        discardAttachments(removedAttachments - repository.allAttachmentIds())
         launchReply(turn.history, turn.prompt, turn.placeholder)
         return true
     }
@@ -213,8 +211,7 @@ class ChatController(
         cancel()
         val removedAttachments = repository.attachmentIdsFrom(reply.id)
         val turn = repository.regenerateFrom(prompt.id, reply.id) ?: return false
-        keepAttachments(repository.allAttachmentIds())
-        discardAttachments(removedAttachments)
+        discardAttachments(removedAttachments - repository.allAttachmentIds())
         launchReply(turn.history, turn.prompt, turn.placeholder)
         return true
     }

@@ -340,8 +340,7 @@ object AppGraph {
             errorReply = context.getString(R.string.agent_error_reply),
             logStore = logStore,
             scope = scope,
-            discardAttachments = { ids -> ids.forEach(attachments::discard) },
-            keepAttachments = attachments::keep
+            discardAttachments = { ids -> ids.forEach(attachments::discard) }
         )
         sessionManager.bindCancel(chatController::cancel)
         sessionManager.bindSwitching(chatController::setSessionSwitching)
