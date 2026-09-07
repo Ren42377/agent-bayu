@@ -6,7 +6,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
-import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -21,15 +21,15 @@ class ConversationSessionManagerTest {
     fun newSessionsHaveUniqueIdsAtTheSameTimestamp() = runTest {
         val fixture = fixture(this)
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
 
         fixture.repository.append(MessageAuthor.USER, "first")
         fixture.manager.newSession()
-        advanceUntilIdle()
+        runCurrent()
         assertNull(fixture.manager.activeSessionId.value)
         fixture.repository.append(MessageAuthor.USER, "second")
         fixture.manager.newSession()
-        advanceUntilIdle()
+        runCurrent()
 
         assertNull(fixture.manager.activeSessionId.value)
         val ids = fixture.manager.sessions.value.map { it.id }
@@ -41,13 +41,13 @@ class ConversationSessionManagerTest {
     fun anEmptyNewSessionDoesNotLeaveAStoredPlaceholder() = runTest {
         val fixture = fixture(this)
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
 
         fixture.repository.append(MessageAuthor.USER, "first")
         fixture.manager.newSession()
-        advanceUntilIdle()
+        runCurrent()
         fixture.manager.newSession()
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(1, fixture.manager.sessions.value.size)
         assertNull(fixture.manager.activeSessionId.value)
@@ -62,14 +62,14 @@ class ConversationSessionManagerTest {
         fixture.store.saveSession(meta.id, listOf(saved))
         fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
 
         fixture.manager.startIncognito()
-        advanceUntilIdle()
+        runCurrent()
         val attachment = MessageAttachment(id = "incognito-image", mimeType = "image/jpeg")
         fixture.repository.append(MessageAuthor.USER, "private", attachments = listOf(attachment))
         fixture.manager.openSession(meta.id)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(listOf("incognito-image"), fixture.discarded)
         assertEquals(listOf(saved), fixture.repository.messages.value)
@@ -84,9 +84,9 @@ class ConversationSessionManagerTest {
         fixture.store.saveSession(meta.id, listOf(stored))
         fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
         fixture.manager.startIncognito()
-        advanceUntilIdle()
+        runCurrent()
         val privateImage = MessageAttachment(id = "private", mimeType = "image/jpeg")
         fixture.repository.append(
             MessageAuthor.USER,
@@ -95,7 +95,7 @@ class ConversationSessionManagerTest {
         )
 
         fixture.manager.deleteSession(meta.id)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(fixture.repository.messages.value.isEmpty())
         assertFalse(fixture.manager.incognito.value)
@@ -126,10 +126,10 @@ class ConversationSessionManagerTest {
             SessionIndexFile(activeSessionId = activeMeta.id, sessions = listOf(storedMeta, activeMeta))
         )
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
 
         fixture.manager.deleteSession(storedMeta.id)
-        advanceUntilIdle()
+        runCurrent()
 
         assertFalse("shared" in fixture.discarded)
     }
@@ -147,11 +147,11 @@ class ConversationSessionManagerTest {
             SessionIndexFile(activeSessionId = activeMeta.id, sessions = listOf(oldMeta, activeMeta))
         )
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
         fixture.repository.append(MessageAuthor.AGENT, "unsaved reply")
 
         fixture.manager.deleteSession(oldMeta.id)
-        advanceUntilIdle()
+        runCurrent()
 
         assertEquals(
             listOf("active", "unsaved reply"),
@@ -165,7 +165,7 @@ class ConversationSessionManagerTest {
         val fixture = fixture(this)
         val states = mutableListOf<Boolean>()
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
         fixture.manager.bindSwitching(states::add)
 
         fixture.repository.append(MessageAuthor.USER, "first")
@@ -173,7 +173,7 @@ class ConversationSessionManagerTest {
 
         assertTrue(fixture.manager.switching.value)
         assertTrue(states.last())
-        advanceUntilIdle()
+        runCurrent()
         assertFalse(fixture.manager.switching.value)
         assertFalse(states.last())
     }
@@ -184,10 +184,10 @@ class ConversationSessionManagerTest {
         val meta = ChatSessionMeta(id = "empty-session", title = "")
         fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
 
         fixture.manager.startIncognito()
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(fixture.manager.sessions.value.isEmpty())
         assertNull(fixture.manager.activeSessionId.value)
@@ -199,13 +199,13 @@ class ConversationSessionManagerTest {
     fun incognitoSnapshotsAreNeverPersistedAfterTheModeChanges() = runTest {
         val fixture = fixture(this)
         fixture.manager.attach(backgroundScope)
-        advanceUntilIdle()
+        runCurrent()
 
         fixture.manager.startIncognito()
-        advanceUntilIdle()
+        runCurrent()
         fixture.repository.append(MessageAuthor.USER, "private")
         advanceTimeBy(ConversationSessionManager.DEBOUNCE_MILLIS + 1L)
-        advanceUntilIdle()
+        runCurrent()
 
         assertTrue(fixture.store.loadIndex().sessions.isEmpty())
         assertTrue(fixture.manager.sessions.value.isEmpty())
