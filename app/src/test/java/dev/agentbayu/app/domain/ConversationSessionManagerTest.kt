@@ -20,7 +20,7 @@ class ConversationSessionManagerTest {
     @Test
     fun newSessionsHaveUniqueIdsAtTheSameTimestamp() = runTest {
         val fixture = fixture(this)
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
 
         fixture.repository.append(MessageAuthor.USER, "first")
@@ -40,7 +40,7 @@ class ConversationSessionManagerTest {
     @Test
     fun anEmptyNewSessionDoesNotLeaveAStoredPlaceholder() = runTest {
         val fixture = fixture(this)
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
 
         fixture.repository.append(MessageAuthor.USER, "first")
@@ -61,7 +61,7 @@ class ConversationSessionManagerTest {
         val meta = ChatSessionMeta(id = "saved-session", title = "Saved")
         fixture.store.saveSession(meta.id, listOf(saved))
         fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
 
         fixture.manager.startIncognito()
@@ -83,7 +83,7 @@ class ConversationSessionManagerTest {
         val meta = ChatSessionMeta(id = "stored-session", title = "Stored")
         fixture.store.saveSession(meta.id, listOf(stored))
         fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
         fixture.manager.startIncognito()
         advanceUntilIdle()
@@ -125,7 +125,7 @@ class ConversationSessionManagerTest {
         fixture.store.saveIndex(
             SessionIndexFile(activeSessionId = activeMeta.id, sessions = listOf(storedMeta, activeMeta))
         )
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
 
         fixture.manager.deleteSession(storedMeta.id)
@@ -146,7 +146,7 @@ class ConversationSessionManagerTest {
         fixture.store.saveIndex(
             SessionIndexFile(activeSessionId = activeMeta.id, sessions = listOf(oldMeta, activeMeta))
         )
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
         fixture.repository.append(MessageAuthor.AGENT, "unsaved reply")
 
@@ -164,7 +164,7 @@ class ConversationSessionManagerTest {
     fun switchingGateChangesSynchronouslyAroundSessionWork() = runTest {
         val fixture = fixture(this)
         val states = mutableListOf<Boolean>()
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
         fixture.manager.bindSwitching(states::add)
 
@@ -183,7 +183,7 @@ class ConversationSessionManagerTest {
         val fixture = fixture(this)
         val meta = ChatSessionMeta(id = "empty-session", title = "")
         fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
 
         fixture.manager.startIncognito()
@@ -198,7 +198,7 @@ class ConversationSessionManagerTest {
     @Test
     fun incognitoSnapshotsAreNeverPersistedAfterTheModeChanges() = runTest {
         val fixture = fixture(this)
-        fixture.manager.attach(this)
+        fixture.manager.attach(backgroundScope)
         advanceUntilIdle()
 
         fixture.manager.startIncognito()
