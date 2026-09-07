@@ -2,7 +2,7 @@ package dev.agentbayu.app.ai.tools
 
 import dev.agentbayu.app.ai.FakeClock
 import dev.agentbayu.app.domain.tasks.TaskStore
-import dev.agentbayu.app.platform.InMemoryBinaryStorage
+import dev.agentbayu.app.platform.InMemoryStorage
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -12,7 +12,7 @@ class DeleteTaskToolTest {
 
     @Test
     fun itDeletesTheTaskNamedByItsId() = runBlocking {
-        val store = TaskStore(InMemoryBinaryStorage(), FakeClock(1L))
+        val store = TaskStore(InMemoryStorage(), FakeClock(1L))
         val list = store.createList("Inbox")
         val taskId = store.createTask(list, "Buy milk")
         val tool = DeleteTaskTool { store }
@@ -26,7 +26,7 @@ class DeleteTaskToolTest {
 
     @Test
     fun itRejectsAnUnknownTask() = runBlocking {
-        val store = TaskStore(InMemoryBinaryStorage(), FakeClock(1L))
+        val store = TaskStore(InMemoryStorage(), FakeClock(1L))
         val tool = DeleteTaskTool { store }
 
         val result = tool.run(ToolCall("call", "delete_task", "{\"task_id\":\"missing\"}"))
