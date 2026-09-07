@@ -117,7 +117,7 @@ class DeleteAlarmTool(private val context: Context) : ToolHandler {
     override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.Main) {
         val intent = Intent(AlarmClock.ACTION_DISMISS_ALARM)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.EXTRA_ALARM_SEARCH_MODE_ALL)
+            .putExtra(AlarmClock.EXTRA_ALARM_SEARCH_MODE, AlarmClock.ALARM_SEARCH_MODE_ALL)
         try {
             context.startActivity(intent)
         } catch (error: ActivityNotFoundException) {

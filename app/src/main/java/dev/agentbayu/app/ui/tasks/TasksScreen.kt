@@ -39,6 +39,7 @@ import dev.agentbayu.app.domain.tasks.TaskRow
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
 

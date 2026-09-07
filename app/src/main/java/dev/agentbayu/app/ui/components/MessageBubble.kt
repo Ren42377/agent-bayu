@@ -87,6 +87,8 @@ fun MessageBubble(
                 }
 
                 is MessageSegment.Tool -> ToolRow(segment = segment, isDark = isDark)
+
+                is MessageSegment.LegacyAutoApprove -> Unit
             }
         }
         if (!message.streaming && (message.text.isNotBlank() || message.detail != null)) {
