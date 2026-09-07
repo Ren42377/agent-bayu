@@ -40,7 +40,12 @@ internal fun EffortSelector(
     val stars = remember { starField() }
     val phase = remember { mutableFloatStateOf(0f) }
     val drift = remember { mutableFloatStateOf(0f) }
-    val pace by rememberUpdatedState(paceOf(options.getOrNull(selectedIndex)))
+    var previewValue by remember(options) { mutableFloatStateOf(selectedIndex.toFloat()) }
+    val pace by rememberUpdatedState(paceAt(options, previewValue))
+
+    LaunchedEffect(options, selectedIndex) {
+        previewValue = selectedIndex.toFloat()
+    }
 
     LaunchedEffect(Unit) {
         var lastFrame = withFrameNanos { it }
@@ -61,13 +66,31 @@ internal fun EffortSelector(
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
+        onValueChange = { value -> previewValue = value },
         decoration = { value, _ ->
             drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
     )
 }
 
-private class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
+private data class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
+
+private fun paceAt(options: List<ReasoningEffort>, value: Float): StarPace {
+    val last = options.lastIndex
+    if (last < 0) return paceOf(null)
+    val clamped = value.fastCoerceIn(0f, last.toFloat())
+    val low = floor(clamped).toInt()
+    val high = ceil(clamped).toInt()
+    val lowPace = paceOf(options[low])
+    if (low == high) return lowPace
+    val highPace = paceOf(options[high])
+    val fraction = clamped - low
+    return StarPace(
+        driftSpeed = lowPace.driftSpeed + (highPace.driftSpeed - lowPace.driftSpeed) * fraction,
+        twinkleSpeed = lowPace.twinkleSpeed +
+            (highPace.twinkleSpeed - lowPace.twinkleSpeed) * fraction
+    )
+}
 
 private fun paceOf(effort: ReasoningEffort?): StarPace {
     val drift = when (effort) {

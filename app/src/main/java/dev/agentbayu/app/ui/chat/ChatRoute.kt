@@ -226,10 +226,9 @@ fun ChatRoute(
             incognito = incognito,
             onSessionAction = {
                 if (!switching) {
-                    if (messages.isEmpty() || incognito) {
-                        sessionManager.startIncognito()
-                    } else {
-                        sessionManager.newSession()
+                    when {
+                        messages.isNotEmpty() -> sessionManager.newSession()
+                        !incognito -> sessionManager.startIncognito()
                     }
                 }
             },

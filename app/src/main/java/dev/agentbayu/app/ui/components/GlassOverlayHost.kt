@@ -208,8 +208,8 @@ private fun GlassOverlayPanel(
 
                         isWideDialog -> Modifier
                             .padding(horizontal = 8.dp)
-                            .fillMaxWidth()
                             .widthIn(max = MAX_OVERLAY_WIDTH)
+                            .fillMaxWidth()
 
                         else -> Modifier
                             .padding(horizontal = 24.dp)

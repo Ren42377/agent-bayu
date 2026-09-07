@@ -61,6 +61,7 @@ internal fun GlassSegmentedSelector(
     modifier: Modifier = Modifier,
     tint: Color = MaterialTheme.colorScheme.primary,
     tintProvider: ((Float) -> Color)? = null,
+    onValueChange: ((Float) -> Unit)? = null,
     decoration: (DrawScope.(Float, Float) -> Unit)? = null
 ) {
     if (labels.isEmpty()) {
@@ -78,6 +79,7 @@ internal fun GlassSegmentedSelector(
     val indicatorBackdrop = rememberCombinedBackdrop(backdrop, containerBackdrop)
     val animationScope = rememberCoroutineScope()
     val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
     val touchSlop = LocalViewConfiguration.current.touchSlop
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
     BoxWithConstraints(
@@ -100,6 +102,7 @@ internal fun GlassSegmentedSelector(
                 onDragStarted = { position ->
                     travel = 0f
                     downIndex = (position.x / segmentWidthPx).toInt().fastCoerceIn(0, lastIndex)
+                    currentOnValueChange?.invoke(currentIndex.toFloat())
                 },
                 onDragStopped = {
                     val selected = if (travel < touchSlop) {
@@ -109,17 +112,19 @@ internal fun GlassSegmentedSelector(
                     }
                     currentIndex = selected
                     animateToValue(selected.toFloat(), pressed = false)
+                    currentOnValueChange?.invoke(selected.toFloat())
                     currentOnSelect(selected)
                 },
                 onDrag = { _, dragAmount ->
                     travel += abs(dragAmount.x)
-                    updateValue(
-                        (targetValue + dragAmount.x / segmentWidthPx)
-                            .fastCoerceIn(0f, lastIndex.toFloat())
-                    )
+                    val target = (targetValue + dragAmount.x / segmentWidthPx)
+                        .fastCoerceIn(0f, lastIndex.toFloat())
+                    updateValue(target)
+                    currentOnValueChange?.invoke(target)
                 },
                 onDragCanceled = {
                     animateToValue(currentIndex.toFloat(), pressed = false)
+                    currentOnValueChange?.invoke(currentIndex.toFloat())
                 }
             )
         }
@@ -127,6 +132,7 @@ internal fun GlassSegmentedSelector(
             val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
             currentIndex = safeIndex
             dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+            currentOnValueChange?.invoke(safeIndex.toFloat())
         }
         LaunchedEffect(dragAnimation) {
             withFrameNanos { }
@@ -241,7 +247,7 @@ internal fun GlassSegmentedSelector(
                         val activeTint = tintProvider?.invoke(dragAnimation.value) ?: tint
                         drawRect(
                             activeTint.copy(alpha = SELECTOR_TINT_ALPHA),
-                            alpha = 1f - progress
+                            alpha = 1f - progress * SELECTOR_PRESSED_TINT_FADE
                         )
                     }
                 )
@@ -278,7 +284,7 @@ internal fun GlassSegmentedSelector(
                         color = Color.White,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - abs(index - dragAnimation.value))
-                                .fastCoerceIn(0f, 1f) * (1f - dragAnimation.pressProgress)
+                                .fastCoerceIn(0f, 1f)
                         }
                     )
                 }
@@ -297,6 +303,7 @@ private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
 private const val SELECTOR_TINT_ALPHA = 0.92f
+private const val SELECTOR_PRESSED_TINT_FADE = 0.35f
 private const val SELECTOR_PRESSED_SCALE = 48f / 36f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f

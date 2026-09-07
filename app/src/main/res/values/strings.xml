@@ -396,7 +396,9 @@
     <string name="chat_regenerate_reply">Ulangi jawaban</string>
     <string name="chat_edit_message">Sunting pesan</string>
     <string name="chat_attachment_preview">Pratinjau gambar</string>
-    <string name="chat_incognito">Mode incognito</string>
+    <string name="chat_incognito_enter">Masuk mode incognito</string>
+    <string name="chat_incognito_active">Mode incognito aktif</string>
+    <string name="chat_new_session">Buka sesi baru</string>
     <string name="chat_copied">Jawaban disalin.</string>
     <string name="chat_thought">Berpikir</string>
     <string name="chat_thought_seconds">Berpikir %1$ds</string>

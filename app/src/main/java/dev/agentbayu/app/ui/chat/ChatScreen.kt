@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.ContentScale
@@ -114,6 +115,13 @@ fun ChatScreen(
     val bottomReservePx = with(density) { bottomReserve.roundToPx() }
     val messagesBackdrop = rememberLayerBackdrop()
     val overlayBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, messagesBackdrop)
+    val hasConversation = messages.isNotEmpty()
+    val sessionActionEnabled = hasConversation || !incognito
+    val sessionActionTint = if (incognito && !hasConversation) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        Color.Unspecified
+    }
 
     Box(
         modifier = modifier
@@ -197,6 +205,8 @@ fun ChatScreen(
                 }
                 GlassButton(
                     onClick = onSessionAction,
+                    enabled = sessionActionEnabled,
+                    tint = sessionActionTint,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
                         .size(40.dp),
@@ -205,16 +215,20 @@ fun ChatScreen(
                 ) {
                     Icon(
                         painter = painterResource(
-                            if (messages.isEmpty() || incognito) R.drawable.ic_spark else R.drawable.ic_add
+                            if (hasConversation) R.drawable.ic_add else R.drawable.ic_incognito
                         ),
                         contentDescription = stringResource(
-                            if (messages.isEmpty() || incognito) {
-                                R.string.chat_incognito
-                            } else {
-                                R.string.history_new
+                            when {
+                                hasConversation -> R.string.chat_new_session
+                                incognito -> R.string.chat_incognito_active
+                                else -> R.string.chat_incognito_enter
                             }
                         ),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = if (incognito && !hasConversation) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
                         modifier = Modifier.size(20.dp)
                     )
                 }

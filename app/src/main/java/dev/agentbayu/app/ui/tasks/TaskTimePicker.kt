@@ -76,13 +76,17 @@ internal fun TaskTimePickerDialog(
         onDismiss = onDismiss
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 16.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge,
-                color = scheme.onSurface
+                color = scheme.onSurface,
+                modifier = Modifier.fillMaxWidth()
             )
             if (keyboardMode) {
                 TimeInput(state = state, colors = colors)
