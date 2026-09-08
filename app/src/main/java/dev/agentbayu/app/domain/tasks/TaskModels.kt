@@ -48,10 +48,25 @@ data class TaskItem(
 )
 
 @Serializable
+data class TaskMetadata(
+    val version: Int = 1,
+    val revision: Long = 0L,
+    val lists: List<TaskList> = emptyList(),
+    val taskIds: List<String>? = null,
+    val deletedTaskIds: List<String> = emptyList(),
+    val deletedListIds: List<String> = emptyList(),
+    val sort: TaskSort = TaskSort.MY_ORDER,
+    val activeListId: String? = null
+)
+
+@Serializable
 data class TaskFile(
     val version: Int = 1,
+    val revision: Long = 0L,
     val lists: List<TaskList> = emptyList(),
     val tasks: List<TaskItem> = emptyList(),
+    val deletedTaskIds: List<String> = emptyList(),
+    val deletedListIds: List<String> = emptyList(),
     val sort: TaskSort = TaskSort.MY_ORDER,
     val activeListId: String? = null
 )

@@ -59,7 +59,9 @@ object OpenToolApprovalGate : ToolApprovalGate {
         ToolApprovalDecision.ALLOW_ONCE
 }
 
-class UiToolApprovalGate : ToolApprovalGate {
+class UiToolApprovalGate(
+    private val bypassed: () -> Boolean = { false }
+) : ToolApprovalGate {
 
     private val state = MutableStateFlow<ToolApprovalRequest?>(null)
     private val granted = ConcurrentHashMap.newKeySet<String>()
@@ -71,6 +73,7 @@ class UiToolApprovalGate : ToolApprovalGate {
     val pending: StateFlow<ToolApprovalRequest?> = state.asStateFlow()
 
     override suspend fun confirm(request: ToolApprovalRequest): ToolApprovalDecision {
+        if (bypassed()) return ToolApprovalDecision.ALLOW_ONCE
         if (granted.contains(request.sessionKey)) return ToolApprovalDecision.ALLOW_SESSION
         return lock.withLock { ask(request) }
     }
@@ -83,15 +86,21 @@ class UiToolApprovalGate : ToolApprovalGate {
         waiter?.complete(decision)
     }
 
+    fun bypassPending(decision: ToolApprovalDecision) {
+        waiter?.complete(decision)
+    }
+
     fun clearSession() {
         granted.clear()
     }
 
     private suspend fun ask(request: ToolApprovalRequest): ToolApprovalDecision {
+        if (bypassed()) return ToolApprovalDecision.ALLOW_ONCE
         if (granted.contains(request.sessionKey)) return ToolApprovalDecision.ALLOW_SESSION
         val answer = CompletableDeferred<ToolApprovalDecision>()
         waiter = answer
-        state.value = request
+        if (bypassed()) answer.complete(ToolApprovalDecision.ALLOW_ONCE)
+        if (!answer.isCompleted) state.value = request
         val decision = try {
             answer.await()
         } finally {

@@ -218,6 +218,44 @@ class ContextBuilderTest {
     }
 
     @Test
+    fun customPromptIsReadForEveryBuildAndAppendedBeforeContext() {
+        var custom = "  Prefer concise answers.  "
+        val builder = ContextBuilder(
+            systemPrompt = systemPrompt,
+            screenContextTemplate = screenTemplate,
+            momentTemplate = "Now %s.",
+            customPrompt = { custom },
+            clock = object : Clock {
+                override fun nowMillis(): Long = 1_788_000_000_000L
+            },
+            zone = { ZoneId.of("Asia/Jakarta") }
+        )
+
+        val first = builder.build(
+            AgentRequest(prompt = "hello", screenContext = "Settings")
+        ).systemPrompt.orEmpty()
+        custom = "Use numbered steps."
+        val second = builder.build(AgentRequest(prompt = "again")).systemPrompt.orEmpty()
+
+        assertTrue(first.startsWith(systemPrompt + "\n\nOwner instructions:\nPrefer concise answers."))
+        assertTrue(first.indexOf("Owner instructions:") < first.indexOf("Now "))
+        assertTrue(first.indexOf("Now ") < first.indexOf("Screen: Settings"))
+        assertTrue(second.startsWith(systemPrompt + "\n\nOwner instructions:\nUse numbered steps."))
+        assertTrue("Prefer concise answers." !in second)
+    }
+
+    @Test
+    fun blankCustomPromptIsIgnored() {
+        val request = ContextBuilder(
+            systemPrompt = systemPrompt,
+            screenContextTemplate = screenTemplate,
+            customPrompt = { " \n " }
+        ).build(AgentRequest(prompt = "hello"))
+
+        assertEquals(systemPrompt, request.systemPrompt)
+    }
+
+    @Test
     fun withoutATemplateTheSystemPromptIsUntouched() {
         val request = builder().build(AgentRequest(prompt = "halo"))
 

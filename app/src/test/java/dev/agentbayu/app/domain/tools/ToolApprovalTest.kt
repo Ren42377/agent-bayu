@@ -82,6 +82,21 @@ class ToolApprovalTest {
         assertNull(gate.pending.value)
     }
 
+    @Test
+    fun switchingToBypassReleasesPendingAndSkipsLaterPrompts() = runTest {
+        var bypassed = false
+        val gate = UiToolApprovalGate { bypassed }
+        val blocker = async { gate.confirm(requestFor("edit_file", "notes/one.txt")) }
+        gate.pending.filterNotNull().first()
+        bypassed = true
+        gate.bypassPending(ToolApprovalDecision.ALLOW_ONCE)
+        assertEquals(ToolApprovalDecision.ALLOW_ONCE, blocker.await())
+
+        val next = async { gate.confirm(requestFor("edit_file", "notes/two.txt")) }
+        assertEquals(ToolApprovalDecision.ALLOW_ONCE, next.await())
+        assertNull(gate.pending.value)
+    }
+
     private fun requestFor(toolName: String, path: String) = ToolApprovalRequest(
         id = 1L,
         toolName = toolName,

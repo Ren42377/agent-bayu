@@ -22,6 +22,7 @@ import dev.agentbayu.app.platform.files.AllFilesAccess
 fun SettingsRoute(
     onMessage: (String) -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenCustomPrompt: () -> Unit,
     onOpenLogs: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -54,6 +55,7 @@ fun SettingsRoute(
         onToolApprovalModeChange = settings::setToolApprovalMode,
         onScreenContextChange = settings::setUseScreenContext,
         onOpenProviders = onOpenProviders,
+        onOpenCustomPrompt = onOpenCustomPrompt,
         onOpenLogs = onOpenLogs,
         onOpenStorageSettings = {
             if (!AllFilesAccess.open(context)) {

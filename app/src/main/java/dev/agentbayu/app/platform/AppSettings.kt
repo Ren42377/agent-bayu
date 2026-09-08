@@ -6,10 +6,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
-class AppSettings(context: Context) {
+class AppSettings(
+    context: Context,
+    secureStorage: EncryptedStorage = SecureStore(context.applicationContext)
+) {
 
     private val preferences =
         context.applicationContext.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+    private val customPromptSettings = CustomPromptSettings(secureStorage)
 
     private val screenContextState =
         MutableStateFlow(preferences.getBoolean(KEY_SCREEN_CONTEXT, false))
@@ -29,6 +33,8 @@ class AppSettings(context: Context) {
 
     val toolApprovalMode: StateFlow<ToolApprovalMode> = toolApprovalModeState.asStateFlow()
 
+    val customPrompt: StateFlow<String> = customPromptSettings.customPrompt
+
     fun setUseScreenContext(enabled: Boolean) {
         screenContextState.value = enabled
         preferences.edit().putBoolean(KEY_SCREEN_CONTEXT, enabled).apply()
@@ -42,6 +48,10 @@ class AppSettings(context: Context) {
     fun setToolApprovalMode(mode: ToolApprovalMode) {
         toolApprovalModeState.value = mode
         preferences.edit().putString(KEY_TOOL_APPROVAL_MODE, mode.name).apply()
+    }
+
+    fun setCustomPrompt(value: String) {
+        customPromptSettings.setCustomPrompt(value)
     }
 
     private fun readThemeMode(): ThemeMode {

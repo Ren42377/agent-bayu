@@ -379,6 +379,7 @@ private fun TabContent(
         AgentBayuDestination.SETTINGS -> SettingsRoute(
             onMessage = onMessage,
             onOpenProviders = { controller.openProviders() },
+            onOpenCustomPrompt = { controller.openCustomPrompt() },
             onOpenLogs = { controller.openLogs() },
             modifier = Modifier.fillMaxSize()
         )

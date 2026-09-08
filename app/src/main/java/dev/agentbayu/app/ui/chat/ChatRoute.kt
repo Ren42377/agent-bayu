@@ -20,7 +20,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboard
@@ -78,7 +77,7 @@ fun ChatRoute(
     }
     val connections by connectionStore.connections.collectAsState()
     val activeId by connectionStore.activeConnectionId.collectAsState()
-    var input by rememberSaveable { mutableStateOf("") }
+    var input by remember { mutableStateOf("") }
     var pending by remember { mutableStateOf<List<MessageAttachment>>(emptyList()) }
     var disposableAttachmentIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var editMessage by remember { mutableStateOf<ChatMessage?>(null) }
@@ -224,11 +223,13 @@ fun ChatRoute(
             onManageProviders = onOpenProviders,
             onStop = chat::cancel,
             incognito = incognito,
+            sessionActionEnabled = !switching,
             onSessionAction = {
                 if (!switching) {
                     when {
                         messages.isNotEmpty() -> sessionManager.newSession()
-                        !incognito -> sessionManager.startIncognito()
+                        incognito -> sessionManager.stopIncognito()
+                        else -> sessionManager.startIncognito()
                     }
                 }
             },

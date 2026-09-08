@@ -60,6 +60,7 @@ import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import dev.agentbayu.app.domain.tools.ToolApprovalRouter
 import dev.agentbayu.app.domain.tools.UiToolApprovalGate
 import dev.agentbayu.app.platform.AppSettings
+import dev.agentbayu.app.platform.AppTaskStorage
 import dev.agentbayu.app.platform.FileStorage
 import dev.agentbayu.app.platform.ImagePipeline
 import dev.agentbayu.app.platform.NotificationAccess
@@ -99,14 +100,18 @@ object AppGraph {
             return
         }
         scope.launch(warmUpDispatcher) {
-            synchronized(this@AppGraph) {
-                if (container == null) {
-                    settings(context.applicationContext)
-                    container = build(context.applicationContext)
+            runCatching {
+                synchronized(this@AppGraph) {
+                    if (container == null) {
+                        settings(context.applicationContext)
+                        container = build(context.applicationContext)
+                    }
                 }
+                taskHub(context.applicationContext)
+                container?.credentialStore?.preload()
+            }.onFailure { error ->
+                runCatching { CrashLog.record(context.applicationContext, error) }
             }
-            taskHub(context.applicationContext)
-            container?.credentialStore?.preload()
             readinessState.value = true
         }
     }
@@ -188,7 +193,11 @@ object AppGraph {
     }
 
     private fun buildTasks(context: Context): TaskHub {
-        val store = TaskStore(SecureStore(context), clock)
+        val store = TaskStore(
+            storage = AppTaskStorage(context),
+            legacyStorage = SecureStore(context),
+            clock = clock
+        )
         val alarms = TaskAlarms(context, clock)
         scope.launch { store.tasks.collect { alarms.sync(it) } }
         return TaskHub(store, alarms)
@@ -259,7 +268,9 @@ object AppGraph {
             storage = FileStorage(context, ATTACHMENT_DIRECTORY),
             clock = clock
         )
-        val approvals = UiToolApprovalGate()
+        val approvals = UiToolApprovalGate {
+            settings(context).toolApprovalMode.value == ToolApprovalMode.BYPASS
+        }
         val gate = ToolApprovalRouter(
             mode = { settings(context).toolApprovalMode.value },
             ask = approvals
@@ -268,7 +279,7 @@ object AppGraph {
             settings(context).toolApprovalMode.collect { mode ->
                 approvals.clearSession()
                 if (mode == ToolApprovalMode.BYPASS) {
-                    approvals.releaseIfOpen(ToolApprovalDecision.ALLOW_ONCE)
+                    approvals.bypassPending(ToolApprovalDecision.ALLOW_ONCE)
                 }
             }
         }
@@ -286,6 +297,7 @@ object AppGraph {
                 systemPrompt = context.getString(R.string.agent_system_prompt),
                 screenContextTemplate = context.getString(R.string.agent_screen_context_prompt),
                 momentTemplate = context.getString(R.string.agent_moment_prompt),
+                customPrompt = { settings(context).customPrompt.value },
                 images = { list -> list.mapNotNull(attachments::image) },
                 clock = clock
             ),

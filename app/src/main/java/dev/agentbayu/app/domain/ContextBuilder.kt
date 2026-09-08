@@ -15,6 +15,7 @@ class ContextBuilder(
     private val systemPrompt: String,
     private val screenContextTemplate: String,
     private val momentTemplate: String = "",
+    private val customPrompt: () -> String = { "" },
     private val historyLimit: Int = DEFAULT_HISTORY_LIMIT,
     private val temperature: Double? = DEFAULT_TEMPERATURE,
     private val images: (List<MessageAttachment>) -> List<ChatImage> = { emptyList() },
@@ -26,6 +27,9 @@ class ContextBuilder(
         val prompt = request.prompt.trim()
         val screenContext = request.screenContext?.trim()
         val system = StringBuilder(systemPrompt)
+        customPrompt().trim().takeIf { it.isNotEmpty() }?.let { ownerInstructions ->
+            system.append("\n\nOwner instructions:\n").append(ownerInstructions)
+        }
         if (momentTemplate.isNotEmpty()) {
             system.append("\n\n").append(momentTemplate.format(momentText()))
         }

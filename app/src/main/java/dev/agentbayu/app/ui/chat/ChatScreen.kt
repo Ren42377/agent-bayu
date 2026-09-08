@@ -90,6 +90,7 @@ fun ChatScreen(
     onManageProviders: () -> Unit,
     onStop: () -> Unit,
     incognito: Boolean = false,
+    sessionActionEnabled: Boolean = true,
     onSessionAction: () -> Unit = {},
     onCopy: (ChatMessage) -> Unit = {},
     onRegenerate: (ChatMessage) -> Unit = {},
@@ -116,7 +117,6 @@ fun ChatScreen(
     val messagesBackdrop = rememberLayerBackdrop()
     val overlayBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, messagesBackdrop)
     val hasConversation = messages.isNotEmpty()
-    val sessionActionEnabled = hasConversation || !incognito
     val sessionActionTint = if (incognito && !hasConversation) {
         MaterialTheme.colorScheme.primary
     } else {
@@ -220,7 +220,7 @@ fun ChatScreen(
                         contentDescription = stringResource(
                             when {
                                 hasConversation -> R.string.chat_new_session
-                                incognito -> R.string.chat_incognito_active
+                                incognito -> R.string.chat_incognito_exit
                                 else -> R.string.chat_incognito_enter
                             }
                         ),

@@ -68,12 +68,14 @@ class ConversationSessionManagerTest {
         runCurrent()
         val attachment = MessageAttachment(id = "incognito-image", mimeType = "image/jpeg")
         fixture.repository.append(MessageAuthor.USER, "private", attachments = listOf(attachment))
+        val token = fixture.manager.incognitoToken.value
         fixture.manager.openSession(meta.id)
         runCurrent()
 
         assertEquals(listOf("incognito-image"), fixture.discarded)
         assertEquals(listOf(saved), fixture.repository.messages.value)
         assertFalse(fixture.manager.incognito.value)
+        assertEquals(token + 1L, fixture.manager.incognitoToken.value)
     }
 
     @Test
@@ -94,12 +96,14 @@ class ConversationSessionManagerTest {
             attachments = listOf(privateImage)
         )
 
+        val token = fixture.manager.incognitoToken.value
         fixture.manager.deleteSession(meta.id)
         runCurrent()
 
         assertTrue(fixture.repository.messages.value.isEmpty())
         assertFalse(fixture.manager.incognito.value)
         assertEquals(listOf("private"), fixture.discarded)
+        assertEquals(token + 1L, fixture.manager.incognitoToken.value)
     }
 
     @Test
@@ -196,6 +200,67 @@ class ConversationSessionManagerTest {
     }
 
     @Test
+    fun stoppingIncognitoClearsPrivateStateWithoutPersistingIt() = runTest {
+        val fixture = fixture(this)
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+        fixture.manager.startIncognito()
+        runCurrent()
+        val token = fixture.manager.incognitoToken.value
+        fixture.repository.append(
+            MessageAuthor.USER,
+            "private",
+            attachments = listOf(MessageAttachment(id = "private-image", mimeType = "image/jpeg"))
+        )
+
+        fixture.manager.stopIncognito()
+        runCurrent()
+
+        assertFalse(fixture.manager.incognito.value)
+        assertEquals(token + 1L, fixture.manager.incognitoToken.value)
+        assertNull(fixture.manager.activeSessionId.value)
+        assertTrue(fixture.manager.sessions.value.isEmpty())
+        assertTrue(fixture.repository.messages.value.isEmpty())
+        assertEquals(listOf("private-image"), fixture.discarded)
+        assertTrue(fixture.store.loadIndex().sessions.isEmpty())
+    }
+
+    @Test
+    fun startingANewSessionFromIncognitoChangesTheToken() = runTest {
+        val fixture = fixture(this)
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+        fixture.manager.startIncognito()
+        runCurrent()
+        fixture.repository.append(MessageAuthor.USER, "private")
+        val token = fixture.manager.incognitoToken.value
+
+        fixture.manager.newSession()
+        runCurrent()
+
+        assertFalse(fixture.manager.incognito.value)
+        assertEquals(token + 1L, fixture.manager.incognitoToken.value)
+        assertTrue(fixture.repository.messages.value.isEmpty())
+    }
+
+    @Test
+    fun stoppingIncognitoWhileNormalIsANoOp() = runTest {
+        val fixture = fixture(this)
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+        fixture.repository.append(MessageAuthor.USER, "normal")
+        val token = fixture.manager.incognitoToken.value
+
+        fixture.manager.stopIncognito()
+        runCurrent()
+
+        assertFalse(fixture.manager.incognito.value)
+        assertEquals(token, fixture.manager.incognitoToken.value)
+        assertEquals(listOf("normal"), fixture.repository.messages.value.map { it.text })
+        assertTrue(fixture.discarded.isEmpty())
+    }
+
+    @Test
     fun incognitoSnapshotsAreNeverPersistedAfterTheModeChanges() = runTest {
         val fixture = fixture(this)
         fixture.manager.attach(backgroundScope)
@@ -209,6 +274,37 @@ class ConversationSessionManagerTest {
 
         assertTrue(fixture.store.loadIndex().sessions.isEmpty())
         assertTrue(fixture.manager.sessions.value.isEmpty())
+    }
+
+    @Test
+    fun invalidSessionActionsDoNotBlockTheNextTransition() = runTest {
+        val fixture = fixture(this)
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+        fixture.repository.append(MessageAuthor.USER, "first")
+
+        fixture.manager.openSession("missing")
+        fixture.manager.newSession()
+        runCurrent()
+
+        assertEquals(1, fixture.manager.sessions.value.size)
+        assertTrue(fixture.repository.messages.value.isEmpty())
+    }
+
+    @Test
+    fun duplicateSessionActionsAreIgnoredWhileSwitching() = runTest {
+        val fixture = fixture(this)
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+        fixture.repository.append(MessageAuthor.USER, "first")
+
+        fixture.manager.newSession()
+        fixture.manager.startIncognito()
+        runCurrent()
+
+        assertFalse(fixture.manager.incognito.value)
+        assertEquals(1, fixture.manager.sessions.value.size)
+        assertTrue(fixture.repository.messages.value.isEmpty())
     }
 
     private fun fixture(testScope: TestScope): Fixture {

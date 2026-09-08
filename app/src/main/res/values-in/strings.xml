@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_custom_prompt_title">Custom Prompt</string>
+    <string name="settings_custom_prompt_body">Tambahkan instruksi pribadi ke prompt dasar Agent Bayu.</string>
+    <string name="custom_prompt_title">Custom Prompt</string>
+    <string name="custom_prompt_explanation">Instruksi ini ditambahkan ke prompt dasar dan berlaku mulai permintaan berikutnya. Prompt dasar Agent Bayu tetap aktif.</string>
+    <string name="custom_prompt_hint">Tulis instruksi pribadi</string>
+    <string name="custom_prompt_cancel">Batal</string>
+    <string name="custom_prompt_clear">Kosongkan</string>
+    <string name="custom_prompt_save">Simpan</string>
+    <string name="custom_prompt_save_failed">Prompt pribadi tidak dapat disimpan. Coba lagi.</string>
+    <string name="settings_tool_approval_title">Lewati Izin Tool</string>
+    <string name="settings_tool_approval_body">Jika aktif, tool dapat mengubah atau menghapus berkas tanpa meminta konfirmasi terlebih dahulu.</string>
+    <string name="chat_incognito_enter">Masuk mode incognito</string>
+    <string name="chat_incognito_exit">Keluar dari mode incognito</string>
+</resources>

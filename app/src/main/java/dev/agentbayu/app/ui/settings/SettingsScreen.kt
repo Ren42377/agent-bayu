@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -27,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tools.ToolApprovalMode
@@ -55,6 +57,7 @@ fun SettingsScreen(
     onToolApprovalModeChange: (ToolApprovalMode) -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenCustomPrompt: () -> Unit,
     onOpenLogs: () -> Unit,
     onOpenStorageSettings: () -> Unit,
     modifier: Modifier = Modifier
@@ -118,6 +121,14 @@ fun SettingsScreen(
             )
             SettingDivider()
             NavigationSettingRow(
+                icon = painterResource(R.drawable.ic_edit),
+                iconColor = ApplePurpleLight,
+                title = stringResource(R.string.settings_custom_prompt_title),
+                subtitle = stringResource(R.string.settings_custom_prompt_body),
+                onClick = onOpenCustomPrompt
+            )
+            SettingDivider()
+            NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_pending),
                 iconColor = AppleTealLight,
                 title = stringResource(R.string.settings_logs_title),
@@ -127,33 +138,17 @@ fun SettingsScreen(
         }
 
         SectionGroup(title = stringResource(R.string.settings_tools)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlassBadge(
-                    icon = painterResource(R.drawable.ic_check),
-                    containerColor = AppleGreenLight
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_tool_approval_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_tool_approval_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+            ToggleSettingRow(
+                icon = painterResource(R.drawable.ic_check),
+                iconColor = AppleGreenLight,
+                title = stringResource(R.string.settings_tool_approval_title),
+                subtitle = stringResource(R.string.settings_tool_approval_body),
+                checked = toolApprovalMode == ToolApprovalMode.BYPASS,
+                onCheckedChange = { enabled ->
+                    onToolApprovalModeChange(
+                        if (enabled) ToolApprovalMode.BYPASS else ToolApprovalMode.ASK
                     )
                 }
-            }
-            ToolApprovalModeSelector(
-                mode = toolApprovalMode,
-                onModeChange = onToolApprovalModeChange
             )
             SettingDivider()
             NavigationSettingRow(
@@ -247,25 +242,6 @@ private fun ThemeModeSelector(
 }
 
 @Composable
-private fun ToolApprovalModeSelector(
-    mode: ToolApprovalMode,
-    onModeChange: (ToolApprovalMode) -> Unit
-) {
-    val options = ToolApprovalMode.entries
-    val labels = options.map { option ->
-        when (option) {
-            ToolApprovalMode.ASK -> stringResource(R.string.tool_mode_ask)
-            ToolApprovalMode.BYPASS -> stringResource(R.string.tool_mode_bypass)
-        }
-    }
-    GlassSegmentedSelector(
-        labels = labels,
-        selectedIndex = options.indexOf(mode).coerceAtLeast(0),
-        onSelect = { index -> onModeChange(options[index]) }
-    )
-}
-
-@Composable
 private fun NavigationSettingRow(
     icon: Painter,
     iconColor: Color,
@@ -316,7 +292,13 @@ private fun ToggleSettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .clip(GlassTileShape)
+            .toggleable(
+                value = checked,
+                role = Role.Switch,
+                onValueChange = onCheckedChange
+            )
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         GlassBadge(icon = icon, containerColor = iconColor)
@@ -336,7 +318,8 @@ private fun ToggleSettingRow(
         Spacer(modifier = Modifier.width(8.dp))
         GlassToggle(
             checked = checked,
-            onCheckedChange = onCheckedChange
+            onCheckedChange = onCheckedChange,
+            interactive = false
         )
     }
 }

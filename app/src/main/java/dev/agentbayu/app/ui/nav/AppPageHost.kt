@@ -9,6 +9,7 @@ import dev.agentbayu.app.ui.ai.AiLogsRoute
 import dev.agentbayu.app.ui.ai.AiProvidersRoute
 import dev.agentbayu.app.ui.components.PageStackHost
 import dev.agentbayu.app.ui.components.PageStackProgress
+import dev.agentbayu.app.ui.settings.CustomPromptRoute
 import dev.agentbayu.app.ui.tasks.TaskDetailRoute
 
 @Composable
@@ -32,6 +33,11 @@ fun AppPageHost(
             )
 
             AppPage.Logs -> AiLogsRoute(
+                onBack = controller::back,
+                onMessage = onMessage
+            )
+
+            AppPage.CustomPrompt -> CustomPromptRoute(
                 onBack = controller::back,
                 onMessage = onMessage
             )

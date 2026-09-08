@@ -25,8 +25,11 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -51,6 +54,7 @@ fun GlassToggle(
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    interactive: Boolean = true,
     backdrop: Backdrop = LocalGlassBackdrop.current
 ) {
     val accentColor = MaterialTheme.colorScheme.primary
@@ -95,6 +99,10 @@ fun GlassToggle(
                     } else {
                         (fraction - delta).fastCoerceIn(0f, 1f)
                     }
+            },
+            onDragCanceled = {
+                didDrag = false
+                fraction = if (currentChecked) 1f else 0f
             }
         )
     }
@@ -124,7 +132,24 @@ fun GlassToggle(
     )
 
     Box(
-        modifier = modifier.alpha(if (enabled) 1f else 0.4f),
+        modifier = modifier
+            .alpha(if (enabled) 1f else 0.4f)
+            .then(
+                if (interactive) {
+                    Modifier.semantics {
+                        role = Role.Switch
+                        toggleableState = ToggleableState(checked)
+                        if (enabled) {
+                            onClick {
+                                currentOnCheckedChange(!currentChecked)
+                                true
+                            }
+                        }
+                    }
+                } else {
+                    Modifier
+                }
+            ),
         contentAlignment = Alignment.CenterStart
     ) {
         Box(
@@ -148,8 +173,7 @@ fun GlassToggle(
                             lerp(-padding, -(padding + dragWidth), dampedDragAnimation.value)
                         }
                 }
-                .semantics { role = Role.Switch }
-                .then(if (enabled) dampedDragAnimation.modifier else Modifier)
+                .then(if (enabled && interactive) dampedDragAnimation.modifier else Modifier)
                 .drawBackdrop(
                     backdrop = thumbBackdrop,
                     shape = { CapsuleShape },

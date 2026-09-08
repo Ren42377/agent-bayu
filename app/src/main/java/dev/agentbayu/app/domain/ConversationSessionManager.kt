@@ -2,6 +2,7 @@ package dev.agentbayu.app.domain
 
 import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.RealClock
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -46,7 +47,7 @@ class ConversationSessionManager internal constructor(
     private val incognitoState = MutableStateFlow(false)
     private val incognitoTokenState = MutableStateFlow(0L)
     private val switchingState = MutableStateFlow(false)
-    private val activeSwitches = AtomicLong(0L)
+    private val switchPending = AtomicBoolean(false)
 
     val sessions: StateFlow<List<ChatSessionMeta>> = sessionsState.asStateFlow()
     val activeSessionId: StateFlow<String?> = activeState.asStateFlow()
@@ -120,10 +121,26 @@ class ConversationSessionManager internal constructor(
         }
     }
 
+    fun stopIncognito() {
+        if (!incognitoState.value) return
+        switchSession {
+            if (!incognitoState.value) return@switchSession
+            attachmentIdsOf(repository.messages.value).forEach(discardAttachment)
+            incognitoState.value = false
+            incognitoTokenState.value = incognitoTokenState.value + 1L
+            activeState.value = null
+            repository.clear()
+            saveIndexLocked()
+        }
+    }
+
     fun newSession() {
         switchSession {
             val wasIncognito = incognitoState.value
             val snapshot = repository.messages.value
+            if (wasIncognito) {
+                incognitoTokenState.value = incognitoTokenState.value + 1L
+            }
             if (snapshot.isEmpty()) {
                 if (!wasIncognito) {
                     activeState.value?.let { emptyId ->
@@ -149,6 +166,8 @@ class ConversationSessionManager internal constructor(
     }
 
     fun openSession(sessionId: String) {
+        if (activeState.value == sessionId && !incognitoState.value) return
+        if (sessionsState.value.none { it.id == sessionId }) return
         switchSession {
             if (activeState.value == sessionId && !incognitoState.value) {
                 return@switchSession
@@ -158,6 +177,7 @@ class ConversationSessionManager internal constructor(
             }
             val snapshot = repository.messages.value
             if (incognitoState.value) {
+                incognitoTokenState.value = incognitoTokenState.value + 1L
                 attachmentIdsOf(snapshot).forEach(discardAttachment)
             } else if (snapshot.isEmpty()) {
                 activeState.value?.let { emptyId ->
@@ -177,10 +197,12 @@ class ConversationSessionManager internal constructor(
     }
 
     fun deleteSession(sessionId: String) {
+        if (sessionsState.value.none { it.id == sessionId }) return
         switchSession {
             val wasIncognito = incognitoState.value
             val snapshot = repository.messages.value
             if (wasIncognito) {
+                incognitoTokenState.value = incognitoTokenState.value + 1L
                 attachmentIdsOf(snapshot).forEach(discardAttachment)
             } else if (activeState.value != sessionId) {
                 if (snapshot.isEmpty()) {
@@ -226,8 +248,8 @@ class ConversationSessionManager internal constructor(
 
     private fun switchSession(block: suspend () -> Unit) {
         val launchScope = scope ?: return
+        if (!switchPending.compareAndSet(false, true)) return
         cancelStreaming?.invoke()
-        activeSwitches.incrementAndGet()
         switchingState.value = true
         updateSwitching?.invoke(true)
         launchScope.launch {
@@ -236,10 +258,9 @@ class ConversationSessionManager internal constructor(
                     withContext(ioDispatcher) { block() }
                 }
             } finally {
-                if (activeSwitches.decrementAndGet() == 0L) {
-                    switchingState.value = false
-                    updateSwitching?.invoke(false)
-                }
+                switchPending.set(false)
+                switchingState.value = false
+                updateSwitching?.invoke(false)
             }
         }
     }

@@ -209,12 +209,16 @@ class FileAccess(
             guard = { AllFilesAccess.granted(context) }
         )
 
-        private fun privateDirectoriesOf(context: Context): List<File> = listOfNotNull(
-            context.filesDir,
-            context.cacheDir,
-            context.noBackupFilesDir,
-            context.dataDir
-        )
+        private fun privateDirectoriesOf(context: Context): List<File> = buildList {
+            add(context.filesDir)
+            add(context.cacheDir)
+            add(context.noBackupFilesDir)
+            add(context.dataDir)
+            context.getExternalFilesDirs(null).filterNotNull().forEach(::add)
+            context.externalCacheDirs.filterNotNull().forEach(::add)
+            context.externalMediaDirs.filterNotNull().forEach(::add)
+            context.obbDirs.filterNotNull().forEach(::add)
+        }
     }
 }
 
