@@ -12,6 +12,27 @@ class AssistantPanelControllerTest {
         val controller = AssistantPanelController()
         assertFalse(controller.visible.value)
         assertEquals("", controller.input.value)
+        assertEquals(0L, controller.invocationId.value)
+    }
+
+    @Test
+    fun everyShowStartsANewInvocation() {
+        val controller = AssistantPanelController()
+        controller.show()
+        assertEquals(1L, controller.invocationId.value)
+        controller.show()
+        assertTrue(controller.visible.value)
+        assertEquals(2L, controller.invocationId.value)
+    }
+
+    @Test
+    fun hidingAndResettingDoNotStartInvocations() {
+        val controller = AssistantPanelController()
+        controller.show()
+        controller.requestHide()
+        assertEquals(1L, controller.invocationId.value)
+        controller.reset()
+        assertEquals(1L, controller.invocationId.value)
     }
 
     @Test

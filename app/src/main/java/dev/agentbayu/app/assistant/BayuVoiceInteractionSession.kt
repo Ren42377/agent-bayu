@@ -46,9 +46,9 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         view.setViewTreeViewModelStoreOwner(viewTreeOwner)
         view.setViewTreeSavedStateRegistryOwner(viewTreeOwner)
         view.setContent {
-            val ready by AppGraph.readiness.collectAsState()
-            AgentBayuAppTheme {
-                if (ready) {
+            val ready by AppGraph.assistantReadiness.collectAsState()
+            if (ready) {
+                AgentBayuAppTheme {
                     SessionPanel()
                 }
             }
@@ -62,11 +62,14 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         val settings = remember { AppGraph.settings(context) }
         val visible by panel.visible.collectAsState()
         val input by panel.input.collectAsState()
+        val invocationId by panel.invocationId.collectAsState()
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
         val useScreenContext by settings.useScreenContext.collectAsState()
         AssistantPanel(
             visible = visible,
+            invocationId = invocationId,
+            manageImeInsets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
             messages = messages,
             input = input,
             isResponding = responding,

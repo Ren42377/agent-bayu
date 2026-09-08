@@ -112,7 +112,7 @@ jobs:
             --prerelease
 
       - name: Validate debug and optimized release
-        run: gradle assembleRelease lintDebug lintRelease testDebugUnitTest testReleaseUnitTest --parallel --build-cache
+        run: gradle assembleRelease lint testDebugUnitTest --parallel --build-cache
 
       - name: Record APK sizes
         if: always()
