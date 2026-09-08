@@ -77,9 +77,9 @@
     <string name="settings_logs_title">Logs</string>
     <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
     <string name="settings_custom_prompt_title">Custom Prompt</string>
-    <string name="settings_custom_prompt_body">Add personal instructions to Agent Bayu&#39;s base prompt.</string>
+    <string name="settings_custom_prompt_body">Add personal instructions to Agent Bayu\'s base prompt.</string>
     <string name="custom_prompt_title">Custom Prompt</string>
-    <string name="custom_prompt_explanation">These instructions are appended to the base prompt and apply to the next request. Agent Bayu&#39;s base prompt stays active.</string>
+    <string name="custom_prompt_explanation">These instructions are appended to the base prompt and apply to the next request. Agent Bayu\'s base prompt stays active.</string>
     <string name="custom_prompt_hint">Write personal instructions</string>
     <string name="custom_prompt_cancel">Cancel</string>
     <string name="custom_prompt_clear">Clear</string>

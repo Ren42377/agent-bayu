@@ -14,15 +14,17 @@ class CustomPromptSettings(
 
     val customPrompt: StateFlow<String> = customPromptState.asStateFlow()
 
-    fun setCustomPrompt(value: String) = synchronized(this) {
-        val normalized = normalize(value)
-        if (normalized == customPromptState.value) return
-        if (normalized.isEmpty()) {
-            storage.delete(FILE_NAME)
-        } else {
-            storage.write(FILE_NAME, normalized)
+    fun setCustomPrompt(value: String) {
+        synchronized(this) {
+            val normalized = normalize(value)
+            if (normalized == customPromptState.value) return
+            if (normalized.isEmpty()) {
+                storage.delete(FILE_NAME)
+            } else {
+                storage.write(FILE_NAME, normalized)
+            }
+            customPromptState.value = normalized
         }
-        customPromptState.value = normalized
     }
 
     companion object {

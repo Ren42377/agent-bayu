@@ -484,7 +484,7 @@ class TaskStore(
             sort = metadata.sort,
             activeListId = active
         )
-        val metadataValid = decodedMetadata != null && metadataRaw != null
+        val metadataValid = decodedMetadata != null
         val metadataMatches = metadataValid && metadata == file.metadata()
         return JsonLoad(
             file = file,
