@@ -27,8 +27,6 @@ class TaskStorageTest {
         storage.write("task-1.json", "old")
         storage.write("task-1.json", "new")
         File(directory, "leftover.json.tmp").writeText("partial")
-        File(directory, "leftover.json.copy").writeText("partial")
-        File(directory, "leftover.json.tmp").delete()
 
         assertEquals("new", storage.read("task-1.json"))
         assertEquals(listOf("task-1.json"), storage.names())
