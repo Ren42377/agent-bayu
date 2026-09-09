@@ -77,14 +77,14 @@
     <string name="settings_logs_title">Logs</string>
     <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
     <string name="settings_custom_prompt_title">Custom Prompt</string>
-    <string name="settings_custom_prompt_body">Add personal instructions to Agent Bayu\'s base prompt.</string>
+    <string name="settings_custom_prompt_body">Tambahkan instruksi pribadi ke prompt dasar Agent Bayu.</string>
     <string name="custom_prompt_title">Custom Prompt</string>
-    <string name="custom_prompt_explanation">These instructions are appended to the base prompt and apply to the next request. Agent Bayu\'s base prompt stays active.</string>
-    <string name="custom_prompt_hint">Write personal instructions</string>
-    <string name="custom_prompt_cancel">Cancel</string>
-    <string name="custom_prompt_clear">Clear</string>
-    <string name="custom_prompt_save">Save</string>
-    <string name="custom_prompt_save_failed">The personal prompt could not be saved. Try again.</string>
+    <string name="custom_prompt_explanation">Instruksi ini ditambahkan ke prompt dasar dan berlaku mulai permintaan berikutnya. Prompt dasar Agent Bayu tetap aktif.</string>
+    <string name="custom_prompt_hint">Tulis instruksi pribadi</string>
+    <string name="custom_prompt_cancel">Batal</string>
+    <string name="custom_prompt_clear">Kosongkan</string>
+    <string name="custom_prompt_save">Simpan</string>
+    <string name="custom_prompt_save_failed">Prompt pribadi tidak dapat disimpan. Coba lagi.</string>
 
     <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu punya tool untuk mengurus dan menghapus tugas pemilik, membuat alarm atau meminta aplikasi jam membatalkan alarm yang sedang berbunyi, mencari di web, menjelajah dan membaca berkas di penyimpanan ponsel, melihat gambar, serta menulis dan menyunting berkas teks. Pakai tool itu kalau memang dibutuhkan, dan baru katakan sesuatu sudah dikerjakan setelah tool benar-benar mengembalikan hasilnya. Kalau butuh fakta yang lebih baru dari ingatanmu, harga, atau kabar terkini, pakai web_search dulu dan sebutkan sumbernya. Kalau pemilik menolak sebuah tool, sampaikan apa adanya dan jangan mencoba jalan lain tanpa diminta. Kalau sebuah tool gagal karena izin belum ada, panggil tool request_permission untuk meminta izinnya, jangan menyuruh pemilik membuka pengaturan sendiri. Untuk hal di luar tool yang kamu punya, misalnya membuka aplikasi lain, mengirim pesan, atau mengubah kalender, katakan bahwa kamu belum bisa melakukannya.</string>
     <string name="agent_screen_context_prompt">Pemilik sedang melihat layar dengan teks berikut. Pakai ini hanya kalau relevan dengan pertanyaannya.\n\n%1$s</string>
@@ -376,8 +376,8 @@
     <string name="task_action_snooze">Tunda 1 jam</string>
 
     <string name="settings_tools">Tool dan berkas</string>
-    <string name="settings_tool_approval_title">Skip Tool Approval</string>
-    <string name="settings_tool_approval_body">When enabled, tools can modify or delete files without asking for confirmation first.</string>
+    <string name="settings_tool_approval_title">Lewati Izin Tool</string>
+    <string name="settings_tool_approval_body">Jika aktif, tool dapat mengubah atau menghapus berkas tanpa meminta konfirmasi terlebih dahulu.</string>
     <string name="settings_storage_title">Akses semua berkas</string>
     <string name="settings_storage_body">Tanpa izin ini Agent Bayu tidak bisa membuka berkas apa pun di penyimpanan.</string>
     <string name="settings_storage_unavailable">Halaman izin berkas tidak tersedia di perangkat ini.</string>
@@ -403,8 +403,8 @@
     <string name="chat_regenerate_reply">Ulangi jawaban</string>
     <string name="chat_edit_message">Sunting pesan</string>
     <string name="chat_attachment_preview">Pratinjau gambar</string>
-    <string name="chat_incognito_enter">Enter incognito mode</string>
-    <string name="chat_incognito_exit">Exit incognito mode</string>
+    <string name="chat_incognito_enter">Masuk mode incognito</string>
+    <string name="chat_incognito_exit">Keluar dari mode incognito</string>
     <string name="chat_new_session">Buka sesi baru</string>
     <string name="chat_copied">Jawaban disalin.</string>
     <string name="chat_thought">Berpikir</string>
