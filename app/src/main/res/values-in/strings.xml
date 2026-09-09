@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources tools:ignore="MissingTranslation" xmlns:tools="http://schemas.android.com/tools">
     <string name="settings_custom_prompt_title">Custom Prompt</string>
     <string name="settings_custom_prompt_body">Tambahkan instruksi pribadi ke prompt dasar Agent Bayu.</string>
     <string name="custom_prompt_title">Custom Prompt</string>
