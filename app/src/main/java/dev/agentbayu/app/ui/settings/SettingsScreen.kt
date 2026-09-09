@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
@@ -28,7 +27,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tools.ToolApprovalMode
@@ -292,12 +290,6 @@ private fun ToggleSettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(GlassTileShape)
-            .toggleable(
-                value = checked,
-                role = Role.Switch,
-                onValueChange = onCheckedChange
-            )
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -318,8 +310,7 @@ private fun ToggleSettingRow(
         Spacer(modifier = Modifier.width(8.dp))
         GlassToggle(
             checked = checked,
-            onCheckedChange = onCheckedChange,
-            interactive = false
+            onCheckedChange = onCheckedChange
         )
     }
 }
