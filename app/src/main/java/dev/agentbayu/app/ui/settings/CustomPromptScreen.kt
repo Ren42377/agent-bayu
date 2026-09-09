@@ -15,6 +15,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,11 +43,12 @@ fun CustomPromptRoute(
 ) {
     val context = LocalContext.current
     val settings = remember(context) { AppGraph.settings(context) }
+    val customPrompt by settings.customPrompt.collectAsState()
     val scope = rememberCoroutineScope()
     val saveFailed = stringResource(R.string.custom_prompt_save_failed)
     var saving by remember { mutableStateOf(false) }
     CustomPromptScreen(
-        initialValue = settings.customPrompt.value,
+        initialValue = customPrompt,
         onSave = { value ->
             if (!saving) {
                 saving = true
