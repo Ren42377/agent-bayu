@@ -1,5 +1,7 @@
 package dev.agentbayu.app.ui.components
 
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
@@ -16,6 +18,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -40,9 +44,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -61,6 +67,10 @@ import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
 import dev.agentbayu.app.ui.theme.liquidGlass
 import dev.agentbayu.app.ui.theme.solidGlassStyle
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Composable
 fun AssistantPanel(
@@ -87,7 +97,8 @@ fun AssistantPanel(
     var dragging by remember { mutableStateOf(false) }
     val metrics = remember { PanelMetrics() }
     val panelBackdrop = remember { emptyBackdrop() }
-    val entryOffset = with(LocalDensity.current) { ENTRY_OFFSET.toPx() }
+    val density = LocalDensity.current
+    val entryOffset = with(density) { ENTRY_OFFSET.toPx() }
     LaunchedEffect(visible, invocationId) {
         if (visible && invocationId > preparedInvocationId) {
             progress.snapTo(0f)
@@ -115,12 +126,23 @@ fun AssistantPanel(
     }
     val inputFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
+    val hostView = LocalView.current
+    val imeInsets = WindowInsets.ime
+    var inputPlaced by remember { mutableStateOf(false) }
     LaunchedEffect(preparedInvocationId, visible) {
         if (!visible || preparedInvocationId == 0L) return@LaunchedEffect
-        withFrameNanos { }
-        runCatching { inputFocus.requestFocus() }
-        keyboard?.show()
         progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
+    }
+    LaunchedEffect(preparedInvocationId, visible, inputPlaced) {
+        if (!visible || preparedInvocationId == 0L || !inputPlaced) return@LaunchedEffect
+        hostView.awaitWindowFocus()
+        runCatching { inputFocus.requestFocus() }
+        withFrameNanos { }
+        keyboard?.show()
+        delay(IME_RETRY_DELAY_MILLIS)
+        if (imeInsets.getBottom(density) == 0) {
+            keyboard?.show()
+        }
     }
     CompositionLocalProvider(
         LocalGlassBackdrop provides panelBackdrop,
@@ -200,7 +222,9 @@ fun AssistantPanel(
                             onValueChange = onInputChange,
                             onSend = onSend,
                             onMicClick = onMicClick,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .onPlaced { inputPlaced = true },
                             focusRequester = inputFocus
                         )
                         Row(
@@ -231,12 +255,44 @@ fun AssistantPanel(
     }
 }
 
+private suspend fun View.awaitWindowFocus() {
+    if (hasWindowFocus()) return
+    suspendCancellableCoroutine { continuation ->
+        val observer = viewTreeObserver
+        val resumed = AtomicBoolean(false)
+        lateinit var listener: ViewTreeObserver.OnWindowFocusChangeListener
+        fun removeListener() {
+            if (observer.isAlive) {
+                observer.removeOnWindowFocusChangeListener(listener)
+            } else if (viewTreeObserver.isAlive) {
+                viewTreeObserver.removeOnWindowFocusChangeListener(listener)
+            }
+        }
+        fun resumeIfWaiting() {
+            if (resumed.compareAndSet(false, true)) {
+                removeListener()
+                continuation.resume(Unit)
+            }
+        }
+        listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+            if (hasFocus && continuation.isActive) resumeIfWaiting()
+        }
+        observer.addOnWindowFocusChangeListener(listener)
+        continuation.invokeOnCancellation {
+            resumed.set(true)
+            removeListener()
+        }
+        if (hasWindowFocus() && continuation.isActive) resumeIfWaiting()
+    }
+}
+
 private class PanelMetrics {
     var height: Int = 0
 }
 
 private val ENTRY_OFFSET = 220.dp
 private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
+private const val IME_RETRY_DELAY_MILLIS = 120L
 
 @Composable
 private fun DragHandle(

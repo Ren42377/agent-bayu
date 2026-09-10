@@ -69,11 +69,13 @@ import dev.agentbayu.app.platform.files.AllFilesAccess
 import dev.agentbayu.app.platform.files.FileAccess
 import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -104,24 +106,75 @@ object AppGraph {
     @Volatile
     private var warmUpJob: Job? = null
 
+    private var fullWarmUpRequested = false
+    private var warmUpFailures = 0
+
     fun warmUp(context: Context) {
-        if (readinessState.value) return
-        val appContext = context.applicationContext
+        requestWarmUp(context.applicationContext, full = false)
+    }
+
+    fun warmUpApp(context: Context) {
+        requestWarmUp(context.applicationContext, full = true)
+    }
+
+    private fun requestWarmUp(context: Context, full: Boolean, retrying: Boolean = false) {
+        if (readinessState.value || (!full && assistantReadinessState.value)) return
         synchronized(warmUpLock) {
-            if (readinessState.value || warmUpJob != null) return
+            if (full) fullWarmUpRequested = true
+            if (readinessState.value || (!full && assistantReadinessState.value)) return
+            if (warmUpJob != null) return
+            if (!retrying) warmUpFailures = 0
             warmUpJob = scope.launch(warmUpDispatcher) {
+                var restartAllowed = false
                 try {
-                    settings(appContext)
-                    val graph = container(appContext)
-                    graph.credentialStore.preload()
-                    assistantReadinessState.value = true
-                    taskHub(appContext)
-                    readinessState.value = true
+                    if (!assistantReadinessState.value) {
+                        settings(context)
+                        val graph = container(context)
+                        graph.credentialStore.preload()
+                        graph.sessionManager.awaitReady()
+                        assistantReadinessState.value = true
+                    }
+                    val finishFullWarmUp = synchronized(warmUpLock) {
+                        fullWarmUpRequested && !readinessState.value
+                    }
+                    if (finishFullWarmUp) {
+                        taskHub(context)
+                        synchronized(warmUpLock) {
+                            readinessState.value = true
+                            fullWarmUpRequested = false
+                        }
+                    }
+                    synchronized(warmUpLock) { warmUpFailures = 0 }
+                    restartAllowed = true
                 } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    val retry = synchronized(warmUpLock) {
+                        warmUpFailures += 1
+                        warmUpFailures <= MAX_WARM_UP_RETRIES
+                    }
                     readinessState.value = false
                     Log.e(TAG, "App startup failed", error)
+                    restartAllowed = retry
+                    if (retry) delay(WARM_UP_RETRY_DELAY_MILLIS)
                 } finally {
-                    synchronized(warmUpLock) { warmUpJob = null }
+                    val restartFull = synchronized(warmUpLock) {
+                        warmUpJob = null
+                        val needsWarmUp =
+                            !assistantReadinessState.value ||
+                                (fullWarmUpRequested && !readinessState.value)
+                        if (
+                            restartAllowed &&
+                            needsWarmUp &&
+                            warmUpFailures <= MAX_WARM_UP_RETRIES
+                        ) {
+                            fullWarmUpRequested
+                        } else {
+                            null
+                        }
+                    }
+                    if (restartFull != null) {
+                        requestWarmUp(context, full = restartFull, retrying = true)
+                    }
                 }
             }
         }
@@ -427,5 +480,7 @@ object AppGraph {
     private const val CATALOG_ASSET = "providers.json"
     private const val ATTACHMENT_DIRECTORY = "attachments"
     private const val CONNECT_TIMEOUT_SECONDS = 15L
+    private const val MAX_WARM_UP_RETRIES = 1
+    private const val WARM_UP_RETRY_DELAY_MILLIS = 250L
     private const val TAG = "AgentBayu"
 }

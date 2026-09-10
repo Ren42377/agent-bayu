@@ -62,7 +62,7 @@ class AssistFallbackActivity : ComponentActivity() {
         AssistantPanel(
             visible = visible,
             invocationId = invocationId,
-            manageImeInsets = true,
+            manageImeInsets = false,
             messages = messages,
             input = input,
             isResponding = responding,
