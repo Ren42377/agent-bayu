@@ -26,7 +26,7 @@ object AgentBayuMotion {
         stiffness = Spring.StiffnessMedium
     )
 
-    val snappySpring: AnimationSpec<Float> = spring(
+    val snappySpring: FiniteAnimationSpec<Float> = spring(
         dampingRatio = 0.75f,
         stiffness = Spring.StiffnessMedium
     )
@@ -64,5 +64,5 @@ object AgentBayuMotion {
         visibilityThreshold = IntSize.VisibilityThreshold
     )
 
-    val quickFade: AnimationSpec<Float> = tween(durationMillis = 180)
+    val quickFade: FiniteAnimationSpec<Float> = tween(durationMillis = 180)
 }
