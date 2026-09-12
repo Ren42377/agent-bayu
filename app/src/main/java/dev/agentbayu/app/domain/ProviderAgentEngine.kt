@@ -13,10 +13,12 @@ import dev.agentbayu.app.ai.adapter.ChatTurn
 import dev.agentbayu.app.ai.tools.ToolCall
 import dev.agentbayu.app.ai.tools.ToolRegistry
 import dev.agentbayu.app.ai.tools.ToolResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 
 data class ProviderCopy(
     val noConnection: String,
@@ -126,7 +128,7 @@ class ProviderAgentEngine(
                 tools = if (pass + 1 >= MAX_PASSES) emptyList() else tools.specs
             )
         }
-    }
+    }.flowOn(Dispatchers.IO)
 
     private fun toolTurn(result: ToolResult): ChatTurn = ChatTurn(
         role = ChatRole.TOOL,
