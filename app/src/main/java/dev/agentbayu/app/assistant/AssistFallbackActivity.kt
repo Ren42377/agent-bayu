@@ -127,6 +127,21 @@ class AssistFallbackActivity : ComponentActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        AssistantKeepaliveService.start(applicationContext)
+    }
+
+    override fun onPause() {
+        AssistantKeepaliveService.stop(applicationContext)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        AssistantKeepaliveService.stop(applicationContext)
+        super.onDestroy()
+    }
+
     private fun showMicNotice() {
         Toast.makeText(this, R.string.mic_pending_message, Toast.LENGTH_SHORT).show()
     }

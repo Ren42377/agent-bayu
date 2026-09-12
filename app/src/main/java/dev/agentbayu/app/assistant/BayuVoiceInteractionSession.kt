@@ -135,6 +135,7 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         closeSystemDialogs()
+        AssistantKeepaliveService.start(applicationContext)
         viewTreeOwner.resume()
         if (AppGraph.assistantReadiness.value) {
             panel.show(AppGraph.chat(context).messages.value.size)
@@ -144,6 +145,7 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
     }
 
     override fun onHide() {
+        AssistantKeepaliveService.stop(applicationContext)
         panel.reset()
         viewTreeOwner.pause()
         ScreenContextHolder.clear()
@@ -151,6 +153,7 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
     }
 
     override fun onDestroy() {
+        AssistantKeepaliveService.stop(applicationContext)
         viewTreeOwner.destroy()
         ScreenContextHolder.clear()
         super.onDestroy()

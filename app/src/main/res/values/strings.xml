@@ -24,6 +24,8 @@
     <string name="overlay_close">Tutup panel</string>
     <string name="overlay_open_app">Lanjut di aplikasi</string>
     <string name="overlay_disclaimer">Agent Bayu dapat melakukan kesalahan.</string>
+    <string name="keepalive_channel_name">Asisten aktif</string>
+    <string name="keepalive_notification">Panel asisten terbuka</string>
 
     <string name="setup_title">Siapkan Agent Bayu</string>
     <string name="setup_subtitle">Siapkan izin dan pintasan supaya Bayu bisa dipanggil dari mana saja.</string>
