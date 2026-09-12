@@ -87,16 +87,6 @@ fun currentGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
 }
 
 @Composable
-fun solidGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
-    val style = LocalGlassStyle.current
-    return if (darkTheme) {
-        style.copy(fill = GlassSolidDark)
-    } else {
-        style.copy(fill = GlassSolidLight)
-    }
-}
-
-@Composable
 fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     val style = LocalGlassStyle.current
     return if (darkTheme) {

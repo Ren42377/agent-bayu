@@ -14,7 +14,6 @@
     <string name="chat_input_hint">Tanya Agent Bayu</string>
     <string name="chat_send">Kirim</string>
     <string name="chat_mic">Bicara</string>
-    <string name="chat_thinking">Bayu sedang menyiapkan jawaban</string>
 
     <string name="suggestion_summarize">Ringkas layar ini</string>
     <string name="suggestion_tasks">Buat daftar tugas hari ini</string>

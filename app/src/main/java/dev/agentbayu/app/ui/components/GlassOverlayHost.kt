@@ -65,9 +65,6 @@ import dev.agentbayu.app.ui.theme.ScrimBlack
 class GlassOverlayController {
 
     internal val entries = mutableStateListOf<GlassOverlayEntry>()
-
-    val isVisible: Boolean
-        get() = entries.isNotEmpty()
 }
 
 @Stable

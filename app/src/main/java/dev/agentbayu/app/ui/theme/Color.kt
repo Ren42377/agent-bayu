@@ -46,9 +46,6 @@ internal val GlassFillDark = Color(0x99141418)
 internal val GlassChromeLight = Color(0xCCFFFFFF)
 internal val GlassChromeDark = Color(0xC7141418)
 
-internal val GlassSolidLight = Color(0xEBFFFFFF)
-internal val GlassSolidDark = Color(0xE61A1A1F)
-
 internal val GlassSurfaceLight = Color(0xFFFFFFFF)
 internal val GlassSurfaceDark = Color(0xFF000000)
 
