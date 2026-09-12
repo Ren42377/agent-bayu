@@ -5,6 +5,7 @@ import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -100,7 +101,7 @@ class AntigravityAdapterTest {
 
         val body = parseJsonObject(recorded.body.readUtf8())
         assertEquals("projects/42", body?.stringField("project"))
-        assertEquals("gemini-3.7-flash-tiered(high)", body?.stringField("model"))
+        assertEquals("gemini-3.7-flash-tiered", body?.stringField("model"))
         assertEquals("antigravity", body?.stringField("userAgent"))
         assertEquals("agent", body?.stringField("requestType"))
         assertTrue(IDE_REQUEST_ID.matches(body?.stringField("requestId").orEmpty()))
@@ -118,12 +119,85 @@ class AntigravityAdapterTest {
         assertEquals(listOf("user" to "hello"), contents(inner))
 
         val config = inner?.objectField("generationConfig")
-        assertEquals(512, config?.intField("maxOutputTokens"))
         assertNotNull(config?.get("temperature"))
         assertFalse(config?.containsKey("topK") == true)
         assertFalse(config?.containsKey("topP") == true)
-        assertFalse(config?.containsKey("thinkingConfig") == true)
         assertFalse(inner?.containsKey("safetySettings") == true)
+
+        val thinking = config?.objectField("thinkingConfig")
+        assertEquals("high", thinking?.stringField("thinkingLevel"))
+        assertTrue(thinking?.booleanField("includeThoughts") == true)
+    }
+
+    @Test
+    fun theTierRidesInTheThinkingLevelInsteadOfTheModelId() {
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-high", "high"),
+            antigravityModel("gemini-3.8-flash-high(high)")
+        )
+        assertEquals(
+            AntigravityModel("gemini-3.6-flash-tiered", "medium"),
+            antigravityModel("gemini-3.6-flash-tiered(medium)")
+        )
+        assertEquals(
+            AntigravityModel("gemini-3.7-flash-tiered", "low"),
+            antigravityModel(ModelEntry(id = "gemini-3.7-flash-low"))
+        )
+        assertEquals(
+            AntigravityModel("gemini-pro-agent", null),
+            antigravityModel(ModelEntry(id = "gemini-3.1-pro-high"))
+        )
+    }
+
+    @Test
+    fun anUnknownTierIsStillStrippedButCarriesNoThinkingLevel() {
+        assertEquals(
+            AntigravityModel("gemini-3.9-flash", null),
+            antigravityModel("gemini-3.9-flash(banana)")
+        )
+        assertEquals(AntigravityModel("(high)", null), antigravityModel("(high)"))
+        assertEquals(AntigravityModel("gemini-pro-agent", null), antigravityModel("gemini-pro-agent"))
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-high", "high"),
+            antigravityModel("  gemini-3.8-flash-high(HIGH)  ")
+        )
+    }
+
+    @Test
+    fun anUntieredModelCarriesNoThinkingConfig() {
+        val body = bodyOf(route = candidate(modelId = "claude-sonnet-4-6", upstreamModelId = null))
+
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertFalse(config?.containsKey("thinkingConfig") == true)
+        assertEquals(512, config?.intField("maxOutputTokens"))
+    }
+
+    @Test
+    fun theMinimalTierAsksTheHostToKeepThoughtsHidden() {
+        val body = bodyOf(
+            route = candidate(upstreamModelId = "gemini-3.8-flash-minimal(minimal)")
+        )
+
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertEquals("gemini-3.8-flash-minimal", body.stringField("model"))
+        assertEquals(4_096, config?.intField("maxOutputTokens"))
+        val thinking = config?.objectField("thinkingConfig")
+        assertEquals("minimal", thinking?.stringField("thinkingLevel"))
+        assertFalse(thinking?.booleanField("includeThoughts") == true)
+    }
+
+    @Test
+    fun theThinkingLevelLiftsTheOutputCeilingSoThoughtsLeaveRoomForText() {
+        assertEquals(64_000, antigravityMaxOutputTokens(512, "high"))
+        assertEquals(16_384, antigravityMaxOutputTokens(512, "medium"))
+        assertEquals(8_192, antigravityMaxOutputTokens(512, "low"))
+        assertEquals(4_096, antigravityMaxOutputTokens(512, "minimal"))
+        assertEquals(32_768, antigravityMaxOutputTokens(32_768, "low"))
+        assertEquals(512, antigravityMaxOutputTokens(512, "banana"))
+
+        val body = bodyOf(request = chat(maxOutputTokens = 512))
+        val config = body.objectField("request")?.objectField("generationConfig")
+        assertEquals(64_000, config?.intField("maxOutputTokens"))
     }
 
     @Test
@@ -165,7 +239,11 @@ class AntigravityAdapterTest {
     @Test
     fun theModelCeilingAppliesWhenTheRequestLeavesItOpen() {
         val body = bodyOf(
-            route = candidate(maxOutputTokens = 32_768),
+            route = candidate(
+                modelId = "claude-sonnet-4-6",
+                upstreamModelId = null,
+                maxOutputTokens = 32_768
+            ),
             request = chat(maxOutputTokens = null)
         )
 
@@ -287,7 +365,7 @@ class AntigravityAdapterTest {
     }
 
     @Test
-    fun thoughtPartsAreSkippedAndUsageIsRead() {
+    fun thoughtPartsAreSkippedWhileSignedAnswerTextSurvives() {
         val events = parseAntigravityChunk(
             """
             {"response":{"candidates":[{"content":{"parts":[
@@ -298,9 +376,43 @@ class AntigravityAdapterTest {
             """.trimIndent()
         )
 
-        assertEquals("visible", events.deltaText())
+        assertEquals("signedvisible", events.deltaText())
+        assertEquals("planning", events.thinkingText())
         assertEquals(11, events.lastUsage()?.inputTokens)
         assertEquals(7, events.lastUsage()?.outputTokens)
+    }
+
+    @Test
+    fun signedThoughtPartsStayHidden() {
+        val events = parseAntigravityChunk(
+            """
+            {"response":{"candidates":[{"content":{"parts":[
+            {"text":"planning","thought":true,"thoughtSignature":"abc"},
+            {"text":"answer","thoughtSignature":"def"}
+            ]}}]}}
+            """.trimIndent()
+        )
+
+        assertEquals("answer", events.deltaText())
+        assertEquals("planning", events.thinkingText())
+    }
+
+    @Test
+    fun thoughtPartsArriveBeforeTheAnswerTheyPrecede() {
+        val events = parseAntigravityChunk(
+            """
+            {"response":{"candidates":[{"content":{"parts":[
+            {"text":"first thought","thought":true},
+            {"text":"reply"},
+            {"text":"second thought","thought":true}
+            ]}}]}}
+            """.trimIndent()
+        )
+
+        assertEquals(
+            listOf(WireEvent.Thinking("first thoughtsecond thought"), WireEvent.Delta("reply")),
+            events
+        )
     }
 
     @Test
@@ -339,9 +451,197 @@ class AntigravityAdapterTest {
         assertEquals("apa ini", parts.last().stringField("text"))
     }
 
+    @Test
+    fun toolDeclarationsRideInsideTheInnerRequest() {
+        val body = bodyOf(
+            request = ChatRequest(
+                turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")),
+                tools = listOf(testTool)
+            )
+        )
+
+        assertFalse(body.containsKey(WireParams.TOOLS))
+        val group = body.objectField("request")?.arrayField(WireParams.TOOLS)?.firstOrNull() as? JsonObject
+        val declared = group?.arrayField("functionDeclarations")?.filterIsInstance<JsonObject>().orEmpty()
+        assertEquals(1, declared.size)
+        assertEquals("create_task", declared.first().stringField("name"))
+        assertEquals("object", declared.first().objectField("parameters")?.stringField("type"))
+    }
+
+    @Test
+    fun toolsAreLeftOutWhenTheProviderRejectsThem() {
+        val body = bodyOf(
+            route = candidate(unsupportedParams = listOf(WireParams.TOOLS)),
+            request = ChatRequest(
+                turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")),
+                tools = listOf(testTool)
+            )
+        )
+
+        assertFalse(body.objectField("request")?.containsKey(WireParams.TOOLS) == true)
+        assertFalse(body.objectField("request")?.containsKey("toolConfig") == true)
+    }
+
+    @Test
+    fun toolsSwitchTheFunctionCallingModeToValidated() {
+        val body = bodyOf(
+            request = ChatRequest(
+                turns = listOf(ChatTurn(ChatRole.USER, "buat tugas")),
+                tools = listOf(testTool)
+            )
+        )
+
+        assertEquals(
+            "VALIDATED",
+            body.objectField("request")
+                ?.objectField("toolConfig")
+                ?.objectField("functionCallingConfig")
+                ?.stringField("mode")
+        )
+    }
+
+    @Test
+    fun aRequestWithoutToolsCarriesNoToolConfig() {
+        val body = bodyOf()
+
+        assertFalse(body.objectField("request")?.containsKey("toolConfig") == true)
+    }
+
+    @Test
+    fun replayedFunctionCallsCarryAnIdAndAThoughtSignature() {
+        val body = bodyOf(
+            request = chat(
+                systemPrompt = null,
+                turns = listOf(
+                    ChatTurn(ChatRole.USER, "buat tugas"),
+                    ChatTurn(
+                        role = ChatRole.ASSISTANT,
+                        content = "",
+                        toolCalls = listOf(
+                            ToolCall(
+                                id = "call_1",
+                                name = "create_task",
+                                arguments = "{\"title\":\"beli susu\"}"
+                            )
+                        )
+                    ),
+                    ChatTurn(
+                        role = ChatRole.TOOL,
+                        content = "Task created",
+                        toolCallId = "call_1",
+                        toolName = "create_task"
+                    )
+                )
+            )
+        )
+
+        val inner = body.objectField("request")
+        val part = inner?.parts("contents", 1)?.single()
+        assertEquals(ANTIGRAVITY_THOUGHT_SIGNATURE, part?.stringField("thoughtSignature"))
+        val call = part?.objectField("functionCall")
+        assertEquals("call_1", call?.stringField("id"))
+        assertEquals("create_task", call?.stringField("name"))
+
+        val response = inner?.parts("contents", 2)?.single()?.objectField("functionResponse")
+        assertEquals("call_1", response?.stringField("id"))
+        assertEquals("create_task", response?.stringField("name"))
+        assertEquals("Task created", response?.objectField("response")?.stringField("result"))
+    }
+
+    @Test
+    fun functionCallPartsBecomeToolCalls() {
+        server.enqueue(
+            sseResponse(
+                "{\"response\":{\"candidates\":[{\"content\":{\"role\":\"model\",\"parts\":[" +
+                    "{\"text\":\"planning\",\"thought\":true}," +
+                    "{\"functionCall\":{\"name\":\"create_task\",\"args\":{\"title\":\"beli susu\"}}}" +
+                    "]}}]}}",
+                EMPTY_CHUNK
+            )
+        )
+
+        val events = collectEvents(adapter.stream(candidate(), "token-1", chat()))
+
+        assertEquals("", events.deltaText())
+        assertEquals(
+            listOf(ToolCall(id = "call_1", name = "create_task", arguments = "{\"title\":\"beli susu\"}")),
+            events.toolCalls()
+        )
+        assertTrue(events.completed())
+    }
+
+    @Test
+    fun parallelFunctionCallsKeepTheirOwnArguments() {
+        val buffer = ToolCallBuffer()
+        parseAntigravityChunk(
+            """{"response":{"candidates":[{"content":{"parts":[
+            {"functionCall":{"name":"list_files","args":{"path":"a"}}},
+            {"functionCall":{"name":"read_file","args":{"path":"b.txt"}}}
+            ]}}]}}""".trimIndent(),
+            buffer
+        )
+
+        val calls = buffer.release()
+        assertEquals(listOf("list_files", "read_file"), calls.map { it.name })
+        assertEquals("{\"path\":\"a\"}", calls.first().arguments)
+        assertEquals("{\"path\":\"b.txt\"}", calls.last().arguments)
+    }
+
+    @Test
+    fun parallelToolResultsShareOneUserContent() {
+        val body = bodyOf(
+            request = chat(
+                systemPrompt = null,
+                turns = listOf(
+                    ChatTurn(ChatRole.USER, "buat tugas"),
+                    ChatTurn(
+                        role = ChatRole.ASSISTANT,
+                        content = "",
+                        toolCalls = listOf(
+                            ToolCall(id = "call_1", name = "create_task", arguments = "{\"title\":\"beli susu\"}"),
+                            ToolCall(id = "call_2", name = "list_tasks", arguments = "{}")
+                        )
+                    ),
+                    ChatTurn(
+                        role = ChatRole.TOOL,
+                        content = "Task created",
+                        toolCallId = "call_1",
+                        toolName = "create_task"
+                    ),
+                    ChatTurn(
+                        role = ChatRole.TOOL,
+                        content = "No list",
+                        toolCallId = "call_2",
+                        toolName = "list_tasks",
+                        toolFailed = true
+                    )
+                )
+            )
+        )
+
+        val inner = body.objectField("request")
+        assertEquals(listOf("user" to "buat tugas", "model" to "", "user" to ""), contents(inner))
+
+        val calls = inner?.parts("contents", 1).orEmpty()
+        assertEquals(2, calls.size)
+        assertEquals("create_task", calls.first().objectField("functionCall")?.stringField("name"))
+        assertEquals(
+            "beli susu",
+            calls.first().objectField("functionCall")?.objectField("args")?.stringField("title")
+        )
+
+        val results = inner?.parts("contents", 2).orEmpty()
+        assertEquals(2, results.size)
+        val first = results.first().objectField("functionResponse")
+        assertEquals("create_task", first?.stringField("name"))
+        assertEquals("Task created", first?.objectField("response")?.stringField("result"))
+        val second = results.last().objectField("functionResponse")
+        assertEquals("No list", second?.objectField("response")?.stringField("error"))
+    }
+
     private companion object {
         const val LAUNCH_MILLIS = 1_700_000_000_000L
-        const val IDE_USER_AGENT = "antigravity/ide/2.1.1 darwin/arm64"
+        const val IDE_USER_AGENT = "antigravity/ide/2.11.0 darwin/arm64"
         const val EMPTY_CHUNK = """{"response":{"candidates":[]}}"""
         val IDE_REQUEST_ID = Regex("^agent/[^/]+/\\d+/[^/]+/\\d+$")
         val UUID_SHAPE =

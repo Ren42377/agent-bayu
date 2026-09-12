@@ -5,13 +5,11 @@ import androidx.compose.runtime.mutableStateListOf
 
 sealed interface AppPage {
 
-    data object Onboarding : AppPage
-
     data object Providers : AppPage
 
-    data object History : AppPage
-
     data object Logs : AppPage
+
+    data object CustomPrompt : AppPage
 
     data class Connection(val connectionId: String?) : AppPage
 
@@ -33,14 +31,14 @@ class AppPageController {
         stack.add(AppPage.Providers)
     }
 
-    fun openHistory() {
-        stack.clear()
-        stack.add(AppPage.History)
-    }
-
     fun openLogs() {
         stack.clear()
         stack.add(AppPage.Logs)
+    }
+
+    fun openCustomPrompt() {
+        stack.clear()
+        stack.add(AppPage.CustomPrompt)
     }
 
     fun openConnection(connectionId: String?) {

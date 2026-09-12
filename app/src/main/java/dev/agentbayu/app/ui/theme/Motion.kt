@@ -8,6 +8,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 
 object AgentBayuMotion {
     const val ScrimAlpha = 0.5f
@@ -25,7 +26,7 @@ object AgentBayuMotion {
         stiffness = Spring.StiffnessMedium
     )
 
-    val snappySpring: AnimationSpec<Float> = spring(
+    val snappySpring: FiniteAnimationSpec<Float> = spring(
         dampingRatio = 0.75f,
         stiffness = Spring.StiffnessMedium
     )
@@ -57,5 +58,11 @@ object AgentBayuMotion {
         visibilityThreshold = IntOffset.VisibilityThreshold
     )
 
-    val quickFade: AnimationSpec<Float> = tween(durationMillis = 180)
+    val panelSizeSpec: FiniteAnimationSpec<IntSize> = spring(
+        dampingRatio = 0.9f,
+        stiffness = Spring.StiffnessMediumLow,
+        visibilityThreshold = IntSize.VisibilityThreshold
+    )
+
+    val quickFade: FiniteAnimationSpec<Float> = tween(durationMillis = 180)
 }

@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -24,26 +23,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ProviderEntry
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassDropdownMenuHost
 import dev.agentbayu.app.ui.components.GlassDropdownMenuItem
+import dev.agentbayu.app.ui.components.InteractiveHighlight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.liquidGlass
 
 data class ConnectionEditState(
     val providers: List<ProviderEntry>,
@@ -499,17 +504,27 @@ fun AiDropdown(
     selectedId: String? = null
 ) {
     var expanded by remember { mutableStateOf(false) }
+    val animationScope = rememberCoroutineScope()
+    val interactiveHighlight = remember(animationScope) {
+        InteractiveHighlight(animationScope = animationScope, claimDrag = false)
+    }
     GlassDropdownMenuHost(
         expanded = expanded,
         onExpandedChange = { expanded = it },
         modifier = modifier.fillMaxWidth(),
-        trigger = {
+        trigger = { progress ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.medium)
-                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
-                    .clickable { expanded = true }
+                    .liquidGlass(shape = GlassTileShape)
+                    .clip(GlassTileShape)
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = { expanded = true }
+                    )
+                    .then(interactiveHighlight.modifier)
+                    .then(interactiveHighlight.gestureModifier)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {
                 Row(
@@ -526,7 +541,15 @@ fun AiDropdown(
                         painter = painterResource(R.drawable.ic_chevron),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier
+                            .size(16.dp)
+                            .graphicsLayer {
+                                rotationZ = lerp(
+                                    CHEVRON_CLOSED_ROTATION,
+                                    CHEVRON_OPEN_ROTATION,
+                                    progress()
+                                )
+                            }
                     )
                 }
             }
@@ -545,3 +568,6 @@ fun AiDropdown(
         }
     )
 }
+
+private const val CHEVRON_CLOSED_ROTATION = 90f
+private const val CHEVRON_OPEN_ROTATION = 270f

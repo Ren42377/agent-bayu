@@ -14,7 +14,15 @@ fun inputTokenBudget(model: ModelEntry): Int {
 }
 
 fun turnTokenCost(turn: ChatTurn): Int =
-    TokenUsage.estimateTokens(turn.content) + turn.images.size * ChatImage.TOKEN_COST
+    TokenUsage.estimateTokens(turn.content) +
+        turn.images.size * ChatImage.TOKEN_COST +
+        turn.toolCalls.sumOf { call ->
+            TokenUsage.estimateTokens(call.id) +
+                TokenUsage.estimateTokens(call.name) +
+                TokenUsage.estimateTokens(call.arguments)
+        } +
+        TokenUsage.estimateTokens(turn.toolCallId.orEmpty()) +
+        TokenUsage.estimateTokens(turn.toolName.orEmpty())
 
 fun fitToContext(request: ChatRequest, model: ModelEntry): List<ChatTurn> {
     val turns = request.turns

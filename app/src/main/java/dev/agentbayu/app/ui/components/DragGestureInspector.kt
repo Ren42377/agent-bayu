@@ -17,6 +17,7 @@ internal suspend fun PointerInputScope.inspectDragGestures(
     onDragStart: (down: PointerInputChange) -> Unit = {},
     onDragEnd: (change: PointerInputChange) -> Unit = {},
     onDragCancel: () -> Unit = {},
+    claimDrag: Boolean = true,
     onDrag: (change: PointerInputChange, dragAmount: Offset) -> Unit
 ) {
     awaitEachGesture {
@@ -27,6 +28,7 @@ internal suspend fun PointerInputScope.inspectDragGestures(
         onDrag(initialDown, Offset.Zero)
         val upEvent = awaitDrag(
             pointerId = initialDown.id,
+            claimDrag = claimDrag,
             onDrag = onDrag
         )
         if (upEvent == null) {
@@ -39,6 +41,7 @@ internal suspend fun PointerInputScope.inspectDragGestures(
 
 private suspend inline fun AwaitPointerEventScope.awaitDrag(
     pointerId: PointerId,
+    claimDrag: Boolean,
     onDrag: (PointerInputChange, Offset) -> Unit
 ): PointerInputChange? {
     val isPointerUp = currentEvent.changes.fastFirstOrNull { it.id == pointerId }?.pressed != true
@@ -70,7 +73,7 @@ private suspend inline fun AwaitPointerEventScope.awaitDrag(
             }
         }
         onDrag(change, delta)
-        if (claimed) {
+        if (claimed && claimDrag) {
             change.consume()
         }
         pointer = change.id

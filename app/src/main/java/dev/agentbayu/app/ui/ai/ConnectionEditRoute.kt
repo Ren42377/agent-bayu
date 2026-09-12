@@ -111,7 +111,7 @@ fun AiConnectionEditRoute(
         apiKey = apiKey,
         keyHint = keyHint,
         model = model,
-        modelOptions = modelOptions(provider, discovered),
+        modelOptions = modelOptions(provider, discovered, model),
         modelProbes = modelProbes,
         baseUrl = baseUrl,
         isNew = existing == null,
@@ -160,7 +160,7 @@ fun AiConnectionEditRoute(
                 val results = tester.probeModels(
                     connection = draft(),
                     apiKey = apiKey,
-                    modelIds = modelOptions(provider, discovered)
+                    modelIds = modelOptions(provider, discovered, model)
                 )
                 modelProbes = results.mapValues { (_, result) ->
                     when (result) {
@@ -245,9 +245,10 @@ fun AiConnectionEditRoute(
 }
 
 private fun defaultModel(provider: ProviderEntry?): String =
-    provider?.models?.firstOrNull()?.id.orEmpty()
+    provider?.selectableModels?.firstOrNull()?.id.orEmpty()
 
-private fun modelOptions(provider: ProviderEntry?, discovered: List<String>): List<String> {
-    val catalogModels = provider?.models?.map { it.id }.orEmpty()
-    return (catalogModels + discovered).distinct()
-}
+private fun modelOptions(
+    provider: ProviderEntry?,
+    discovered: List<String>,
+    current: String
+): List<String> = provider?.pickerModelIds(discovered, current).orEmpty()

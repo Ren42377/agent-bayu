@@ -21,7 +21,7 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         request: ChatRequest,
         authHeaders: Map<String, String>
     ): Flow<WireEvent> {
-        val path = MODELS_PATH + candidate.model.id + STREAM_SUFFIX
+        val path = MODELS_PATH + candidate.model.wireId + STREAM_SUFFIX
         val httpRequest = Request.Builder()
             .url(joinUrl(candidate.baseUrl, path))
             .header("Accept", "text/event-stream")
@@ -32,9 +32,10 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
             .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 
+        val tools = ToolCallBuffer()
         return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
-            parseChunk(chunk)
-        }
+            parseChunk(chunk, tools)
+        }.releasingToolCalls(tools)
     }
 
     private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
@@ -46,26 +47,22 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
             }
         }
         putJsonArray("contents") {
-            mergeTurns(request.turns).forEach { turn ->
-                add(
-                    buildJsonObject {
-                        put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
-                        putJsonArray("parts") {
-                            turn.images.forEach { image ->
-                                add(
-                                    buildJsonObject {
-                                        putJsonObject("inlineData") {
-                                            put("mimeType", image.mimeType)
-                                            put("data", image.data)
-                                        }
-                                    }
-                                )
-                            }
-                            add(buildJsonObject { put("text", turn.content) })
-                        }
-                    }
-                )
+            val turns = mergeTurns(request.turns)
+            var index = 0
+            while (index < turns.size) {
+                if (turns[index].role == ChatRole.TOOL) {
+                    var end = index
+                    while (end < turns.size && turns[end].role == ChatRole.TOOL) end += 1
+                    add(functionResponseContent(turns.subList(index, end)))
+                    index = end
+                } else {
+                    add(content(turns[index]))
+                    index += 1
+                }
             }
+        }
+        if (request.tools.isNotEmpty() && WireParams.supports(candidate, WireParams.TOOLS)) {
+            putGeminiTools(request.tools)
         }
         putJsonObject("generationConfig") {
             put("maxOutputTokens", request.maxOutputTokens ?: candidate.model.maxOutputTokens)
@@ -76,12 +73,39 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         }
     }
 
+    private fun functionResponseContent(turns: List<ChatTurn>): JsonObject = buildJsonObject {
+        put("role", "user")
+        putJsonArray("parts") {
+            turns.forEach { turn -> add(geminiFunctionResponsePart(turn)) }
+        }
+    }
+
+    private fun content(turn: ChatTurn): JsonObject = buildJsonObject {
+        put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
+        putJsonArray("parts") {
+            turn.images.forEach { image ->
+                add(
+                    buildJsonObject {
+                        putJsonObject("inlineData") {
+                            put("mimeType", image.mimeType)
+                            put("data", image.data)
+                        }
+                    }
+                )
+            }
+            if (turn.content.isNotEmpty() || turn.toolCalls.isEmpty()) {
+                add(buildJsonObject { put("text", turn.content) })
+            }
+            turn.toolCalls.forEach { call -> add(geminiFunctionCallPart(call)) }
+        }
+    }
+
     private fun mergeTurns(turns: List<ChatTurn>): List<ChatTurn> {
         val conversation = turns.filter { it.role != ChatRole.SYSTEM }
         val merged = ArrayList<ChatTurn>(conversation.size)
         conversation.forEach { turn ->
             val last = merged.lastOrNull()
-            if (last != null && last.role == turn.role) {
+            if (last != null && last.role == turn.role && !last.carriesTool && !turn.carriesTool) {
                 merged[merged.lastIndex] = last.copy(
                     content = last.content + "\n\n" + turn.content,
                     images = last.images + turn.images
@@ -93,7 +117,7 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         return merged
     }
 
-    private fun parseChunk(raw: String): List<WireEvent> {
+    private fun parseChunk(raw: String, tools: ToolCallBuffer): List<WireEvent> {
         val root = parseJsonObject(raw) ?: return emptyList()
 
         root.objectField("error")?.let { error ->
@@ -106,8 +130,20 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         val candidateNode = root.arrayField("candidates")?.firstOrNull() as? JsonObject
         val parts = candidateNode?.objectField("content")?.arrayField("parts")
         if (parts != null) {
-            val text = parts.mapNotNull { (it as? JsonObject)?.stringField("text") }.joinToString("")
-            if (text.isNotEmpty()) events += WireEvent.Delta(text)
+            val answer = StringBuilder()
+            val thought = StringBuilder()
+            parts.forEach { element ->
+                val part = element as? JsonObject ?: return@forEach
+                val text = part.stringField("text") ?: return@forEach
+                if (part.booleanField(THOUGHT) == true) {
+                    thought.append(text)
+                } else {
+                    answer.append(text)
+                }
+            }
+            if (thought.isNotEmpty()) events += WireEvent.Thinking(thought.toString())
+            if (answer.isNotEmpty()) events += WireEvent.Delta(answer.toString())
+            collectFunctionCalls(parts, tools)
         }
 
         root.objectField("usageMetadata")?.let { usage ->
@@ -122,5 +158,6 @@ class GeminiAdapter(private val client: OkHttpClient) : ChatAdapter {
         const val MODELS_PATH = "v1beta/models/"
         const val STREAM_SUFFIX = ":streamGenerateContent?alt=sse"
         const val STREAM_ERROR_STATUS = 500
+        private const val THOUGHT = "thought"
     }
 }

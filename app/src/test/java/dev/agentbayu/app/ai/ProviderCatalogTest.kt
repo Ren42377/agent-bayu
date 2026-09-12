@@ -56,14 +56,14 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `agy streams from the daily host and discovers from the control host`() {
+    fun `agy streams and discovers from the daily host and bootstraps from the control host`() {
         val provider = catalog.find("agy")!!
 
         assertEquals("https://daily-cloudcode-pa.googleapis.com", provider.baseUrl)
         assertEquals("https://cloudcode-pa.googleapis.com", provider.controlUrl)
         assertEquals("/v1internal:fetchAvailableModels", provider.modelsPath)
         assertEquals(
-            "antigravity/ide/2.1.1 darwin/arm64",
+            "antigravity/ide/2.11.0 darwin/arm64",
             provider.extraHeaders["User-Agent"]
         )
         assertEquals(1, provider.extraHeaders.size)
@@ -280,21 +280,24 @@ class ProviderCatalogTest {
                 "codex/gpt-5.6-sol",
                 "codex/gpt-5.6-terra",
                 "codex/gpt-5.6-luna",
+                "agy/gemini-3.8-flash-high",
+                "agy/gemini-3.8-flash-medium",
+                "agy/gemini-3.8-flash-low",
                 "agy/gemini-3.7-flash-high",
                 "agy/gemini-3.7-flash-medium",
                 "agy/gemini-3.7-flash-low",
                 "agy/gemini-3.6-flash-high",
                 "agy/gemini-3.6-flash-medium",
                 "agy/gemini-3.6-flash-low",
-                "agy/gemini-3.5-flash-high",
-                "agy/gemini-3-flash-agent",
                 "agy/gemini-3.5-flash-low",
                 "agy/gemini-3.5-flash-extra-low",
-                "agy/gemini-3-flash",
                 "agy/gemini-pro-agent",
                 "agy/gemini-3.1-pro-low",
                 "agy/claude-opus-4-6-thinking",
-                "agy/claude-sonnet-4-6"
+                "agy/claude-sonnet-4-6",
+                "agy/gemini-3.5-flash-high",
+                "agy/gemini-3-flash-agent",
+                "agy/gemini-3-flash"
             ),
             vision
         )
@@ -303,6 +306,56 @@ class ProviderCatalogTest {
     @Test
     fun `no provider claims vision for every model it hosts`() {
         catalog.providers.forEach { provider -> assertFalse(provider.id, provider.vision) }
+    }
+
+    @Test
+    fun `agy hides the retired duplicates but still resolves their limits`() {
+        val provider = catalog.find("agy")!!
+        val retired = listOf(
+            "gemini-3.5-flash-high",
+            "gemini-3-flash-agent",
+            "gemini-3-flash"
+        )
+
+        assertEquals(19, provider.models.size)
+        assertEquals(16, provider.selectableModels.size)
+        retired.forEach { id ->
+            assertNotNull(id, provider.model(id))
+            assertTrue(id, provider.model(id)!!.deprecated)
+            assertFalse(id, provider.pickerModelIds().contains(id))
+        }
+        assertEquals("gemini-3.8-flash-high", provider.selectableModels.first().id)
+    }
+
+    @Test
+    fun `a picker keeps the retired model a saved connection already runs`() {
+        val provider = catalog.find("agy")!!
+        val keep = "gemini-3-flash"
+
+        val ids = provider.pickerModelIds(
+            discovered = listOf(keep, "gemini-3-flash-agent"),
+            keep = keep
+        )
+
+        assertTrue(ids.contains(keep))
+        assertFalse(ids.contains("gemini-3-flash-agent"))
+        assertEquals(ids.distinct(), ids)
+    }
+
+    @Test
+    fun `discovered ids join the picker without duplicating the catalog`() {
+        val provider = testProvider(
+            id = "mixed",
+            models = listOf(
+                ModelEntry(id = "live"),
+                ModelEntry(id = "retired", deprecated = true)
+            )
+        )
+
+        assertEquals(
+            listOf("live", "fresh"),
+            provider.pickerModelIds(discovered = listOf("live", "retired", "fresh"))
+        )
     }
 
     @Test

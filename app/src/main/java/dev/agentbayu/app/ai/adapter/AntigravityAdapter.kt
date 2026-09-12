@@ -5,6 +5,7 @@ import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.RouteFailure
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.serialization.json.JsonObject
@@ -47,14 +48,16 @@ class AntigravityAdapter(
             .post(payload.toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 
+        val tools = ToolCallBuffer()
         return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
-            parseAntigravityChunk(chunk)
-        }
+            parseAntigravityChunk(chunk, tools)
+        }.releasingToolCalls(tools)
     }
 
     private fun missingProject(): RouteFailure = RouteFailure(
         kind = FailureKind.TERMINAL,
-        message = "sign in again to finish Antigravity project setup"
+        message = "sign in again to finish Antigravity project setup",
+        needsSetup = true
     )
 
     companion object {
@@ -69,19 +72,19 @@ internal fun antigravityBody(
     sessionId: String,
     nowMillis: Long
 ): JsonObject = buildJsonObject {
-    val upstreamModel = resolveAntigravityModelId(candidate.model)
+    val model = antigravityModel(candidate.model)
     val contents = antigravityTurns(request.turns)
     put(PROJECT, projectId)
     put(
         REQUEST_ID,
         antigravityRequestId(
             sessionId = sessionId,
-            upstreamModel = upstreamModel,
+            upstreamModel = model.wireId,
             contentCount = contents.size,
             nowMillis = nowMillis
         )
     )
-    put(MODEL, upstreamModel)
+    put(MODEL, model.wireId)
     put(USER_AGENT, USER_AGENT_VALUE)
     put(REQUEST_TYPE, REQUEST_TYPE_VALUE)
     putJsonObject(REQUEST) {
@@ -94,35 +97,87 @@ internal fun antigravityBody(
             }
         }
         putJsonArray("contents") {
-            contents.forEach { turn ->
-                add(
-                    buildJsonObject {
-                        put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
-                        putJsonArray("parts") {
-                            turn.images.forEach { image ->
-                                add(
-                                    buildJsonObject {
-                                        putJsonObject("inlineData") {
-                                            put("mimeType", image.mimeType)
-                                            put("data", image.data)
-                                        }
-                                    }
-                                )
-                            }
-                            add(buildJsonObject { put("text", turn.content) })
-                        }
-                    }
-                )
+            var index = 0
+            while (index < contents.size) {
+                if (contents[index].role == ChatRole.TOOL) {
+                    var end = index
+                    while (end < contents.size && contents[end].role == ChatRole.TOOL) end += 1
+                    add(antigravityFunctionResponseContent(contents.subList(index, end)))
+                    index = end
+                } else {
+                    add(antigravityContent(contents[index]))
+                    index += 1
+                }
+            }
+        }
+        if (request.tools.isNotEmpty() && WireParams.supports(candidate, WireParams.TOOLS)) {
+            putGeminiTools(request.tools)
+            putJsonObject(TOOL_CONFIG) {
+                putJsonObject(FUNCTION_CALLING_CONFIG) {
+                    put(MODE, MODE_VALIDATED)
+                }
             }
         }
         putJsonObject("generationConfig") {
             val requestedMax = request.maxOutputTokens ?: candidate.model.maxOutputTokens
-            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax))
+            put("maxOutputTokens", antigravityMaxOutputTokens(requestedMax, model.thinkingLevel))
             val temperature = request.temperature
             if (temperature != null && WireParams.supports(candidate, WireParams.TEMPERATURE)) {
                 put("temperature", temperature)
             }
+            model.thinkingLevel?.let { level ->
+                putJsonObject(THINKING_CONFIG) {
+                    put(THINKING_LEVEL, level)
+                    put(INCLUDE_THOUGHTS, level != LEVEL_MINIMAL)
+                }
+            }
         }
+    }
+}
+
+private fun antigravityFunctionResponseContent(turns: List<ChatTurn>): JsonObject = buildJsonObject {
+    put("role", "user")
+    putJsonArray("parts") {
+        turns.forEach { turn -> add(antigravityFunctionResponsePart(turn)) }
+    }
+}
+
+private fun antigravityFunctionResponsePart(turn: ChatTurn): JsonObject = buildJsonObject {
+    putJsonObject("functionResponse") {
+        turn.toolCallId?.takeIf { it.isNotBlank() }?.let { id -> put("id", id) }
+        put("name", turn.toolName.orEmpty())
+        putJsonObject("response") {
+            if (turn.toolFailed) put("error", turn.content) else put("result", turn.content)
+        }
+    }
+}
+
+private fun antigravityFunctionCallPart(call: ToolCall): JsonObject = buildJsonObject {
+    put(THOUGHT_SIGNATURE, ANTIGRAVITY_THOUGHT_SIGNATURE)
+    putJsonObject("functionCall") {
+        put("id", call.id)
+        put("name", call.name)
+        put("args", argumentsObject(call.arguments))
+    }
+}
+
+private fun antigravityContent(turn: ChatTurn): JsonObject = buildJsonObject {
+    put("role", if (turn.role == ChatRole.ASSISTANT) "model" else "user")
+    putJsonArray("parts") {
+        turn.images.forEach { image ->
+            add(
+                buildJsonObject {
+                    putJsonObject("inlineData") {
+                        put("mimeType", image.mimeType)
+                        put("data", image.data)
+                    }
+                }
+            )
+        }
+        if (turn.content.isNotEmpty() || turn.toolCalls.isEmpty()) {
+            add(buildJsonObject { put("text", turn.content) })
+        }
+        turn.toolCalls.forEach { call -> add(antigravityFunctionCallPart(call)) }
     }
 }
 
@@ -131,7 +186,7 @@ internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
     val merged = ArrayList<ChatTurn>(conversation.size)
     conversation.forEach { turn ->
         val last = merged.lastOrNull()
-        if (last != null && last.role == turn.role) {
+        if (last != null && last.role == turn.role && !last.carriesTool && !turn.carriesTool) {
             merged[merged.lastIndex] = last.copy(
                 content = last.content + "\n\n" + turn.content,
                 images = last.images + turn.images
@@ -149,6 +204,21 @@ internal fun resolveAntigravityModelId(modelId: String): String =
 internal fun resolveAntigravityModelId(model: ModelEntry): String {
     val upstream = model.upstreamId?.takeIf { it.isNotBlank() }
     return upstream ?: resolveAntigravityModelId(model.id)
+}
+
+internal data class AntigravityModel(val wireId: String, val thinkingLevel: String?)
+
+internal fun antigravityModel(model: ModelEntry): AntigravityModel =
+    antigravityModel(resolveAntigravityModelId(model))
+
+internal fun antigravityModel(upstreamModel: String): AntigravityModel {
+    val trimmed = upstreamModel.trim()
+    val match = THINKING_SUFFIX.matchEntire(trimmed)
+        ?: return AntigravityModel(trimmed, null)
+    val wireId = match.groupValues[1].trim()
+    if (wireId.isEmpty()) return AntigravityModel(trimmed, null)
+    val level = match.groupValues[2].trim().lowercase()
+    return AntigravityModel(wireId, level.takeIf { it in THINKING_LEVELS })
 }
 
 internal fun antigravityUuidFromSeed(seed: String): String {
@@ -177,10 +247,21 @@ internal fun antigravityRequestId(
     return REQUEST_ID_PREFIX + conversationId + "/" + nowMillis + "/" + trajectoryId + "/" + step
 }
 
-internal fun antigravityMaxOutputTokens(requested: Int): Int =
-    requested.coerceIn(1, MAX_OUTPUT_TOKENS)
+internal fun antigravityMaxOutputTokens(requested: Int, thinkingLevel: String? = null): Int =
+    maxOf(requested, antigravityOutputFloor(thinkingLevel)).coerceIn(1, MAX_OUTPUT_TOKENS)
 
-internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
+private fun antigravityOutputFloor(thinkingLevel: String?): Int = when (thinkingLevel) {
+    LEVEL_MINIMAL -> MINIMAL_OUTPUT_FLOOR
+    LEVEL_LOW -> LOW_OUTPUT_FLOOR
+    LEVEL_MEDIUM -> MEDIUM_OUTPUT_FLOOR
+    LEVEL_HIGH -> MAX_OUTPUT_TOKENS
+    else -> 0
+}
+
+internal fun parseAntigravityChunk(
+    raw: String,
+    tools: ToolCallBuffer = ToolCallBuffer()
+): List<WireEvent> {
     val envelope = parseJsonObject(raw) ?: return emptyList()
     val root = envelope.objectField(RESPONSE) ?: envelope
 
@@ -194,13 +275,16 @@ internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
     val candidateNode = root.arrayField("candidates")?.firstOrNull() as? JsonObject
     val parts = candidateNode?.objectField("content")?.arrayField("parts")
     if (parts != null) {
-        val text = parts.mapNotNull { element ->
-            val part = element as? JsonObject ?: return@mapNotNull null
-            val isThought = part.booleanField(THOUGHT) == true ||
-                !part.stringField(THOUGHT_SIGNATURE).isNullOrEmpty()
-            if (isThought) null else part.stringField("text")
-        }.joinToString("")
-        if (text.isNotEmpty()) events += WireEvent.Delta(text)
+        val answer = StringBuilder()
+        val thought = StringBuilder()
+        parts.forEach { element ->
+            val part = element as? JsonObject ?: return@forEach
+            val text = part.stringField("text") ?: return@forEach
+            if (part.booleanField(THOUGHT) == true) thought.append(text) else answer.append(text)
+        }
+        if (thought.isNotEmpty()) events += WireEvent.Thinking(thought.toString())
+        if (answer.isNotEmpty()) events += WireEvent.Delta(answer.toString())
+        collectFunctionCalls(parts, tools)
     }
 
     root.objectField("usageMetadata")?.let { usage ->
@@ -212,6 +296,10 @@ internal fun parseAntigravityChunk(raw: String): List<WireEvent> {
 }
 
 private val MODEL_ALIASES = mapOf(
+    "gemini-3.8-flash" to "gemini-3.8-flash-medium(medium)",
+    "gemini-3.8-flash-high" to "gemini-3.8-flash-high(high)",
+    "gemini-3.8-flash-medium" to "gemini-3.8-flash-medium(medium)",
+    "gemini-3.8-flash-low" to "gemini-3.8-flash-low(low)",
     "gemini-3.7-flash" to "gemini-3.7-flash-tiered(high)",
     "gemini-3.7-flash-tiered" to "gemini-3.7-flash-tiered(high)",
     "gemini-3.7-flash-high" to "gemini-3.7-flash-tiered(high)",
@@ -237,6 +325,18 @@ private const val VERSION_BITS = 0x50
 private const val VARIANT_INDEX = 8
 private const val VARIANT_BITS = 0x80
 private const val MAX_OUTPUT_TOKENS = 64_000
+private const val MINIMAL_OUTPUT_FLOOR = 4_096
+private const val LOW_OUTPUT_FLOOR = 8_192
+private const val MEDIUM_OUTPUT_FLOOR = 16_384
+private const val LEVEL_MINIMAL = "minimal"
+private const val LEVEL_LOW = "low"
+private const val LEVEL_MEDIUM = "medium"
+private const val LEVEL_HIGH = "high"
+private val THINKING_LEVELS = setOf(LEVEL_MINIMAL, LEVEL_LOW, LEVEL_MEDIUM, LEVEL_HIGH)
+private val THINKING_SUFFIX = Regex("(.*)\\(([^()]+)\\)")
+private const val THINKING_CONFIG = "thinkingConfig"
+private const val THINKING_LEVEL = "thinkingLevel"
+private const val INCLUDE_THOUGHTS = "includeThoughts"
 private const val MODEL = "model"
 private const val USER_AGENT = "userAgent"
 private const val USER_AGENT_VALUE = "antigravity"
@@ -246,4 +346,8 @@ private const val REQUEST = "request"
 private const val RESPONSE = "response"
 private const val THOUGHT = "thought"
 private const val THOUGHT_SIGNATURE = "thoughtSignature"
+private const val TOOL_CONFIG = "toolConfig"
+private const val FUNCTION_CALLING_CONFIG = "functionCallingConfig"
+private const val MODE = "mode"
+private const val MODE_VALIDATED = "VALIDATED"
 private const val STREAM_ERROR_STATUS = 500

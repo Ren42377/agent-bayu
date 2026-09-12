@@ -17,12 +17,14 @@ import com.kyant.backdrop.RuntimeShader
 import com.kyant.backdrop.asComposeShader
 import com.kyant.backdrop.isRuntimeShaderSupported
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
+import dev.agentbayu.app.ui.theme.GLASS_HIGHLIGHT_SHADER
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 internal class InteractiveHighlight(
     private val animationScope: CoroutineScope,
-    private val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset }
+    private val position: (size: Size, offset: Offset) -> Offset = { _, offset -> offset },
+    private val claimDrag: Boolean = true
 ) {
 
     private val pressProgressAnimationSpec = AgentBayuMotion.pressSpring
@@ -43,7 +45,7 @@ internal class InteractiveHighlight(
 
     private val shader =
         if (isRuntimeShaderSupported()) {
-            RuntimeShader(HIGHLIGHT_SHADER)
+            RuntimeShader(GLASS_HIGHLIGHT_SHADER)
         } else {
             null
         }
@@ -86,7 +88,8 @@ internal class InteractiveHighlight(
                 }
             },
             onDragEnd = { settle() },
-            onDragCancel = { settle() }
+            onDragCancel = { settle() },
+            claimDrag = claimDrag
         ) { change, _ ->
             animationScope.launch { positionAnimation.snapTo(change.position) }
         }
@@ -106,15 +109,3 @@ internal class InteractiveHighlight(
 }
 
 private const val PREWARM_PROGRESS = 0.05f
-
-private const val HIGHLIGHT_SHADER = """
-uniform float2 size;
-layout(color) uniform half4 color;
-uniform float radius;
-uniform float2 position;
-
-half4 main(float2 coord) {
-    float dist = distance(coord, position);
-    float intensity = smoothstep(radius, radius * 0.5, dist);
-    return color * intensity;
-}"""

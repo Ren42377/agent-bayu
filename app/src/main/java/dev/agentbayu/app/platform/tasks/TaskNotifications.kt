@@ -16,7 +16,7 @@ class TaskNotifications(private val context: Context) {
 
     private val manager = NotificationManagerCompat.from(context)
 
-    fun show(task: TaskItem) {
+    fun show(task: TaskItem, dueAtMillis: Long = 0L) {
         if (!allowed()) return
         ensureChannel()
         val details = task.details.trim()
@@ -40,6 +40,10 @@ class TaskNotifications(private val context: Context) {
                 context.getString(R.string.task_action_snooze),
                 taskBroadcast(context, task.id, ACTION_TASK_SNOOZE)
             )
+        if (dueAtMillis > 0L) {
+            builder.setWhen(dueAtMillis)
+            builder.setShowWhen(true)
+        }
         if (details.isNotEmpty()) {
             builder.setStyle(NotificationCompat.BigTextStyle().bigText(details))
         }
@@ -52,7 +56,7 @@ class TaskNotifications(private val context: Context) {
 
     fun cancel(taskId: String) = manager.cancel(taskNotificationId(taskId))
 
-    private fun ensureChannel() {
+    fun ensureChannel() {
         manager.createNotificationChannel(
             NotificationChannelCompat
                 .Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_HIGH)

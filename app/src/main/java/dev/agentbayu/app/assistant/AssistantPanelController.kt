@@ -8,14 +8,18 @@ class AssistantPanelController {
 
     private val visibleState = MutableStateFlow(false)
     private val inputState = MutableStateFlow("")
-    private val resetTokenState = MutableStateFlow(0)
+    private val invocationIdState = MutableStateFlow(0L)
+    private val invocationBaselineState = MutableStateFlow(0)
 
     val visible: StateFlow<Boolean> = visibleState.asStateFlow()
     val input: StateFlow<String> = inputState.asStateFlow()
-    val resetToken: StateFlow<Int> = resetTokenState.asStateFlow()
+    val invocationId: StateFlow<Long> = invocationIdState.asStateFlow()
+    val invocationBaseline: StateFlow<Int> = invocationBaselineState.asStateFlow()
 
-    fun show() {
+    fun show(messageCount: Int = 0) {
         inputState.value = ""
+        invocationBaselineState.value = messageCount
+        invocationIdState.value += 1
         visibleState.value = true
     }
 
@@ -26,7 +30,6 @@ class AssistantPanelController {
     fun reset() {
         visibleState.value = false
         inputState.value = ""
-        resetTokenState.value = resetTokenState.value + 1
     }
 
     fun updateInput(value: String) {

@@ -5,8 +5,10 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Log
 import java.io.File
+import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.KeyStore
+import javax.crypto.AEADBadTagException
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -27,12 +29,16 @@ class SecureStore(context: Context) : EncryptedStorage {
             decrypt(file.readBytes())
         } catch (error: GeneralSecurityException) {
             cachedKey = null
-            Log.e(TAG, "Unable to decrypt " + name)
-            file.delete()
-            null
+            if (error is AEADBadTagException) {
+                Log.e(TAG, "Unable to decrypt " + name)
+                runCatching { deleteRequired(file) }
+                null
+            } else {
+                throw error
+            }
         } catch (error: IllegalArgumentException) {
             Log.e(TAG, "Corrupted payload in " + name)
-            file.delete()
+            runCatching { deleteRequired(file) }
             null
         }
     }
@@ -51,9 +57,13 @@ class SecureStore(context: Context) : EncryptedStorage {
 
     override fun delete(name: String) {
         synchronized(lock) {
-            File(directory, name).delete()
-            File(directory, name + TEMP_SUFFIX).delete()
+            deleteRequired(File(directory, name))
+            deleteRequired(File(directory, name + TEMP_SUFFIX))
         }
+    }
+
+    private fun deleteRequired(file: File) {
+        if (file.exists() && !file.delete()) throw IOException("Cannot delete encrypted data")
     }
 
     private fun encrypt(content: String): ByteArray {

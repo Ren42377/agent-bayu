@@ -124,38 +124,57 @@ class ConnectionTesterTest {
         assertEquals(FailureKind.TERMINAL, (result as ModelFetchResult.Failure).failure.kind)
     }
 
+    private fun agyProvider(): ProviderEntry = testProvider(
+        id = "agy",
+        wireFormat = WireFormat.ANTIGRAVITY,
+        baseUrl = server.url("/").toString(),
+        controlBaseUrl = "https://control.example.test",
+        authKind = AuthKind.OAUTH_PKCE,
+        tier = ProviderTier.SUBSCRIPTION,
+        modelsPath = "/v1internal:fetchAvailableModels",
+        models = listOf(ModelEntry(id = "gemini-3.8-flash-high")),
+        extraHeaders = mapOf("User-Agent" to "antigravity/ide/2.11.0 darwin/arm64")
+    ).copy(modelsMethod = "POST")
+
     @Test
-    fun `discovery posts an empty body to the control host`() {
+    fun `discovery posts to the daily host and keeps the tier order`() {
         server.enqueue(
             jsonResponse(
-                "{\"models\":[{\"id\":\"gemini-3.7-flash-high\",\"displayName\":\"Flash\"}," +
-                    "{\"model\":\"gemini-pro-agent\"}]}"
+                "{\"models\":{" +
+                    "\"models/gemini-3.8-flash-high\":{\"displayName\":\"Flash High\"}," +
+                    "\"gemini-internal-probe\":{\"isInternal\":true}," +
+                    "\"gemini-pro-agent\":{\"displayName\":\"Pro\"}" +
+                    "}}"
             )
         )
-        val provider = testProvider(
-            id = "agy",
-            wireFormat = WireFormat.ANTIGRAVITY,
-            baseUrl = "https://daily.example.test",
-            controlBaseUrl = server.url("/").toString(),
-            authKind = AuthKind.OAUTH_PKCE,
-            tier = ProviderTier.SUBSCRIPTION,
-            modelsPath = "/v1internal:fetchAvailableModels",
-            models = listOf(ModelEntry(id = "gemini-3.7-flash-high")),
-            extraHeaders = mapOf("User-Agent" to "antigravity/ide/2.1.1 darwin/arm64")
-        ).copy(modelsMethod = "POST")
-        val connection = testConnection(providerId = "agy", model = "gemini-3.7-flash-high")
+        val connection = testConnection(providerId = "agy", model = "gemini-3.8-flash-high")
 
-        val result = runBlocking { tester(provider).fetchModels(connection) }
+        val result = runBlocking { tester(agyProvider()).fetchModels(connection) }
 
         assertEquals(
-            listOf("gemini-3.7-flash-high", "gemini-pro-agent"),
+            listOf("gemini-3.8-flash-high", "gemini-pro-agent"),
             (result as ModelFetchResult.Success).models
         )
         val recorded = server.takeRequest()
         assertEquals("POST", recorded.method)
         assertEquals("/v1internal:fetchAvailableModels", recorded.path)
         assertEquals("{}", recorded.body.readUtf8())
-        assertEquals("antigravity/ide/2.1.1 darwin/arm64", recorded.getHeader("User-Agent"))
+        assertEquals("antigravity/ide/2.11.0 darwin/arm64", recorded.getHeader("User-Agent"))
+    }
+
+    @Test
+    fun `discovery carries the project id once the connection has one`() {
+        server.enqueue(jsonResponse("{\"models\":{\"gemini-pro-agent\":{}}}"))
+        val connection = testConnection(
+            providerId = "agy",
+            model = "gemini-3.8-flash-high",
+            projectId = "bayu-42"
+        )
+
+        val result = runBlocking { tester(agyProvider()).fetchModels(connection) }
+
+        assertEquals(listOf("gemini-pro-agent"), (result as ModelFetchResult.Success).models)
+        assertEquals("{\"project\":\"bayu-42\"}", server.takeRequest().body.readUtf8())
     }
 
     @Test

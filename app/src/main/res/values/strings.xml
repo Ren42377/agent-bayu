@@ -11,7 +11,6 @@
     <string name="onboarding_skip">Lewati</string>
 
     <string name="chat_empty_title">Halo, saya Bayu.</string>
-    <string name="chat_empty_subtitle">Tanya apa saja, atau mulai dari salah satu saran di bawah.</string>
     <string name="chat_input_hint">Tanya Agent Bayu</string>
     <string name="chat_send">Kirim</string>
     <string name="chat_mic">Bicara</string>
@@ -19,17 +18,17 @@
 
     <string name="suggestion_summarize">Ringkas layar ini</string>
     <string name="suggestion_tasks">Buat daftar tugas hari ini</string>
-    <string name="suggestion_reminder">Ingatkan saya nanti sore</string>
-    <string name="suggestion_reply">Bantu tulis balasan singkat</string>
+    <string name="suggestion_write">Tulis atau sunting teks</string>
+    <string name="suggestion_search">Cari di web</string>
 
     <string name="overlay_close">Tutup panel</string>
-    <string name="overlay_open_app">Lanjut di aplikasi</string>
-    <string name="overlay_handle">Geser ke bawah untuk menutup</string>
-    <string name="overlay_title">Agent Bayu</string>
-    <string name="overlay_subtitle">Siap membantu</string>
+    <string name="overlay_disclaimer">Agent Bayu dapat melakukan kesalahan.</string>
+    <string name="overlay_handle">Geser ke atas untuk buka aplikasi, geser ke bawah untuk menutup panel</string>
+    <string name="overlay_screen_context">Konteks Layar</string>
+    <string name="overlay_screenshot">Tangkapan layar</string>
 
     <string name="setup_title">Siapkan Agent Bayu</string>
-    <string name="setup_subtitle">Tiga langkah supaya Bayu bisa dipanggil dari mana saja.</string>
+    <string name="setup_subtitle">Siapkan izin dan pintasan supaya Bayu bisa dipanggil dari mana saja.</string>
 
     <string name="setup_assistant_title">Jadikan asisten digital</string>
     <string name="setup_assistant_body">Pilih Agent Bayu pada daftar aplikasi asisten digital di Pengaturan sistem.</string>
@@ -62,9 +61,10 @@
     <string name="history_untitled">Percakapan baru</string>
     <string name="history_open">Riwayat chat</string>
     <string name="history_delete">Hapus sesi</string>
+    <string name="history_delete_mode">Mode hapus</string>
+    <string name="history_delete_confirm_body">Percakapan ini akan dihapus dari perangkat dan tidak bisa dikembalikan.</string>
     <string name="history_deleted">Sesi dihapus.</string>
 
-    <string name="settings_assistant">Asisten</string>
     <string name="settings_appearance">Tampilan</string>
     <string name="settings_theme_title">Tema</string>
     <string name="settings_theme_body">Pilih tema terang, gelap, atau ikut pengaturan sistem.</string>
@@ -76,11 +76,19 @@
     <string name="settings_providers_body">Kelola koneksi, cara masuk, kunci API, dan model.</string>
     <string name="settings_logs_title">Logs</string>
     <string name="settings_logs_body">Catatan permintaan, jawaban, dan error ke provider AI.</string>
-    <string name="settings_onboarding_title">Panduan awal</string>
-    <string name="settings_onboarding_body">Ulangi langkah asisten bawaan, mikrofon, dan panel suara.</string>
+    <string name="settings_custom_prompt_title">Custom Prompt</string>
+    <string name="settings_custom_prompt_body">Tambahkan instruksi pribadi ke prompt dasar Agent Bayu.</string>
+    <string name="custom_prompt_title">Custom Prompt</string>
+    <string name="custom_prompt_explanation">Instruksi ini ditambahkan ke prompt dasar dan berlaku mulai permintaan berikutnya. Prompt dasar Agent Bayu tetap aktif.</string>
+    <string name="custom_prompt_hint">Tulis instruksi pribadi</string>
+    <string name="custom_prompt_cancel">Batal</string>
+    <string name="custom_prompt_clear">Kosongkan</string>
+    <string name="custom_prompt_save">Simpan</string>
+    <string name="custom_prompt_save_failed">Prompt pribadi tidak dapat disimpan. Coba lagi.</string>
 
-    <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu belum bisa membuka aplikasi lain, mengirim pesan, atau mengubah kalender, jadi jangan mengaku sudah melakukannya.</string>
+    <string name="agent_system_prompt">Kamu adalah Agent Bayu, asisten pribadi yang berjalan di ponsel Android milik satu orang pemilik. Jawab dalam bahasa yang dipakai pemilik, biasanya bahasa Indonesia. Jawab langsung ke inti, ringkas, dan tanpa basa-basi pembuka. Kalau kamu tidak tahu atau butuh data yang tidak kamu miliki, katakan begitu dan sebutkan apa yang kamu butuhkan. Jangan mengarang fakta, tanggal, atau isi pesan. Kamu punya tool untuk mengurus dan menghapus tugas pemilik, membuat alarm atau meminta aplikasi jam membatalkan alarm yang sedang berbunyi, mencari di web, menjelajah dan membaca berkas di penyimpanan ponsel, melihat gambar, serta menulis dan menyunting berkas teks. Pakai tool itu kalau memang dibutuhkan, dan baru katakan sesuatu sudah dikerjakan setelah tool benar-benar mengembalikan hasilnya. Kalau butuh fakta yang lebih baru dari ingatanmu, harga, atau kabar terkini, pakai web_search dulu dan sebutkan sumbernya. Kalau pemilik menolak sebuah tool, sampaikan apa adanya dan jangan mencoba jalan lain tanpa diminta. Kalau sebuah tool gagal karena izin belum ada, panggil tool request_permission untuk meminta izinnya, jangan menyuruh pemilik membuka pengaturan sendiri. Untuk hal di luar tool yang kamu punya, misalnya membuka aplikasi lain, mengirim pesan, atau mengubah kalender, katakan bahwa kamu belum bisa melakukannya.</string>
     <string name="agent_screen_context_prompt">Pemilik sedang melihat layar dengan teks berikut. Pakai ini hanya kalau relevan dengan pertanyaannya.\n\n%1$s</string>
+    <string name="agent_moment_prompt">Sekarang %1$s menurut jam dan zona waktu ponsel pemilik. Pakai ini sebagai acuan tanggal dan waktu, jangan menebak dan jangan memakai tanggal dari ingatanmu.</string>
     <string name="agent_no_connection">Belum ada koneksi AI yang aktif. Buka Pengaturan lalu Provider AI untuk memilih penyedia.</string>
     <string name="agent_unknown_provider">Penyedia untuk koneksi ini tidak ada di katalog. Ubah koneksinya di layar Provider AI.</string>
     <string name="agent_missing_credential">Koneksi aktif belum punya kunci. Isi kuncinya di layar Provider AI.</string>
@@ -92,6 +100,7 @@
     <string name="agent_model_unavailable">Model ini sedang tidak bisa dipakai. Pilih model lain di koneksi aktif.</string>
     <string name="agent_server_error">Penyedia sedang bermasalah di sisi mereka. Coba lagi sebentar atau ganti penyedia aktif.</string>
     <string name="agent_network_error">Tidak ada jaringan ke penyedia. Cek koneksi internet lalu coba lagi.</string>
+    <string name="agent_setup_incomplete">Penyiapan proyek penyedia ini belum selesai. Buka Koneksi lalu masuk ulang untuk menyelesaikannya.</string>
     <string name="agent_generic_error">Penyedia menolak permintaan dengan status %1$d.</string>
     <string name="agent_error_reply">Maaf, ada gangguan saat menyiapkan jawaban. Coba lagi sebentar.</string>
 
@@ -101,6 +110,7 @@
 
     <string name="dialog_later">Nanti</string>
     <string name="dialog_close">Tutup</string>
+    <string name="dialog_cancel">Batal</string>
     <string name="dialog_mic_title">Izin mikrofon</string>
     <string name="dialog_mic_body">Perintah suara butuh izin mikrofon. Izinkan sekarang?</string>
     <string name="dialog_mic_allow">Izinkan</string>
@@ -261,8 +271,6 @@
     <string name="route_tokens">Token</string>
     <string name="route_tokens_value">%1$d masuk, %2$d keluar</string>
     <string name="route_tokens_estimated">Sekitar %1$d masuk, %2$d keluar</string>
-    <string name="route_cost">Biaya perkiraan</string>
-    <string name="route_cost_unknown">Tidak diketahui</string>
     <string name="route_close">Tutup</string>
 
     <string name="chat_provider_hint">%1$s, %2$s</string>
@@ -274,11 +282,13 @@
     <string name="chat_attach_limit">Maksimal %1$d gambar per pesan.</string>
     <string name="chat_attachment">Gambar lampiran</string>
 
-    <string name="cost_value">USD %1$s</string>
-
     <string name="tasks_title">Tugas</string>
     <string name="tasks_add">Tambah tugas</string>
-    <string name="tasks_add_hint">Tugas baru</string>
+    <string name="tasks_quick_title_hint">Tugas baru</string>
+    <string name="tasks_quick_more">Detail</string>
+    <string name="tasks_tab_starred">Berbintang</string>
+    <string name="tasks_tab_new_list">Daftar baru</string>
+    <string name="tasks_sort_menu">Urutkan</string>
     <string name="tasks_empty">Belum ada tugas di daftar ini. Ketuk tambah untuk membuat satu.</string>
     <string name="tasks_completed_section">Selesai (%1$d)</string>
     <string name="tasks_sort_my_order">Urutan saya</string>
@@ -293,7 +303,6 @@
     <string name="tasks_list_name_hint">Nama daftar</string>
     <string name="tasks_clear_completed">Hapus semua yang selesai</string>
     <string name="tasks_clear_completed_body">Semua tugas yang sudah selesai di daftar ini akan dihapus.</string>
-    <string name="tasks_row_menu">Pilihan tugas</string>
     <string name="tasks_move_to_list">Pindahkan ke daftar</string>
     <string name="tasks_permission_denied">Izin notifikasi ditolak. Aktifkan dari pengaturan aplikasi.</string>
     <string name="tasks_move_up">Naikkan</string>
@@ -312,6 +321,9 @@
     <string name="tasks_exact_card_title">Izinkan alarm tepat waktu</string>
     <string name="tasks_exact_card_body">Tanpa izin ini pengingat bisa terlambat beberapa menit.</string>
     <string name="tasks_exact_card_action">Buka pengaturan</string>
+    <string name="tasks_battery_card_title">Bebaskan dari hemat baterai</string>
+    <string name="tasks_battery_card_body">Selama aplikasi masih dibatasi baterai, pengingat bisa datang telat atau tertahan sampai aplikasi dibuka.</string>
+    <string name="tasks_battery_card_action">Buka pengaturan</string>
     <string name="tasks_detail_title">Detail tugas</string>
     <string name="tasks_detail_new">Tugas baru</string>
     <string name="tasks_detail_title_hint">Judul</string>
@@ -344,6 +356,7 @@
     <string name="tasks_unit_month">bulan</string>
     <string name="tasks_unit_year">tahun</string>
     <string name="tasks_clear_value">Kosongkan</string>
+    <string name="tasks_time_input_toggle">Ganti cara mengisi jam</string>
     <string name="tasks_date_none">Tidak diatur</string>
     <string name="tasks_due_today">Hari ini</string>
     <string name="tasks_due_tomorrow">Besok</string>
@@ -359,4 +372,62 @@
     <string name="task_notification_body">Waktunya mengerjakan tugas ini.</string>
     <string name="task_action_complete">Selesai</string>
     <string name="task_action_snooze">Tunda 1 jam</string>
+
+    <string name="settings_tools">Tool dan berkas</string>
+    <string name="settings_tool_approval_title">Lewati Izin Tool</string>
+    <string name="settings_tool_approval_body">Jika aktif, tool dapat mengubah atau menghapus berkas tanpa meminta konfirmasi terlebih dahulu.</string>
+    <string name="settings_storage_title">Akses semua berkas</string>
+    <string name="settings_storage_body">Tanpa izin ini Agent Bayu tidak bisa membuka berkas apa pun di penyimpanan.</string>
+    <string name="settings_storage_unavailable">Halaman izin berkas tidak tersedia di perangkat ini.</string>
+
+    <string name="tool_approval_create">Buat berkas baru</string>
+    <string name="tool_approval_write">Tulis ulang berkas</string>
+    <string name="tool_approval_edit">Ubah isi berkas</string>
+    <string name="tool_approval_delete">Hapus berkas</string>
+    <string name="tool_approval_move">Pindahkan berkas</string>
+    <string name="tool_approval_body">Agent Bayu minta izin menjalankan %1$s. Periksa dulu sebelum mengizinkan.</string>
+    <string name="tool_approval_destination">Tujuan: %1$s</string>
+    <string name="tool_approval_counts">%1$d baris ditambah, %2$d baris dibuang</string>
+    <string name="tool_approval_empty">Tidak ada pratinjau untuk perubahan ini.</string>
+    <string name="tool_approval_more">%1$d baris lagi tidak ditampilkan</string>
+    <string name="tool_approval_allow_once">Izinkan</string>
+    <string name="tool_approval_allow_session">Izinkan untuk sesi ini</string>
+    <string name="tool_approval_deny">Tolak</string>
+
+    <string name="tool_run_done">Selesai</string>
+    <string name="tool_run_failed">Gagal</string>
+    <string name="chat_copy_reply">Salin jawaban</string>
+    <string name="chat_regenerate_reply">Ulangi jawaban</string>
+    <string name="chat_edit_message">Sunting pesan</string>
+    <string name="chat_attachment_preview">Pratinjau gambar</string>
+    <string name="chat_incognito_enter">Masuk mode incognito</string>
+    <string name="chat_incognito_exit">Keluar dari mode incognito</string>
+    <string name="chat_new_session">Buka sesi baru</string>
+    <string name="chat_copied">Jawaban disalin.</string>
+    <string name="chat_thought">Berpikir</string>
+    <string name="chat_thought_seconds">Berpikir %1$ds</string>
+    <string name="code_copy">Salin</string>
+    <string name="code_plain">Kode</string>
+    <string name="code_markdown">Markdown</string>
+    <string name="permission_ask_title">Agent Bayu butuh izin</string>
+    <string name="permission_ask_allow">Buka izin</string>
+    <string name="permission_ask_storage">Agent Bayu perlu akses semua berkas untuk membaca dan menulis berkas di penyimpanan ponsel. Halaman pengaturan Android akan terbuka, sakelarnya dinyalakan di sana.</string>
+    <string name="permission_ask_notifications">Agent Bayu perlu izin notifikasi supaya pengingat tugas bisa muncul.</string>
+    <string name="permission_ask_alarms">Agent Bayu perlu izin alarm tepat waktu supaya pengingat berbunyi pada waktunya, bukan terlambat.</string>
+    <string name="tool_name_create_task">Membuat tugas</string>
+    <string name="tool_name_list_tasks">Membaca daftar tugas</string>
+    <string name="tool_name_complete_task">Menyelesaikan tugas</string>
+    <string name="tool_name_delete_task">Menghapus tugas</string>
+    <string name="tool_name_create_alarm">Membuat alarm</string>
+    <string name="tool_name_delete_alarm">Menghapus alarm</string>
+    <string name="tool_name_web_search">Mencari di web</string>
+    <string name="tool_name_list_files">Melihat isi folder</string>
+    <string name="tool_name_read_file">Membaca berkas</string>
+    <string name="tool_name_search_files">Mencari di berkas</string>
+    <string name="tool_name_view_image">Melihat gambar</string>
+    <string name="tool_name_write_file">Menulis berkas</string>
+    <string name="tool_name_edit_file">Menyunting berkas</string>
+    <string name="tool_name_delete_file">Menghapus berkas</string>
+    <string name="tool_name_move_file">Memindahkan berkas</string>
+    <string name="tool_name_request_permission">Meminta izin</string>
 </resources>

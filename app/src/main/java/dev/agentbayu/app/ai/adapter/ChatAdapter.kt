@@ -2,26 +2,37 @@ package dev.agentbayu.app.ai.adapter
 
 import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.ReasoningEffort
+import dev.agentbayu.app.ai.tools.ToolCall
+import dev.agentbayu.app.ai.tools.ToolSpec
 import kotlinx.coroutines.flow.Flow
 
 enum class ChatRole {
     SYSTEM,
     USER,
-    ASSISTANT
+    ASSISTANT,
+    TOOL
 }
 
 data class ChatTurn(
     val role: ChatRole,
     val content: String,
-    val images: List<ChatImage> = emptyList()
-)
+    val images: List<ChatImage> = emptyList(),
+    val toolCalls: List<ToolCall> = emptyList(),
+    val toolCallId: String? = null,
+    val toolName: String? = null,
+    val toolFailed: Boolean = false
+) {
+    val carriesTool: Boolean
+        get() = toolCalls.isNotEmpty() || toolCallId != null
+}
 
 data class ChatRequest(
     val systemPrompt: String? = null,
     val turns: List<ChatTurn> = emptyList(),
     val maxOutputTokens: Int? = null,
     val temperature: Double? = null,
-    val effort: ReasoningEffort? = null
+    val effort: ReasoningEffort? = null,
+    val tools: List<ToolSpec> = emptyList()
 )
 
 interface ChatAdapter {
@@ -38,6 +49,7 @@ object WireParams {
     const val TEMPERATURE = "temperature"
     const val STREAM_OPTIONS = "stream_options"
     const val REASONING = "reasoning"
+    const val TOOLS = "tools"
 
     fun supports(candidate: Candidate, param: String): Boolean =
         !candidate.provider.unsupportedParams.contains(param) &&

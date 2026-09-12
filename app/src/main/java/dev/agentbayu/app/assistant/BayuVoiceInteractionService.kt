@@ -3,11 +3,13 @@ package dev.agentbayu.app.assistant
 import android.os.Bundle
 import android.service.voice.VoiceInteractionService
 import android.util.Log
+import dev.agentbayu.app.AppGraph
 
 class BayuVoiceInteractionService : VoiceInteractionService() {
 
     override fun onReady() {
         super.onReady()
+        AppGraph.warmUp(this)
         active = this
     }
 

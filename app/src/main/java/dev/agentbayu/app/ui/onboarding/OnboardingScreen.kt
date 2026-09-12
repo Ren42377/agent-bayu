@@ -38,15 +38,19 @@ import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 
-internal enum class OnboardingStep { ASSISTANT, MICROPHONE, CONTEXT, PANEL }
+internal enum class OnboardingStep { ASSISTANT, MICROPHONE, NOTIFICATIONS, CONTEXT, PANEL }
 
 @Composable
 fun OnboardingScreen(
     isDefaultAssistant: Boolean,
     isMicrophoneGranted: Boolean,
+    notificationsAllowed: Boolean,
+    exactAlarmsAllowed: Boolean,
     useScreenContext: Boolean,
     onOpenAssistantSettings: () -> Unit,
     onRequestMicrophone: () -> Unit,
+    onRequestNotifications: () -> Unit,
+    onRequestExactAlarms: () -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
     onTestPanel: () -> Unit,
     onFinish: () -> Unit,
@@ -64,7 +68,7 @@ fun OnboardingScreen(
             .padding(
                 start = 20.dp,
                 end = 20.dp,
-                top = 22.dp,
+                top = 22.dp + insets.calculateTopPadding(),
                 bottom = 16.dp + insets.calculateBottomPadding()
             )
     ) {
@@ -129,9 +133,13 @@ fun OnboardingScreen(
                     step = current,
                     isDefaultAssistant = isDefaultAssistant,
                     isMicrophoneGranted = isMicrophoneGranted,
+                    notificationsAllowed = notificationsAllowed,
+                    exactAlarmsAllowed = exactAlarmsAllowed,
                     useScreenContext = useScreenContext,
                     onOpenAssistantSettings = onOpenAssistantSettings,
                     onRequestMicrophone = onRequestMicrophone,
+                    onRequestNotifications = onRequestNotifications,
+                    onRequestExactAlarms = onRequestExactAlarms,
                     onScreenContextChange = onScreenContextChange,
                     onTestPanel = onTestPanel
                 )
@@ -205,9 +213,13 @@ private fun StepCard(
     step: OnboardingStep,
     isDefaultAssistant: Boolean,
     isMicrophoneGranted: Boolean,
+    notificationsAllowed: Boolean,
+    exactAlarmsAllowed: Boolean,
     useScreenContext: Boolean,
     onOpenAssistantSettings: () -> Unit,
     onRequestMicrophone: () -> Unit,
+    onRequestNotifications: () -> Unit,
+    onRequestExactAlarms: () -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
     onTestPanel: () -> Unit
 ) {
@@ -232,6 +244,33 @@ private fun StepCard(
             },
             onAction = if (isMicrophoneGranted) null else onRequestMicrophone
         )
+
+        OnboardingStep.NOTIFICATIONS -> Column(
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            StatusCard(
+                title = stringResource(R.string.tasks_permission_card_title),
+                body = stringResource(R.string.tasks_permission_card_body),
+                done = notificationsAllowed,
+                actionLabel = if (notificationsAllowed) {
+                    null
+                } else {
+                    stringResource(R.string.tasks_permission_card_action)
+                },
+                onAction = if (notificationsAllowed) null else onRequestNotifications
+            )
+            StatusCard(
+                title = stringResource(R.string.tasks_exact_card_title),
+                body = stringResource(R.string.tasks_exact_card_body),
+                done = exactAlarmsAllowed,
+                actionLabel = if (exactAlarmsAllowed) {
+                    null
+                } else {
+                    stringResource(R.string.tasks_exact_card_action)
+                },
+                onAction = if (exactAlarmsAllowed) null else onRequestExactAlarms
+            )
+        }
 
         OnboardingStep.CONTEXT -> StatusCard(
             title = stringResource(R.string.setup_context_title),

@@ -17,6 +17,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
@@ -31,42 +33,50 @@ fun ReplyDetailSheet(
     usage: TokenUsage?,
     onDismiss: () -> Unit
 ) {
+    val containerHeight = LocalWindowInfo.current.containerSize.height
+    val maxSheetHeight = with(LocalDensity.current) {
+        (containerHeight * MAX_SHEET_HEIGHT_RATIO).toDp()
+    }
     GlassOverlay(onDismiss = onDismiss) {
         Column(
-            modifier = Modifier
-                .heightIn(max = MAX_SHEET_HEIGHT)
-                .verticalScroll(rememberScrollState()),
+            modifier = Modifier.heightIn(max = maxSheetHeight),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(
-                text = stringResource(R.string.route_title),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            DetailRow(
-                label = stringResource(R.string.route_provider),
-                value = detail.providerLabel
-            )
-            DetailRow(label = stringResource(R.string.route_model), value = detail.model)
-            DetailRow(
-                label = stringResource(R.string.route_connection),
-                value = detail.connectionLabel
-            )
-            DetailRow(
-                label = stringResource(R.string.route_auth),
-                value = authKindLabel(detail.authKind)
-            )
-            DetailRow(
-                label = stringResource(R.string.route_first_token),
-                value = stringResource(R.string.route_millis, detail.firstTokenMillis)
-            )
-            DetailRow(
-                label = stringResource(R.string.route_total_time),
-                value = stringResource(R.string.route_millis, detail.totalMillis)
-            )
-            UsageRows(usage = usage)
-            Spacer(modifier = Modifier.height(6.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f, fill = false)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = stringResource(R.string.route_title),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                DetailRow(
+                    label = stringResource(R.string.route_provider),
+                    value = detail.providerLabel
+                )
+                DetailRow(label = stringResource(R.string.route_model), value = detail.model)
+                DetailRow(
+                    label = stringResource(R.string.route_connection),
+                    value = detail.connectionLabel
+                )
+                DetailRow(
+                    label = stringResource(R.string.route_auth),
+                    value = authKindLabel(detail.authKind)
+                )
+                DetailRow(
+                    label = stringResource(R.string.route_first_token),
+                    value = stringResource(R.string.route_millis, detail.firstTokenMillis)
+                )
+                DetailRow(
+                    label = stringResource(R.string.route_total_time),
+                    value = stringResource(R.string.route_millis, detail.totalMillis)
+                )
+                UsageRows(usage = usage)
+            }
             GlassButton(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
@@ -106,15 +116,6 @@ private fun UsageRows(usage: TokenUsage?) {
             )
         }
     )
-    val cost = formatCost(usage.estimatedCostUsd)
-    DetailRow(
-        label = stringResource(R.string.route_cost),
-        value = if (cost == null) {
-            stringResource(R.string.route_cost_unknown)
-        } else {
-            stringResource(R.string.cost_value, cost)
-        }
-    )
 }
 
 @Composable
@@ -140,4 +141,4 @@ private fun DetailRow(label: String, value: String) {
     }
 }
 
-private val MAX_SHEET_HEIGHT = 520.dp
+private const val MAX_SHEET_HEIGHT_RATIO = 0.8f

@@ -1,10 +1,18 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.plugin.serialization")
+}
+
+val releaseKeystore = Properties().apply {
+    val file = rootProject.file(".signing/keystore.properties")
+    if (file.exists()) {
+        file.inputStream().use(::load)
+    }
 }
 
 android {
@@ -19,13 +27,30 @@ android {
         versionName = "0.5.0"
     }
 
+    signingConfigs {
+        create("release") {
+            if (releaseKeystore.isNotEmpty()) {
+                storeFile = rootProject.file(".signing/" + releaseKeystore.getProperty("storeFile"))
+                storePassword = releaseKeystore.getProperty("storePassword")
+                keyAlias = releaseKeystore.getProperty("keyAlias")
+                keyPassword = releaseKeystore.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = if (releaseKeystore.isNotEmpty()) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 
@@ -64,6 +89,7 @@ dependencies {
     implementation("io.github.kyant0:backdrop:2.0.1")
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.43.0")
     implementation("com.mikepenz:multiplatform-markdown-renderer-code:0.43.0")
+    implementation("ru.noties:jlatexmath-android:0.2.0")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")

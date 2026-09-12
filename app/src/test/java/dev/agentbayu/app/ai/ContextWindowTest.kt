@@ -4,6 +4,7 @@ import dev.agentbayu.app.ai.adapter.ChatImage
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
+import dev.agentbayu.app.ai.tools.ToolCall
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -75,6 +76,22 @@ class ContextWindowTest {
             turnTokenCost(plain) + 2 * ChatImage.TOKEN_COST,
             turnTokenCost(withImages)
         )
+    }
+
+    @Test
+    fun `tool calls add their serialized fields to the turn cost`() {
+        val plain = ChatTurn(ChatRole.ASSISTANT, "")
+        val withCall = plain.copy(
+            toolCalls = listOf(
+                ToolCall(
+                    id = "call-1",
+                    name = "write_file",
+                    arguments = "{\"content\":\"" + "x".repeat(40_000) + "\"}"
+                )
+            )
+        )
+
+        assertTrue(turnTokenCost(withCall) > turnTokenCost(plain) + 9_000)
     }
 
     @Test

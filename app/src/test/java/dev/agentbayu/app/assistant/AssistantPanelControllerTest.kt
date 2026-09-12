@@ -12,7 +12,27 @@ class AssistantPanelControllerTest {
         val controller = AssistantPanelController()
         assertFalse(controller.visible.value)
         assertEquals("", controller.input.value)
-        assertEquals(0, controller.resetToken.value)
+        assertEquals(0L, controller.invocationId.value)
+    }
+
+    @Test
+    fun everyShowStartsANewInvocation() {
+        val controller = AssistantPanelController()
+        controller.show()
+        assertEquals(1L, controller.invocationId.value)
+        controller.show()
+        assertTrue(controller.visible.value)
+        assertEquals(2L, controller.invocationId.value)
+    }
+
+    @Test
+    fun hidingAndResettingDoNotStartInvocations() {
+        val controller = AssistantPanelController()
+        controller.show()
+        controller.requestHide()
+        assertEquals(1L, controller.invocationId.value)
+        controller.reset()
+        assertEquals(1L, controller.invocationId.value)
     }
 
     @Test
@@ -25,24 +45,23 @@ class AssistantPanelControllerTest {
     }
 
     @Test
-    fun requestHideKeepsResetTokenUntouched() {
+    fun requestHideKeepsDraftInput() {
         val controller = AssistantPanelController()
         controller.show()
-        val tokenBefore = controller.resetToken.value
+        controller.updateInput("draft")
         controller.requestHide()
         assertFalse(controller.visible.value)
-        assertEquals(tokenBefore, controller.resetToken.value)
+        assertEquals("draft", controller.input.value)
     }
 
     @Test
-    fun resetBumpsTokenAndClearsState() {
+    fun resetClearsState() {
         val controller = AssistantPanelController()
         controller.show()
         controller.updateInput("draft")
         controller.reset()
         assertFalse(controller.visible.value)
         assertEquals("", controller.input.value)
-        assertEquals(1, controller.resetToken.value)
     }
 
     @Test

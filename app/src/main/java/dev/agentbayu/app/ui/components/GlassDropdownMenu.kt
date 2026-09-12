@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -18,74 +17,55 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.lerp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
+import androidx.compose.ui.unit.round
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
-import dev.agentbayu.app.ui.theme.GlassTileShape
-import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
-import dev.agentbayu.app.ui.theme.liquidGlass
 
 @Composable
 fun GlassDropdownMenuHost(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
-    trigger: @Composable () -> Unit,
+    trigger: @Composable (progress: () -> Float) -> Unit,
     menuContent: @Composable ColumnScope.() -> Unit
 ) {
-    var anchorHeight by remember { mutableIntStateOf(0) }
-    Box(modifier = modifier.onSizeChanged { size -> anchorHeight = size.height }) {
-        trigger()
-        if (expanded) {
-            val progress = remember { Animatable(0f) }
-            LaunchedEffect(Unit) {
-                progress.animateTo(1f, AgentBayuMotion.snappySpring)
-            }
-            Popup(
-                alignment = Alignment.BottomStart,
-                offset = IntOffset(0, anchorHeight),
-                onDismissRequest = { onExpandedChange(false) },
-                properties = PopupProperties(focusable = true)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .graphicsLayer {
-                            val value = progress.value
-                            alpha = value
-                            val scale = lerp(0.92f, 1f, value)
-                            scaleX = scale
-                            scaleY = scale
-                            transformOrigin = TransformOrigin(0.5f, 0f)
-                        }
-                        .liquidGlass(
-                            shape = GlassTileShape,
-                            backdrop = LocalGlassBackdrop.current
-                        )
-                        .padding(6.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .heightIn(max = DROPDOWN_MAX_HEIGHT)
-                            .verticalScroll(rememberScrollState()),
-                        content = menuContent
-                    )
-                }
-            }
+    var anchor by remember { mutableStateOf<IntRect?>(null) }
+    val progress = remember { Animatable(0f) }
+    val progressProvider: () -> Float = remember(progress) { { progress.value } }
+    LaunchedEffect(expanded) {
+        progress.animateTo(if (expanded) 1f else 0f, AgentBayuMotion.panelSpring)
+    }
+    Box(
+        modifier = modifier.onGloballyPositioned { coordinates ->
+            anchor = IntRect(coordinates.positionInWindow().round(), coordinates.size)
         }
+    ) {
+        trigger(progressProvider)
+    }
+    GlassOverlay(
+        visible = expanded && anchor != null,
+        presentation = GlassOverlayPresentation.MENU,
+        anchor = anchor,
+        onDismiss = { onExpandedChange(false) }
+    ) {
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(6.dp),
+            content = menuContent
+        )
     }
 }
 
@@ -95,11 +75,17 @@ fun ColumnScope.GlassDropdownMenuItem(
     onClick: () -> Unit,
     selected: Boolean = false
 ) {
+    val animationScope = rememberCoroutineScope()
+    val interactiveHighlight = remember(animationScope) {
+        InteractiveHighlight(animationScope = animationScope, claimDrag = false)
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
-            .clickable(onClick = onClick)
+            .clickable(interactionSource = null, indication = null, onClick = onClick)
+            .then(interactiveHighlight.modifier)
+            .then(interactiveHighlight.gestureModifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -119,5 +105,3 @@ fun ColumnScope.GlassDropdownMenuItem(
         }
     }
 }
-
-private val DROPDOWN_MAX_HEIGHT = 320.dp

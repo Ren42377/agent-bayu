@@ -13,11 +13,13 @@ internal val AgentBayuShapes = Shapes(
 )
 
 val CapsuleShape = RoundedCornerShape(percent = 50)
-val GlassCardShape = RoundedCornerShape(22.dp)
-val GlassTileShape = RoundedCornerShape(16.dp)
-val GlassBadgeShape = RoundedCornerShape(10.dp)
+val GlassCardShape = RoundedCornerShape(26.dp)
+val GlassTileShape = RoundedCornerShape(18.dp)
+val GlassBadgeShape = RoundedCornerShape(12.dp)
 
 val PanelShape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp)
+
+val PanelStartShape = RoundedCornerShape(topEnd = 26.dp, bottomEnd = 26.dp)
 
 val UserBubbleShape = RoundedCornerShape(
     topStart = 20.dp,

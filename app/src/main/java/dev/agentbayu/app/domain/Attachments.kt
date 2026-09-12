@@ -35,6 +35,20 @@ class Attachments(
         )
     }
 
+    suspend fun accept(bitmap: Bitmap): MessageAttachment? = withContext(Dispatchers.IO) {
+        val prepared = pipeline.prepare(bitmap) ?: return@withContext null
+        val id = newId()
+        storage.write(id, prepared.bytes)
+        synchronized(pending) { pending += id }
+        MessageAttachment(
+            id = id,
+            mimeType = prepared.mimeType,
+            fileName = SCREENSHOT_FILE_NAME,
+            width = prepared.width,
+            height = prepared.height
+        )
+    }
+
     fun discard(id: String) {
         synchronized(pending) { pending -= id }
         storage.delete(id)
@@ -67,5 +81,6 @@ class Attachments(
 
     private companion object {
         const val RADIX = 36
+        const val SCREENSHOT_FILE_NAME = "screenshot.jpg"
     }
 }

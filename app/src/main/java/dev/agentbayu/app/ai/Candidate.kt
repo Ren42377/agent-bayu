@@ -26,6 +26,11 @@ data class Candidate(
     val supportsVision: Boolean
         get() = model.vision || provider.vision
 
+    val supportsTools: Boolean
+        get() = (model.tools || provider.tools) &&
+            !model.unsupportedParams.contains(TOOLS_PARAM) &&
+            !provider.unsupportedParams.contains(TOOLS_PARAM)
+
     val inputPricePerMillion: Double
         get() = model.inputPricePerMillion ?: ModelEntry.UNKNOWN_PRICE_PER_MILLION
 
@@ -42,6 +47,7 @@ data class Candidate(
         get() = resolveEffort(efforts, connection.effort, model.id)
 
     companion object {
+        private const val TOOLS_PARAM = "tools"
         private val LOOPBACK_HOSTS = listOf("127.0.0.1", "localhost", "10.0.2.2", "[::1]")
     }
 }

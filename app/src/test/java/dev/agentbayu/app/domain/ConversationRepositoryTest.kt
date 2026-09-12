@@ -130,13 +130,156 @@ class ConversationRepositoryTest {
     }
 
     @Test
-    fun restoreIgnoresAnEmptyHistory() {
+    fun restoreClearsTheCurrentConversationForAnEmptyHistory() {
         val repository = ConversationRepository()
         repository.append(MessageAuthor.USER, "ada")
 
         repository.restore(emptyList())
 
-        assertEquals(listOf("ada"), repository.messages.value.map { it.text })
+        assertTrue(repository.messages.value.isEmpty())
+    }
+
+    @Test
+    fun restartFromReplacesTheBranchInOneStateUpdate() {
+        val repository = ConversationRepository()
+        val first = repository.append(MessageAuthor.USER, "first")
+        repository.append(MessageAuthor.AGENT, "first reply")
+        val edited = repository.append(MessageAuthor.USER, "old")
+        repository.append(MessageAuthor.AGENT, "old reply")
+
+        val turn = repository.restartFrom(edited.id, " replacement ", emptyList())
+
+        assertEquals(listOf(first.id, 2L), turn?.history?.map { it.id })
+        assertEquals("replacement", turn?.prompt?.text)
+        assertTrue(turn?.placeholder?.streaming == true)
+        assertEquals(
+            listOf("first", "first reply", "replacement", ""),
+            repository.messages.value.map { it.text }
+        )
+    }
+
+    @Test
+    fun restartFromRejectsAnAgentMessageWithoutChangingState() {
+        val repository = ConversationRepository()
+        val message = repository.append(MessageAuthor.AGENT, "reply")
+        val before = repository.messages.value
+
+        val turn = repository.restartFrom(message.id, "replacement", emptyList())
+
+        assertNull(turn)
+        assertEquals(before, repository.messages.value)
+    }
+
+    @Test
+    fun regenerateFromRejectsUnrelatedMessagesWithoutChangingState() {
+        val repository = ConversationRepository()
+        val prompt = repository.append(MessageAuthor.USER, "prompt")
+        val secondPrompt = repository.append(MessageAuthor.USER, "second")
+        val before = repository.messages.value
+
+        val turn = repository.regenerateFrom(prompt.id, secondPrompt.id)
+
+        assertNull(turn)
+        assertEquals(before, repository.messages.value)
+    }
+
+    @Test
+    fun attachmentIdsFromReturnsOnlyTheSelectedBranch() {
+        val repository = ConversationRepository()
+        val earlier = MessageAttachment(id = "earlier", mimeType = "image/jpeg")
+        val selected = MessageAttachment(id = "selected", mimeType = "image/jpeg")
+        val later = MessageAttachment(id = "later", mimeType = "image/jpeg")
+        repository.append(MessageAuthor.USER, "earlier", attachments = listOf(earlier))
+        val target = repository.append(
+            MessageAuthor.USER,
+            "target",
+            attachments = listOf(selected)
+        )
+        repository.append(MessageAuthor.AGENT, "reply")
+        repository.append(MessageAuthor.USER, "later", attachments = listOf(later))
+
+        assertEquals(setOf("selected", "later"), repository.attachmentIdsFrom(target.id))
+    }
+
+    @Test
+    fun deltasCollapseIntoOneProseSegment() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+
+        repository.appendDelta(placeholder.id, "Hal")
+        repository.appendDelta(placeholder.id, "lo")
+
+        val segments = repository.messages.value.single().segments
+        assertEquals(listOf(MessageSegment.Prose("Hallo")), segments)
+    }
+
+    @Test
+    fun segmentsKeepTheOrderTheEventsArrivedIn() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+
+        repository.appendThinking(placeholder.id, "menimbang")
+        repository.closeThinking(placeholder.id, 3_200L)
+        repository.appendDelta(placeholder.id, "Saya cek dulu.")
+        repository.startToolRun(placeholder.id, "read_file", "read_file {\"path\":\"a.txt\"}")
+        repository.finishToolRun(placeholder.id, "read_file", true)
+        repository.appendDelta(placeholder.id, " Sudah.")
+
+        val message = repository.messages.value.single()
+        assertEquals(
+            listOf(
+                MessageSegment.Thinking(text = "menimbang", millis = 3_200L, done = true),
+                MessageSegment.Prose("Saya cek dulu."),
+                MessageSegment.Tool(
+                    name = "read_file",
+                    label = "read_file {\"path\":\"a.txt\"}",
+                    running = false,
+                    ok = true
+                ),
+                MessageSegment.Prose(" Sudah.")
+            ),
+            message.segments
+        )
+        assertEquals("Saya cek dulu. Sudah.", message.text)
+    }
+
+    @Test
+    fun thinkingAfterAToolOpensASecondSegment() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+
+        repository.appendThinking(placeholder.id, "satu")
+        repository.closeThinking(placeholder.id, 1_000L)
+        repository.appendThinking(placeholder.id, "dua")
+
+        val segments = repository.messages.value.single().segments
+        assertEquals(2, segments.size)
+        assertEquals("satu", (segments.first() as MessageSegment.Thinking).text)
+        assertEquals("dua", (segments.last() as MessageSegment.Thinking).text)
+        assertFalse((segments.last() as MessageSegment.Thinking).done)
+    }
+
+    @Test
+    fun finishStreamingSettlesWhateverWasStillOpen() {
+        val repository = ConversationRepository()
+        val placeholder = repository.append(MessageAuthor.AGENT, "", streaming = true)
+        repository.appendThinking(placeholder.id, "berhenti di tengah")
+        repository.startToolRun(placeholder.id, "search_files", "")
+
+        repository.finishStreaming(placeholder.id)
+
+        val segments = repository.messages.value.single().segments
+        assertTrue((segments.first() as MessageSegment.Thinking).done)
+        val tool = segments.last() as MessageSegment.Tool
+        assertFalse(tool.running)
+        assertFalse(tool.ok)
+    }
+
+    @Test
+    fun aStoredMessageWithoutSegmentsStillRenders() {
+        val message = ChatMessage(id = 1L, author = MessageAuthor.AGENT, text = "jawaban lama")
+
+        assertEquals(listOf(MessageSegment.Prose("jawaban lama")), message.displaySegments)
     }
 
     private fun detail(): ReplyDetail = ReplyDetail(

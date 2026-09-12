@@ -4,7 +4,6 @@ import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -12,8 +11,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.filter
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -26,7 +24,8 @@ internal class DampedDragAnimation(
     private val pressedScale: Float,
     private val onDragStarted: DampedDragAnimation.(position: Offset) -> Unit,
     private val onDragStopped: DampedDragAnimation.() -> Unit,
-    private val onDrag: DampedDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit
+    private val onDrag: DampedDragAnimation.(size: IntSize, dragAmount: Offset) -> Unit,
+    private val onDragCanceled: DampedDragAnimation.() -> Unit = onDragStopped
 ) {
 
     private val valueAnimationSpec = spring(1f, 1000f, visibilityThreshold)
@@ -43,6 +42,7 @@ internal class DampedDragAnimation(
 
     private val mutatorMutex = MutatorMutex()
     private val velocityTracker = VelocityTracker()
+    private var pressJob: Job? = null
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
@@ -62,7 +62,7 @@ internal class DampedDragAnimation(
                 release()
             },
             onDragCancel = {
-                onDragStopped()
+                onDragCanceled()
                 release()
             }
         ) { _, dragAmount ->
@@ -72,7 +72,8 @@ internal class DampedDragAnimation(
 
     fun press() {
         velocityTracker.resetTracking()
-        animationScope.launch {
+        pressJob?.cancel()
+        pressJob = animationScope.launch {
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
@@ -80,17 +81,15 @@ internal class DampedDragAnimation(
     }
 
     fun release() {
-        animationScope.launch {
-            withFrameNanos { }
-            if (value != targetValue) {
-                val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
-                snapshotFlow { valueAnimation.value }
-                    .filter { abs(it - valueAnimation.targetValue) < threshold }
-                    .first()
+        pressJob?.cancel()
+        pressJob = animationScope.launch {
+            try {
+                withFrameNanos { }
+            } finally {
+                launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
+                launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
+                launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
             }
-            launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
-            launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
-            launch { scaleYAnimation.animateTo(initialScale, scaleYAnimationSpec) }
         }
     }
 
@@ -101,16 +100,16 @@ internal class DampedDragAnimation(
         }
     }
 
-    fun animateToValue(value: Float) {
+    fun animateToValue(value: Float, pressed: Boolean = true) {
         animationScope.launch {
             mutatorMutex.mutate {
-                press()
+                if (pressed) press()
                 val target = value.coerceIn(valueRange)
                 launch { valueAnimation.animateTo(target, valueAnimationSpec) }
                 if (velocity != 0f) {
                     launch { velocityAnimation.animateTo(0f, velocityAnimationSpec) }
                 }
-                release()
+                if (pressed) release()
             }
         }
     }

@@ -42,7 +42,8 @@ fun availableEfforts(
     discoveredModels: List<String> = emptyList()
 ): List<ReasoningEffort> = when (provider.effortMode) {
     EffortMode.NONE -> emptyList()
-    EffortMode.MODEL_SUFFIX -> effortsFor(modelId, provider.models.map { it.id } + discoveredModels)
+    EffortMode.MODEL_SUFFIX ->
+        effortsFor(modelId, provider.pickerModelIds(discoveredModels, modelId))
     EffortMode.REQUEST_FIELD -> provider.model(modelId)?.efforts.orEmpty()
 }
 

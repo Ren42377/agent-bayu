@@ -1,13 +1,6 @@
 package dev.agentbayu.app.ui.tasks
 
 import android.Manifest
-import android.content.ActivityNotFoundException
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -17,20 +10,24 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskItem
+import dev.agentbayu.app.domain.tasks.TaskSort
+import dev.agentbayu.app.domain.tasks.TaskStore
 import dev.agentbayu.app.domain.tasks.completedTasks
 import dev.agentbayu.app.domain.tasks.pendingRows
+import dev.agentbayu.app.domain.tasks.starredCompleted
+import dev.agentbayu.app.domain.tasks.starredRows
+import dev.agentbayu.app.platform.NotificationAccess
 import dev.agentbayu.app.ui.components.GlassDialog
 
 @Composable
@@ -52,9 +49,10 @@ fun TasksRoute(
     val permissionDenied = stringResource(R.string.tasks_permission_denied)
 
     var notificationsAllowed by remember {
-        mutableStateOf(hasNotificationPermission(context))
+        mutableStateOf(NotificationAccess.isAllowed(context))
     }
     var exactAlarmsAllowed by remember { mutableStateOf(alarms.canScheduleExact()) }
+    var batteryUnrestricted by remember { mutableStateOf(alarms.isBatteryUnrestricted()) }
     var listMenuOpen by remember { mutableStateOf(false) }
     var newListOpen by remember { mutableStateOf(false) }
     var renameListOpen by remember { mutableStateOf(false) }
@@ -62,13 +60,17 @@ fun TasksRoute(
     var clearCompletedOpen by remember { mutableStateOf(false) }
     var rowMenuTask by remember { mutableStateOf<TaskItem?>(null) }
     var moveTargetTask by remember { mutableStateOf<TaskItem?>(null) }
+    var starredOpen by rememberSaveable { mutableStateOf(false) }
+    var sortMenuOpen by remember { mutableStateOf(false) }
+    var quickAddOpen by remember { mutableStateOf(false) }
 
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                notificationsAllowed = hasNotificationPermission(context)
+                notificationsAllowed = NotificationAccess.isAllowed(context)
                 exactAlarmsAllowed = alarms.canScheduleExact()
+                batteryUnrestricted = alarms.isBatteryUnrestricted()
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -92,42 +94,56 @@ fun TasksRoute(
 
     val activeList = lists.firstOrNull { it.id == activeId } ?: lists.firstOrNull()
     val listId = activeList?.id
-    val rows = remember(tasks, listId, sort) {
-        if (listId == null) emptyList() else pendingRows(tasks, listId, sort)
+    val rows = remember(tasks, listId, sort, starredOpen) {
+        when {
+            starredOpen -> starredRows(tasks, sort)
+            listId == null -> emptyList()
+            else -> pendingRows(tasks, listId, sort)
+        }
     }
-    val completed = remember(tasks, listId) {
-        if (listId == null) emptyList() else completedTasks(tasks, listId)
+    val completed = remember(tasks, listId, starredOpen) {
+        when {
+            starredOpen -> starredCompleted(tasks)
+            listId == null -> emptyList()
+            else -> completedTasks(tasks, listId)
+        }
     }
 
     TasksScreen(
         lists = lists,
         activeList = activeList,
+        starredOpen = starredOpen,
         rows = rows,
         completed = completed,
-        sort = sort,
         notificationsAllowed = notificationsAllowed,
         exactAlarmsAllowed = exactAlarmsAllowed,
+        batteryUnrestricted = batteryUnrestricted,
         onRequestNotifications = {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                ContextCompat.checkSelfPermission(
-                    context,
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
+            if (NotificationAccess.needsRuntimeRequest(context)) {
                 notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-            } else if (!openNotificationSettings(context)) {
+            } else if (!NotificationAccess.openSettings(context)) {
                 onMessage(settingsUnavailable)
             }
         },
         onRequestExactAlarms = {
-            if (!openExactAlarmSettings(context)) {
+            if (!NotificationAccess.openExactAlarmSettings(context)) {
                 onMessage(settingsUnavailable)
             }
         },
-        onSelectList = store::setActiveList,
+        onRequestBattery = {
+            if (!NotificationAccess.openBatterySettings(context)) {
+                onMessage(settingsUnavailable)
+            }
+        },
+        onSelectStarred = { starredOpen = true },
+        onSelectList = { id ->
+            starredOpen = false
+            store.setActiveList(id)
+        },
+        onNewList = { newListOpen = true },
         onListMenu = { listMenuOpen = true },
-        onSortChange = store::setSort,
-        onAddTask = { listId?.let { onOpenTask(null, it, null) } },
+        onSortMenu = { sortMenuOpen = true },
+        onAddTask = { quickAddOpen = true },
         onOpenTask = { task -> onOpenTask(task.id, task.listId, task.parentId) },
         onToggleCompleted = { task -> store.setCompleted(task.id, !task.completed) },
         onToggleStarred = { task -> store.setStarred(task.id, !task.starred) },
@@ -183,39 +199,43 @@ fun TasksRoute(
         dismissLabel = stringResource(R.string.tasks_detail_cancel),
         onDismiss = { clearCompletedOpen = false }
     )
+
+    TaskActionSheet(
+        visible = sortMenuOpen,
+        title = stringResource(R.string.tasks_sort_menu),
+        actions = TaskSort.entries.map { option ->
+            TaskAction(label = sortLabel(option)) { store.setSort(option) }
+        },
+        onDismiss = { sortMenuOpen = false }
+    )
+
+    TaskQuickAddSheet(
+        visible = quickAddOpen,
+        onSave = { quick ->
+            quickAddOpen = false
+            val target = listId ?: store.createList(defaultListTitle).also(store::setActiveList)
+            saveQuickTask(store, target, quick)
+        },
+        onOpenDetails = { quick ->
+            quickAddOpen = false
+            val target = listId ?: store.createList(defaultListTitle).also(store::setActiveList)
+            onOpenTask(saveQuickTask(store, target, quick), target, null)
+        },
+        onDismiss = { quickAddOpen = false }
+    )
 }
 
-private fun hasNotificationPermission(context: Context): Boolean {
-    if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return false
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return true
-    return ContextCompat.checkSelfPermission(
-        context,
-        Manifest.permission.POST_NOTIFICATIONS
-    ) == PackageManager.PERMISSION_GRANTED
-}
-
-private fun openNotificationSettings(context: Context): Boolean {
-    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
-        .putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    return try {
-        context.startActivity(intent)
-        true
-    } catch (error: ActivityNotFoundException) {
-        false
-    }
-}
-
-private fun openExactAlarmSettings(context: Context): Boolean {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return false
-    val intent = Intent(
-        Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
-        Uri.fromParts("package", context.packageName, null)
-    ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    return try {
-        context.startActivity(intent)
-        true
-    } catch (error: ActivityNotFoundException) {
-        false
-    }
+private fun saveQuickTask(store: TaskStore, listId: String, quick: QuickTask): String? {
+    val id = store.createTask(listId, quick.title.ifBlank { return null })
+    if (id.isEmpty()) return null
+    val created = store.find(id) ?: return null
+    store.upsertTask(
+        created.copy(
+            details = quick.details,
+            dueAtMillis = quick.dueAtMillis,
+            hasTime = quick.hasTime
+        )
+    )
+    if (quick.starred) store.setStarred(id, true)
+    return id
 }

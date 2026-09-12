@@ -27,12 +27,20 @@ sealed interface ProjectBootstrapResult {
     data class Failure(val failure: RouteFailure) : ProjectBootstrapResult
 }
 
-class AntigravityProjectBootstrap(private val client: OkHttpClient) {
-
+interface ProjectBootstrap {
     suspend fun resolve(
         baseUrl: String,
         accessToken: String,
         extraHeaders: Map<String, String> = emptyMap()
+    ): ProjectBootstrapResult
+}
+
+class AntigravityProjectBootstrap(private val client: OkHttpClient) : ProjectBootstrap {
+
+    override suspend fun resolve(
+        baseUrl: String,
+        accessToken: String,
+        extraHeaders: Map<String, String>
     ): ProjectBootstrapResult {
         val metadata = buildJsonObject {
             put(IDE_TYPE, IDE_TYPE_VALUE)
@@ -75,7 +83,7 @@ class AntigravityProjectBootstrap(private val client: OkHttpClient) {
                 is HttpResult.Success -> parseJsonObject(outcome.body)
                     ?: return ProjectBootstrapResult.Failure(malformed())
             }
-            if (root.booleanField(DONE) == false) {
+            if (root.booleanField(DONE) != true) {
                 if (attempt < ONBOARD_MAX_ATTEMPTS) {
                     delay(ONBOARD_POLL_INTERVAL_MILLIS)
                     continue

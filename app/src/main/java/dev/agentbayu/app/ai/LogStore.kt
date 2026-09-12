@@ -36,6 +36,11 @@ class LogStore(private val clock: Clock = RealClock) {
         add(LogLevel.ERROR, source, message, detail)
     }
 
+    fun recordCrash(error: Throwable) {
+        val detail = error.stackTraceToString().take(MAX_CRASH_DETAIL_CHARS)
+        error(SOURCE_CRASH, error.javaClass.simpleName, detail)
+    }
+
     fun clear() {
         state.value = emptyList()
     }
@@ -61,5 +66,7 @@ class LogStore(private val clock: Clock = RealClock) {
 
     companion object {
         const val MAX_ENTRIES = 200
+        const val MAX_CRASH_DETAIL_CHARS = 12_000
+        private const val SOURCE_CRASH = "Crash"
     }
 }

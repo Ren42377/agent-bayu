@@ -12,10 +12,12 @@ data class RouteFailure(
     val message: String,
     val statusCode: Int? = null,
     val retryAfterMillis: Long? = null,
-    val tripsBreaker: Boolean = false
+    val tripsBreaker: Boolean = false,
+    val needsSetup: Boolean = false
 ) {
     val logLabel: String
-        get() = "status=" + (statusCode ?: 0) + " kind=" + kind.name
+        get() = "status=" + (statusCode ?: 0) + " kind=" + kind.name +
+            if (needsSetup) " setup" else ""
 }
 
 object FailureClassifier {
@@ -29,6 +31,12 @@ object FailureClassifier {
         "unsupported",
         "decommissioned",
         "deprecated"
+    )
+
+    private val ENTITY_HINTS = listOf(
+        "requested entity was not found",
+        "not_found",
+        "notfound"
     )
 
     private val QUOTA_HINTS = listOf(
@@ -96,11 +104,12 @@ object FailureClassifier {
                 tripsBreaker = true
             )
 
-            statusCode == 404 && mentionsModel(lower) -> RouteFailure(
-                kind = FailureKind.MODEL_LOCK,
-                message = "model unavailable",
-                statusCode = statusCode
-            )
+            statusCode == 404 && (mentionsModel(lower) || mentionsMissingEntity(lower)) ->
+                RouteFailure(
+                    kind = FailureKind.MODEL_LOCK,
+                    message = "model unavailable",
+                    statusCode = statusCode
+                )
 
             statusCode == 404 -> RouteFailure(
                 kind = FailureKind.TERMINAL,
@@ -149,6 +158,9 @@ object FailureClassifier {
 
     private fun mentionsModel(lowerBody: String): Boolean =
         lowerBody.contains("model") && MODEL_HINTS.any { lowerBody.contains(it) }
+
+    private fun mentionsMissingEntity(lowerBody: String): Boolean =
+        ENTITY_HINTS.any { lowerBody.contains(it) }
 
     fun parseRetryAfter(header: String?): Long? {
         val value = header?.trim() ?: return null

@@ -1,108 +1,359 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
+import dev.agentbayu.app.domain.MessageSegment
 import dev.agentbayu.app.ui.theme.AppleBlueDark
 import dev.agentbayu.app.ui.theme.AppleBlueLight
+import dev.agentbayu.app.ui.theme.AppleGreenDark
+import dev.agentbayu.app.ui.theme.AppleGreenLight
+import dev.agentbayu.app.ui.theme.GlassBadgeShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.UserBubbleShape
 import dev.agentbayu.app.ui.theme.glassSurface
+import kotlinx.coroutines.delay
 
 @Composable
 fun MessageBubble(
     message: ChatMessage,
     modifier: Modifier = Modifier,
-    onShowDetail: ((ChatMessage) -> Unit)? = null
+    onShowDetail: ((ChatMessage) -> Unit)? = null,
+    onCopy: ((ChatMessage) -> Unit)? = null,
+    onRegenerate: ((ChatMessage) -> Unit)? = null,
+    onEdit: ((ChatMessage) -> Unit)? = null,
+    onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
-    val fromUser = message.author == MessageAuthor.USER
     val isDark = LocalDarkTheme.current
-
-    val userTint = if (isDark) AppleBlueDark else AppleBlueLight
-
+    if (message.author == MessageAuthor.USER) {
+        UserMessage(
+            message = message,
+            modifier = modifier,
+            isDark = isDark,
+            onEdit = onEdit,
+            onOpenAttachment = onOpenAttachment
+        )
+        return
+    }
     Column(
         modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = if (fromUser) Alignment.End else Alignment.Start
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        if (fromUser) {
-            if (message.attachments.isNotEmpty()) {
-                Row(
-                    modifier = Modifier.padding(bottom = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    message.attachments.forEach { attachment ->
-                        AttachmentThumbnail(
-                            attachment = attachment,
-                            size = 96.dp,
-                            shape = UserBubbleShape
+        message.displaySegments.forEach { segment ->
+            when (segment) {
+                is MessageSegment.Thinking -> ThinkingRow(segment = segment)
+
+                is MessageSegment.Prose -> if (segment.text.isNotBlank()) {
+                    if (message.streaming) {
+                        Text(
+                            text = segment.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        MarkdownMessage(
+                            content = segment.text,
+                            modifier = Modifier.fillMaxWidth()
                         )
                     }
                 }
+
+                is MessageSegment.Tool -> ToolRow(segment = segment, isDark = isDark)
+
+                is MessageSegment.LegacyAutoApprove -> Unit
             }
-            if (message.text.isNotEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .widthIn(max = 300.dp)
-                        .glassSurface(shape = UserBubbleShape, tint = userTint)
-                        .padding(horizontal = 16.dp, vertical = 10.dp)
-                ) {
-                    Text(
-                        text = message.text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = Color.White
-                    )
-                }
-            }
-        } else {
-            MarkdownMessage(
-                content = message.text,
-                modifier = Modifier.fillMaxWidth()
+        }
+        if (!message.streaming && (message.text.isNotBlank() || message.detail != null)) {
+            ReplyActions(
+                message = message,
+                onShowDetail = onShowDetail,
+                onCopy = onCopy,
+                onRegenerate = onRegenerate
             )
-            if (message.detail != null && onShowDetail != null) {
-                Row(
-                    modifier = Modifier
-                        .padding(top = 8.dp)
-                        .clip(MaterialTheme.shapes.small)
-                        .clickable { onShowDetail(message) }
-                        .padding(horizontal = 6.dp, vertical = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.route_show),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                    Spacer(modifier = Modifier.width(2.dp))
-                    Icon(
-                        painter = painterResource(R.drawable.ic_chevron),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(12.dp)
+        }
+    }
+}
+
+@Composable
+private fun ReplyActions(
+    message: ChatMessage,
+    onShowDetail: ((ChatMessage) -> Unit)?,
+    onCopy: ((ChatMessage) -> Unit)?,
+    onRegenerate: ((ChatMessage) -> Unit)?
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (onCopy != null && message.text.isNotBlank()) {
+            ReplyActionButton(
+                icon = R.drawable.ic_copy,
+                description = R.string.chat_copy_reply,
+                onClick = { onCopy(message) }
+            )
+        }
+        if (onRegenerate != null && message.text.isNotBlank()) {
+            ReplyActionButton(
+                icon = R.drawable.ic_refresh,
+                description = R.string.chat_regenerate_reply,
+                onClick = { onRegenerate(message) }
+            )
+        }
+        if (onShowDetail != null && message.detail != null) {
+            ReplyActionButton(
+                icon = R.drawable.ic_more_vert,
+                description = R.string.route_show,
+                onClick = { onShowDetail(message) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun ReplyActionButton(icon: Int, description: Int, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(28.dp)
+            .clip(CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(icon),
+            contentDescription = stringResource(description),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
+    }
+}
+
+@Composable
+private fun UserMessage(
+    message: ChatMessage,
+    isDark: Boolean,
+    modifier: Modifier = Modifier,
+    onEdit: ((ChatMessage) -> Unit)? = null,
+    onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
+) {
+    val userTint = if (isDark) AppleBlueDark else AppleBlueLight
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.End
+    ) {
+        if (message.attachments.isNotEmpty()) {
+            Row(
+                modifier = Modifier.padding(bottom = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                message.attachments.forEach { attachment ->
+                    AttachmentThumbnail(
+                        attachment = attachment,
+                        size = 96.dp,
+                        shape = UserBubbleShape,
+                        onClick = onOpenAttachment?.let { open -> { open(attachment) } }
                     )
                 }
             }
         }
+        if (message.text.isNotEmpty()) {
+            Box(
+                modifier = Modifier
+                    .widthIn(max = 300.dp)
+                    .glassSurface(shape = UserBubbleShape, tint = userTint)
+                    .padding(horizontal = 16.dp, vertical = 10.dp)
+            ) {
+                Text(
+                    text = message.text,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = Color.White
+                )
+            }
+        }
+        if (!message.streaming && onEdit != null) {
+            ReplyActionButton(
+                icon = R.drawable.ic_edit,
+                description = R.string.chat_edit_message,
+                onClick = { onEdit(message) }
+            )
+        }
     }
 }
+
+@Composable
+private fun ThinkingRow(segment: MessageSegment.Thinking) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .clip(GlassBadgeShape)
+                .clickable { expanded = !expanded }
+                .padding(vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            ThinkingLabel(running = !segment.done, doneMillis = segment.millis)
+            Icon(
+                painter = painterResource(R.drawable.ic_chevron),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = CHEVRON_ALPHA),
+                modifier = Modifier
+                    .size(12.dp)
+                    .rotate(if (expanded) 270f else 90f)
+            )
+        }
+        AnimatedVisibility(
+            visible = expanded && segment.text.isNotBlank(),
+            enter = expandVertically(expandFrom = Alignment.Top) + fadeIn(),
+            exit = shrinkVertically(shrinkTowards = Alignment.Top) + fadeOut()
+        ) {
+            val body = segment.text.trim()
+            val codeColor = MaterialTheme.colorScheme.onSurfaceVariant
+            val rendered = remember(body, codeColor) {
+                buildAnnotatedString { appendInlineMarkdown(body, codeColor) }
+            }
+            Text(
+                text = rendered,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 4.dp, end = 8.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun ThinkingLabel(running: Boolean, doneMillis: Long) {
+    var liveMillis by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(running) {
+        if (!running) return@LaunchedEffect
+        val startedAt = System.nanoTime()
+        while (true) {
+            liveMillis = (System.nanoTime() - startedAt) / NANOS_PER_MILLI
+            delay(TICK_MILLIS)
+        }
+    }
+
+    val millis = if (running) liveMillis else doneMillis
+    val seconds = (millis / MILLIS_PER_SECOND).toInt()
+    val label = if (seconds <= 0) {
+        stringResource(R.string.chat_thought)
+    } else {
+        stringResource(R.string.chat_thought_seconds, seconds)
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
+}
+
+@Composable
+private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
+    val mutating = segment.name !in READ_ONLY_TOOLS
+    val argument = segment.path.ifEmpty { argumentOf(segment.label) }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 1.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (segment.running) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                strokeWidth = 1.5.dp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Text(
+            text = toolDisplayName(segment.name),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
+        )
+        if (argument.isNotEmpty()) {
+            Text(
+                text = argument,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.StartEllipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+        }
+        if (mutating && !segment.running) {
+            Icon(
+                painter = painterResource(if (segment.ok) R.drawable.ic_check else R.drawable.ic_close),
+                contentDescription = stringResource(
+                    if (segment.ok) R.string.tool_run_done else R.string.tool_run_failed
+                ),
+                tint = if (segment.ok) {
+                    if (isDark) AppleGreenDark else AppleGreenLight
+                } else {
+                    MaterialTheme.colorScheme.error
+                },
+                modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+private val READ_ONLY_TOOLS = setOf(
+    "list_files",
+    "read_file",
+    "search_files",
+    "view_image",
+    "list_tasks",
+    "web_search"
+)
+
+private val ARGUMENT_PATTERN = Regex("\"(path|from|title|query|time|task_id|alarm_title)\"\\s*:\\s*\"([^\"]*)\"")
+
+private fun argumentOf(label: String): String =
+    ARGUMENT_PATTERN.find(label)?.groupValues?.get(2).orEmpty()
+
+private const val NANOS_PER_MILLI = 1_000_000L
+private const val MILLIS_PER_SECOND = 1_000L
+private const val TICK_MILLIS = 250L
+private const val CHEVRON_ALPHA = 0.6f

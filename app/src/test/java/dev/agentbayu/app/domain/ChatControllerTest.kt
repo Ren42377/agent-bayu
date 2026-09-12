@@ -41,13 +41,18 @@ class ChatControllerTest {
         Dispatchers.resetMain()
     }
 
-    private fun controller(engine: AgentEngine, errorReply: String = "error"): ChatController =
+    private fun controller(
+        engine: AgentEngine,
+        errorReply: String = "error",
+        discardAttachments: (Set<String>) -> Unit = {}
+    ): ChatController =
         ChatController(
             repository = repository,
             engine = engine,
             errorReply = errorReply,
             logStore = LogStore(),
-            scope = CoroutineScope(SupervisorJob() + dispatcher)
+            scope = CoroutineScope(SupervisorJob() + dispatcher),
+            discardAttachments = discardAttachments
         )
 
     private fun engine(block: suspend (AgentRequest) -> List<AgentEvent>): AgentEngine =
@@ -229,6 +234,292 @@ class ChatControllerTest {
         assertEquals("seten", agent.text)
         assertFalse(agent.streaming)
         assertFalse(chat.isResponding.value)
+    }
+
+    @Test
+    fun thinkingClosesIntoItsOwnSegmentBeforeTheProse() = runTest {
+        val chat = controller(
+            engine {
+                listOf(
+                    AgentEvent.Thinking("menimbang "),
+                    AgentEvent.Thinking("pilihan"),
+                    AgentEvent.Delta("Jawabannya ini."),
+                    AgentEvent.Completed(detail(), TokenUsage(1, 1))
+                )
+            }
+        )
+
+        chat.send("hi")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val agent = repository.messages.value.last()
+        assertEquals("Jawabannya ini.", agent.text)
+        val thinking = agent.segments.first() as MessageSegment.Thinking
+        assertEquals("menimbang pilihan", thinking.text)
+        assertTrue(thinking.done)
+        assertEquals(MessageSegment.Prose("Jawabannya ini."), agent.segments.last())
+    }
+
+    @Test
+    fun toolActivitySitsBetweenTheProseAroundIt() = runTest {
+        val chat = controller(
+            engine {
+                listOf(
+                    AgentEvent.Delta("Aku cek."),
+                    AgentEvent.ToolStarted("read_file", "read_file {\"path\":\"a.txt\"}"),
+                    AgentEvent.ToolFinished("read_file", true),
+                    AgentEvent.Delta(" Sudah.")
+                )
+            }
+        )
+
+        chat.send("hi")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val agent = repository.messages.value.last()
+        assertEquals("Aku cek. Sudah.", agent.text)
+        assertEquals(
+            listOf(
+                MessageSegment.Prose("Aku cek."),
+                MessageSegment.Tool(
+                    name = "read_file",
+                    label = "read_file {\"path\":\"a.txt\"}",
+                    running = false,
+                    ok = true
+                ),
+                MessageSegment.Prose(" Sudah.")
+            ),
+            agent.segments
+        )
+    }
+
+    @Test
+    fun editReplacesTheSelectedTurnAndDropsTheFollowingBranch() = runTest {
+        val requests = mutableListOf<AgentRequest>()
+        val chat = controller(
+            engine { request ->
+                requests += request
+                listOf(AgentEvent.Delta("new reply"))
+            }
+        )
+        val earlierUser = repository.append(MessageAuthor.USER, "earlier")
+        val earlierAgent = repository.append(MessageAuthor.AGENT, "earlier reply")
+        val edited = repository.append(MessageAuthor.USER, "old prompt")
+        repository.append(MessageAuthor.AGENT, "old reply")
+        repository.append(MessageAuthor.USER, "later prompt")
+        val replacement = MessageAttachment(id = "new-image", mimeType = "image/png")
+
+        chat.restartFrom(edited, " updated prompt ", listOf(replacement))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            listOf("earlier", "earlier reply", "updated prompt", "new reply"),
+            repository.messages.value.map { it.text }
+        )
+        assertEquals(listOf(earlierUser, earlierAgent), requests.single().history)
+        assertEquals("updated prompt", requests.single().prompt)
+        assertEquals(listOf(replacement), requests.single().attachments)
+    }
+
+    @Test
+    fun regenerateReplacesTheSelectedReplyAndDropsTheFollowingBranch() = runTest {
+        var request: AgentRequest? = null
+        val chat = controller(
+            engine { seen ->
+                request = seen
+                listOf(AgentEvent.Delta("replacement reply"))
+            }
+        )
+        val earlierUser = repository.append(MessageAuthor.USER, "earlier")
+        val earlierAgent = repository.append(MessageAuthor.AGENT, "earlier reply")
+        val picture = MessageAttachment(id = "image", mimeType = "image/jpeg")
+        val prompt = repository.append(
+            MessageAuthor.USER,
+            "retry this",
+            attachments = listOf(picture)
+        )
+        val reply = repository.append(MessageAuthor.AGENT, "old reply")
+        repository.append(MessageAuthor.USER, "later prompt")
+        repository.append(MessageAuthor.AGENT, "later reply")
+
+        chat.regenerate(reply, prompt)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(
+            listOf("earlier", "earlier reply", "retry this", "replacement reply"),
+            repository.messages.value.map { it.text }
+        )
+        assertEquals(prompt, repository.messages.value[2])
+        assertEquals(listOf(earlierUser, earlierAgent), request?.history)
+        assertEquals("retry this", request?.prompt)
+        assertEquals(listOf(picture), request?.attachments)
+    }
+
+    @Test
+    fun editProtectsAttachmentsStillReferencedEarlierInTheConversation() = runTest {
+        val discarded = mutableSetOf<String>()
+        val chat = controller(
+            engine = engine { listOf(AgentEvent.Delta("new reply")) },
+            discardAttachments = discarded::addAll
+        )
+        val shared = MessageAttachment(id = "shared", mimeType = "image/jpeg")
+        repository.append(MessageAuthor.USER, "earlier", attachments = listOf(shared))
+        val edited = repository.append(
+            MessageAuthor.USER,
+            "old",
+            attachments = listOf(shared)
+        )
+
+        chat.restartFrom(edited, "updated", emptyList())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(discarded.isEmpty())
+    }
+
+    @Test
+    fun editDiscardsAttachmentsOnlyFromTheRemovedBranch() = runTest {
+        val discarded = mutableSetOf<String>()
+        val chat = controller(
+            engine = engine { listOf(AgentEvent.Delta("new reply")) },
+            discardAttachments = discarded::addAll
+        )
+        val earlier = MessageAttachment(id = "earlier", mimeType = "image/jpeg")
+        val replacement = MessageAttachment(id = "kept", mimeType = "image/jpeg")
+        val removed = MessageAttachment(id = "removed", mimeType = "image/jpeg")
+        repository.append(MessageAuthor.USER, "earlier", attachments = listOf(earlier))
+        val edited = repository.append(
+            MessageAuthor.USER,
+            "old",
+            attachments = listOf(replacement, removed)
+        )
+        repository.append(MessageAuthor.AGENT, "old reply")
+
+        chat.restartFrom(edited, "updated", listOf(replacement))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(setOf("removed"), discarded)
+    }
+
+    @Test
+    fun regenerateDiscardsAttachmentsOnlyAfterTheRepeatedPrompt() = runTest {
+        val discarded = mutableSetOf<String>()
+        val chat = controller(
+            engine = engine { listOf(AgentEvent.Delta("new reply")) },
+            discardAttachments = discarded::addAll
+        )
+        val promptImage = MessageAttachment(id = "prompt", mimeType = "image/jpeg")
+        val laterImage = MessageAttachment(id = "later", mimeType = "image/jpeg")
+        val prompt = repository.append(
+            MessageAuthor.USER,
+            "retry",
+            attachments = listOf(promptImage)
+        )
+        val reply = repository.append(MessageAuthor.AGENT, "old reply")
+        repository.append(MessageAuthor.USER, "later", attachments = listOf(laterImage))
+
+        chat.regenerate(reply, prompt)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(setOf("later"), discarded)
+    }
+
+    @Test
+    fun regenerateIgnoresMessagesThatDoNotFormAUserReplyPair() = runTest {
+        var requests = 0
+        val chat = controller(
+            engine {
+                requests += 1
+                listOf(AgentEvent.Delta("unexpected"))
+            }
+        )
+        val user = repository.append(MessageAuthor.USER, "prompt")
+        val nextUser = repository.append(MessageAuthor.USER, "not a reply")
+
+        chat.regenerate(nextUser, user)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0, requests)
+        assertEquals(listOf("prompt", "not a reply"), repository.messages.value.map { it.text })
+    }
+
+    @Test
+    fun editingAStaleMessageDoesNotCancelTheActiveReply() = runTest {
+        val slow = object : AgentEngine {
+            override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {
+                emit(AgentEvent.Delta("active"))
+                delay(60_000L)
+            }
+        }
+        val chat = controller(slow)
+        val stale = ChatMessage(id = 999L, author = MessageAuthor.USER, text = "stale")
+
+        chat.send("current")
+        dispatcher.scheduler.advanceTimeBy(100L)
+        val accepted = chat.restartFrom(stale, "replacement")
+
+        assertFalse(accepted)
+        assertTrue(chat.isResponding.value)
+        assertEquals(listOf("current", "active"), repository.messages.value.map { it.text })
+    }
+
+    @Test
+    fun sendsAreIgnoredWhileTheSessionIsSwitching() = runTest {
+        var requests = 0
+        val chat = controller(
+            engine {
+                requests += 1
+                listOf(AgentEvent.Delta("unexpected"))
+            }
+        )
+
+        chat.setSessionSwitching(true)
+        chat.send("blocked")
+        dispatcher.scheduler.advanceUntilIdle()
+        chat.setSessionSwitching(false)
+        chat.send("allowed")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, requests)
+        assertEquals(listOf("allowed", "unexpected"), repository.messages.value.map { it.text })
+    }
+
+    @Test
+    fun cancelReleasesTheStopButtonBeforeTheChainUnwinds() = runTest {
+        val stubborn = object : AgentEngine {
+            override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {
+                emit(AgentEvent.Delta("mulai"))
+                delay(60_000L)
+            }
+        }
+        val chat = controller(stubborn)
+
+        chat.send("hi")
+        dispatcher.scheduler.advanceTimeBy(100L)
+        assertTrue(chat.isResponding.value)
+
+        chat.cancel()
+
+        assertFalse(chat.isResponding.value)
+        assertFalse(repository.messages.value.last().streaming)
+    }
+
+    @Test
+    fun cancelDoesNotClearAFreshSendThatFollowsIt() = runTest {
+        val slow = object : AgentEngine {
+            override fun reply(request: AgentRequest): Flow<AgentEvent> = flow {
+                emit(AgentEvent.Delta("satu"))
+                delay(60_000L)
+            }
+        }
+        val chat = controller(slow)
+
+        chat.send("pertama")
+        dispatcher.scheduler.advanceTimeBy(100L)
+        chat.cancel()
+        chat.send("kedua")
+        dispatcher.scheduler.advanceTimeBy(100L)
+
+        assertTrue(chat.isResponding.value)
     }
 
     private fun detail(): ReplyDetail = ReplyDetail(

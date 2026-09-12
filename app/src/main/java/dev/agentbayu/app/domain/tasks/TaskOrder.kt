@@ -24,6 +24,14 @@ fun completedTasks(tasks: List<TaskItem>, listId: String): List<TaskItem> = task
     .filter { it.listId == listId && it.completed }
     .sortedByDescending { it.completedAtMillis ?: it.updatedAtMillis }
 
+fun starredRows(tasks: List<TaskItem>, sort: TaskSort): List<TaskRow> =
+    sortTasks(tasks.filter { it.starred && !it.completed }, sort)
+        .map { task -> TaskRow(task, subtask = false, hasSubtasks = false) }
+
+fun starredCompleted(tasks: List<TaskItem>): List<TaskItem> = tasks
+    .filter { it.starred && it.completed }
+    .sortedByDescending { it.completedAtMillis ?: it.updatedAtMillis }
+
 fun subtasksOf(tasks: List<TaskItem>, taskId: String): List<TaskItem> = sortTasks(
     tasks.filter { it.parentId == taskId },
     TaskSort.MY_ORDER

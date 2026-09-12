@@ -31,13 +31,14 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
             .post(body(candidate, request).toString().toRequestBody(StreamingHttp.jsonMediaType))
             .build()
 
+        val tools = ToolCallBuffer()
         return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
-            parseChunk(chunk)
-        }
+            parseChunk(chunk, tools)
+        }.releasingToolCalls(tools)
     }
 
     private fun body(candidate: Candidate, request: ChatRequest): JsonObject = buildJsonObject {
-        put("model", candidate.model.id)
+        put("model", candidate.model.wireId)
         put("stream", true)
         putJsonArray("messages") {
             request.systemPrompt?.takeIf { it.isNotBlank() }?.let { prompt ->
@@ -48,37 +49,10 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
                     }
                 )
             }
-            request.turns.forEach { turn ->
-                add(
-                    buildJsonObject {
-                        put("role", roleName(turn.role))
-                        if (turn.images.isEmpty()) {
-                            put("content", turn.content)
-                        } else {
-                            putJsonArray("content") {
-                                turn.images.forEach { image ->
-                                    add(
-                                        buildJsonObject {
-                                            put("type", "image_url")
-                                            putJsonObject("image_url") {
-                                                put("url", image.dataUrl)
-                                            }
-                                        }
-                                    )
-                                }
-                                if (turn.content.isNotEmpty()) {
-                                    add(
-                                        buildJsonObject {
-                                            put("type", "text")
-                                            put("text", turn.content)
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
-                )
-            }
+            request.turns.forEach { turn -> add(message(turn)) }
+        }
+        if (request.tools.isNotEmpty() && WireParams.supports(candidate, WireParams.TOOLS)) {
+            putFunctionTools(request.tools)
         }
         val maxTokens = request.maxOutputTokens
         if (maxTokens != null && WireParams.supports(candidate, WireParams.MAX_TOKENS)) {
@@ -99,13 +73,52 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
         }
     }
 
+    private fun message(turn: ChatTurn): JsonObject = buildJsonObject {
+        put("role", roleName(turn.role))
+        if (turn.role == ChatRole.TOOL) {
+            put("tool_call_id", turn.toolCallId.orEmpty())
+            put("content", turn.content)
+            return@buildJsonObject
+        }
+        if (turn.images.isEmpty()) {
+            put("content", turn.content)
+        } else {
+            putJsonArray("content") {
+                turn.images.forEach { image ->
+                    add(
+                        buildJsonObject {
+                            put("type", "image_url")
+                            putJsonObject("image_url") {
+                                put("url", image.dataUrl)
+                            }
+                        }
+                    )
+                }
+                if (turn.content.isNotEmpty()) {
+                    add(
+                        buildJsonObject {
+                            put("type", "text")
+                            put("text", turn.content)
+                        }
+                    )
+                }
+            }
+        }
+        if (turn.toolCalls.isNotEmpty()) {
+            putJsonArray("tool_calls") {
+                openAiToolCallItems(turn.toolCalls).forEach { item -> add(item) }
+            }
+        }
+    }
+
     private fun roleName(role: ChatRole): String = when (role) {
         ChatRole.SYSTEM -> "system"
         ChatRole.USER -> "user"
         ChatRole.ASSISTANT -> "assistant"
+        ChatRole.TOOL -> "tool"
     }
 
-    private fun parseChunk(raw: String): List<WireEvent> {
+    private fun parseChunk(raw: String, tools: ToolCallBuffer): List<WireEvent> {
         val root = parseJsonObject(raw) ?: return emptyList()
 
         root.objectField("error")?.let { error ->
@@ -117,8 +130,17 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
         val events = ArrayList<WireEvent>(2)
         val choice = root.arrayField("choices")?.firstOrNull() as? JsonObject
         val delta = choice?.objectField("delta")
+        val thought = delta?.stringField(REASONING_CONTENT) ?: delta?.stringField(REASONING)
+        if (!thought.isNullOrEmpty()) events += WireEvent.Thinking(thought)
         val text = delta?.stringField("content")
         if (!text.isNullOrEmpty()) events += WireEvent.Delta(text)
+        delta?.arrayField("tool_calls")?.forEachIndexed { position, element ->
+            val entry = element as? JsonObject ?: return@forEachIndexed
+            val key = (entry.intField("index") ?: position).toString()
+            val function = entry.objectField("function")
+            tools.open(key, entry.stringField("id"), function?.stringField("name"))
+            tools.append(key, function?.stringField("arguments"))
+        }
 
         root.objectField("usage")?.let { usage ->
             val input = usage.intField("prompt_tokens") ?: 0
@@ -131,6 +153,8 @@ class OpenAiCompatibleAdapter(private val client: OkHttpClient) : ChatAdapter {
     companion object {
         const val CHAT_PATH = "chat/completions"
         const val REASONING_EFFORT = "reasoning_effort"
+        const val REASONING_CONTENT = "reasoning_content"
+        const val REASONING = "reasoning"
         const val STREAM_ERROR_STATUS = 500
     }
 }

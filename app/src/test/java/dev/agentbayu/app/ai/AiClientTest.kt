@@ -6,6 +6,7 @@ import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.ChatRole
 import dev.agentbayu.app.ai.adapter.ChatTurn
 import dev.agentbayu.app.ai.adapter.WireEvent
+import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
@@ -23,6 +24,7 @@ class AiClientTest {
         var lastKey: String? = null
         var lastRequest: ChatRequest? = null
         var lastHeaders: Map<String, String> = emptyMap()
+        var lastCandidate: Candidate? = null
 
         override fun stream(
             candidate: Candidate,
@@ -33,7 +35,31 @@ class AiClientTest {
             lastKey = apiKey
             lastRequest = request
             lastHeaders = authHeaders
+            lastCandidate = candidate
             events.forEach { emit(it) }
+        }
+    }
+
+    private class StubProjectResolver(private val projectId: String?) : ProjectResolver {
+        var calls = 0
+
+        override suspend fun resolve(
+            candidate: Candidate,
+            credential: WireCredential
+        ): ProjectResolution {
+            calls += 1
+            if (projectId == null) return ProjectResolution.Failed(setupFailure)
+            return ProjectResolution.Ready(
+                candidate.copy(connection = candidate.connection.copy(projectId = projectId))
+            )
+        }
+
+        companion object {
+            val setupFailure = RouteFailure(
+                kind = FailureKind.TERMINAL,
+                message = "sign in again to finish Antigravity project setup",
+                needsSetup = true
+            )
         }
     }
 
@@ -74,6 +100,36 @@ class AiClientTest {
         }
     }
 
+    private class ToolOnlyAdapter(private val call: ToolCall) : ChatAdapter {
+        var calls = 0
+
+        override fun stream(
+            candidate: Candidate,
+            apiKey: String?,
+            request: ChatRequest,
+            authHeaders: Map<String, String>
+        ): Flow<WireEvent> = flow {
+            calls += 1
+            emit(WireEvent.ToolUse(call))
+            emit(WireEvent.Done)
+        }
+    }
+
+    private class ThinkingOnlyAdapter : ChatAdapter {
+        var calls = 0
+
+        override fun stream(
+            candidate: Candidate,
+            apiKey: String?,
+            request: ChatRequest,
+            authHeaders: Map<String, String>
+        ): Flow<WireEvent> = flow {
+            calls += 1
+            emit(WireEvent.Thinking("menimbang"))
+            emit(WireEvent.Done)
+        }
+    }
+
     private val storedKeys = FakeKeys(mapOf("conn-1" to "key-1234"))
 
     private val request = ChatRequest(
@@ -93,7 +149,8 @@ class AiClientTest {
         ),
         tracker: UsageTracker = UsageTracker(FakeClock()),
         logStore: LogStore = LogStore(FakeClock()),
-        clock: Clock = FakeClock(1_000L)
+        clock: Clock = FakeClock(1_000L),
+        projects: ProjectResolver = ReadyProjectResolver
     ): AiClient = AiClient(
         activeProvider = ActiveProvider(
             connections,
@@ -105,7 +162,8 @@ class AiClientTest {
         adapters = adapter?.let { mapOf(candidate.provider.wireFormat to it) } ?: emptyMap(),
         usageTracker = tracker,
         logStore = logStore,
-        clock = clock
+        clock = clock,
+        projects = projects
     )
 
     @Test
@@ -330,6 +388,40 @@ class AiClientTest {
     }
 
     @Test
+    fun `retries a reply that carries only thinking`() = runTest {
+        val adapter = ThinkingOnlyAdapter()
+
+        val events = clientFor(testCandidate(), adapter).stream(request).toList()
+
+        assertEquals(3, adapter.calls)
+        assertEquals(
+            listOf("menimbang", "menimbang", "menimbang"),
+            events.filterIsInstance<ReplyEvent.Thinking>().map { it.text }
+        )
+        val failed = events.last() as ReplyEvent.Failed
+        assertEquals("no content", failed.failure.message)
+    }
+
+    @Test
+    fun `keeps a reply that carries only tool calls`() = runTest {
+        val adapter = ToolOnlyAdapter(ToolCall(id = "call-1", name = "list_tasks", arguments = "{}"))
+        val tracker = UsageTracker(FakeClock())
+
+        val events = clientFor(testCandidate(), adapter, tracker = tracker)
+            .stream(request)
+            .toList()
+
+        assertEquals(1, adapter.calls)
+        assertEquals(
+            listOf("list_tasks"),
+            events.filterIsInstance<ReplyEvent.ToolUse>().map { it.call.name }
+        )
+        assertTrue(events.last() is ReplyEvent.Completed)
+        assertEquals(1, tracker.statsFor("conn-1").successes)
+        assertEquals(0, tracker.statsFor("conn-1").failures)
+    }
+
+    @Test
     fun `retries a server error and reports the later success`() = runTest {
         val candidate = testCandidate()
         val adapter = FlakyAdapter(
@@ -489,5 +581,44 @@ class AiClientTest {
         val usage = (events.last() as ReplyEvent.Completed).usage
         assertTrue(usage.estimated)
         assertTrue(usage.inputTokens > ChatImage.TOKEN_COST)
+    }
+
+    @Test
+    fun `a resolved project reaches the adapter`() = runTest {
+        val candidate = testCandidate()
+        val adapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        val projects = StubProjectResolver("project-1")
+
+        val events = clientFor(candidate, adapter, projects = projects).stream(request).toList()
+
+        assertEquals(1, projects.calls)
+        assertEquals("project-1", adapter.lastCandidate?.connection?.projectId)
+        assertTrue(events.last() is ReplyEvent.Completed)
+    }
+
+    @Test
+    fun `a failed project bootstrap fails the reply without calling the adapter`() = runTest {
+        val candidate = testCandidate()
+        val adapter = RecordingAdapter(listOf(WireEvent.Delta("ok"), WireEvent.Done))
+        val tracker = UsageTracker(FakeClock())
+        val connections = FakeConnectionSource(listOf(candidate.connection), "conn-1")
+
+        val events = clientFor(
+            candidate,
+            adapter,
+            connections = connections,
+            tracker = tracker,
+            projects = StubProjectResolver(null)
+        ).stream(request).toList()
+
+        val failed = events.single() as ReplyEvent.Failed
+        assertTrue(failed.failure.needsSetup)
+        assertEquals(FailureKind.TERMINAL, failed.failure.kind)
+        assertNull(adapter.lastCandidate)
+        assertEquals(1, tracker.statsFor("conn-1").failures)
+        assertEquals(
+            "conn-1" to ConnectionHealth.NEEDS_ATTENTION,
+            connections.healthCalls.single()
+        )
     }
 }

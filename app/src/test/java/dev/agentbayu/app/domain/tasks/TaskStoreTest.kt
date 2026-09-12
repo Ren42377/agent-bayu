@@ -2,15 +2,18 @@ package dev.agentbayu.app.domain.tasks
 
 import dev.agentbayu.app.ai.FakeClock
 import dev.agentbayu.app.platform.InMemoryStorage
+import dev.agentbayu.app.platform.InMemoryTaskStorage
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TaskStoreTest {
 
-    private val storage = InMemoryStorage()
+    private val storage = InMemoryTaskStorage()
     private val clock = FakeClock(at("2026-09-03", "08:00"))
 
     private fun store(): TaskStore = TaskStore(storage, clock) { TEST_ZONE }
@@ -255,10 +258,237 @@ class TaskStoreTest {
     fun clearingWipesTheStoredFile() {
         val store = store()
         store.createTask(store.createList("Rumah"), "Pertama")
+        store.setSort(TaskSort.DATE)
         store.clear()
         assertTrue(store.lists.value.isEmpty())
         assertTrue(store.tasks.value.isEmpty())
         assertNull(store.activeListId.value)
-        assertNull(storage.read(TaskStore.FILE_NAME))
+        assertEquals(TaskSort.MY_ORDER, store.sort.value)
+        assertTrue(storage.names().isEmpty())
+    }
+
+    @Test
+    fun eachTaskUsesItsOwnJsonFile() {
+        val store = store()
+        val list = store.createList("Home")
+        val first = store.createTask(list, "First")
+        val second = store.createTask(list, "Second")
+
+        assertEquals(
+            setOf(TaskStore.METADATA_FILE, first + ".json", second + ".json"),
+            storage.names().toSet()
+        )
+    }
+
+    @Test
+    fun multiTaskChangesUseOneStorageCommit() {
+        val storage = RecordingTaskStorage()
+        val store = TaskStore(storage, clock) { TEST_ZONE }
+        val list = store.createList("Home")
+        val parent = store.createTask(list, "Parent")
+        val child = store.createTask(list, "Child", parent)
+        storage.commits.clear()
+
+        store.setCompleted(parent, true)
+
+        assertEquals(1, storage.commits.size)
+        assertEquals(
+            setOf(TaskStore.METADATA_FILE, parent + ".json", child + ".json"),
+            storage.commits.single().first
+        )
+    }
+
+    @Test
+    fun malformedTaskFilesDoNotHideValidTasks() {
+        val store = store()
+        val list = store.createList("Home")
+        val valid = store.createTask(list, "Valid")
+        storage.write("task-broken.json", "{")
+        storage.write(
+            "task-invalid.json",
+            Json.encodeToString(
+                TaskItem.serializer(),
+                task(id = "../invalid", listId = list, title = "Invalid")
+            )
+        )
+        storage.write(
+            "task-mismatch.json",
+            Json.encodeToString(
+                TaskItem.serializer(),
+                task(id = "task-other", listId = list, title = "Mismatch")
+            )
+        )
+
+        val restored = store()
+
+        assertEquals(listOf(valid), restored.tasks.value.map { it.id })
+    }
+
+    @Test
+    fun corruptMetadataRecoversListsUsedByTasks() {
+        val store = store()
+        val list = store.createList("Home")
+        val taskId = store.createTask(list, "Valid")
+        storage.write(TaskStore.METADATA_FILE, "{")
+
+        val restored = store()
+
+        assertEquals(list, restored.lists.value.single().id)
+        assertEquals("Recovered", restored.lists.value.single().title)
+        assertEquals(taskId, restored.tasks.value.single().id)
+        assertEquals(list, restored.activeListId.value)
+        val repaired = Json.decodeFromString(
+            TaskMetadata.serializer(),
+            storage.read(TaskStore.METADATA_FILE)!!
+        )
+        assertEquals(list, repaired.lists.single().id)
+        assertEquals(list, repaired.activeListId)
+    }
+
+    @Test
+    fun taskManifestExcludesStaleFiles() {
+        val store = store()
+        val list = store.createList("Home")
+        val committed = store.createTask(list, "Committed")
+        storage.write(
+            "task-stale.json",
+            Json.encodeToString(
+                TaskItem.serializer(),
+                task(id = "task-stale", listId = list, title = "Stale")
+            )
+        )
+
+        val restored = store()
+
+        assertEquals(listOf(committed), restored.tasks.value.map { it.id })
+    }
+
+    @Test
+    fun deletingAParentDeletesItsTaskFiles() {
+        val store = store()
+        val list = store.createList("Home")
+        val parent = store.createTask(list, "Parent")
+        val child = store.createTask(list, "Child", parent)
+
+        store.removeTask(parent)
+
+        assertNull(storage.read(parent + ".json"))
+        assertNull(storage.read(child + ".json"))
+    }
+
+    @Test
+    fun legacyAggregateMigratesOnlyAfterJsonFilesAreReadable() {
+        val legacy = InMemoryStorage()
+        val jsonStorage = InMemoryTaskStorage()
+        val list = TaskList("list-old", "Old")
+        val first = task(id = "task-z", listId = list.id, title = "Last")
+        val second = task(id = "task-a", listId = list.id, title = "First")
+        legacy.write(
+            TaskStore.FILE_NAME,
+            Json.encodeToString(
+                TaskFile.serializer(),
+                TaskFile(
+                    lists = listOf(list),
+                    tasks = listOf(first, second),
+                    activeListId = list.id
+                )
+            )
+        )
+
+        val restored = TaskStore(jsonStorage, legacy, clock) { TEST_ZONE }
+
+        assertEquals(setOf(first, second), restored.tasks.value.toSet())
+        assertNotNull(jsonStorage.read(TaskStore.METADATA_FILE))
+        assertNotNull(jsonStorage.read(first.id + ".json"))
+        assertNotNull(jsonStorage.read(second.id + ".json"))
+        assertNull(legacy.read(TaskStore.FILE_NAME))
+    }
+
+    @Test
+    fun intactLegacyDataReplacesIncompleteJsonMigration() {
+        val legacy = InMemoryStorage()
+        val jsonStorage = InMemoryTaskStorage()
+        val list = TaskList("list-old", "Old")
+        val first = task(id = "task-a", listId = list.id, title = "First")
+        val second = task(id = "task-b", listId = list.id, title = "Second")
+        legacy.write(
+            TaskStore.FILE_NAME,
+            Json.encodeToString(
+                TaskFile.serializer(),
+                TaskFile(lists = listOf(list), tasks = listOf(first, second), activeListId = list.id)
+            )
+        )
+        jsonStorage.write(first.id + ".json", Json.encodeToString(TaskItem.serializer(), first))
+
+        val restored = TaskStore(jsonStorage, legacy, clock) { TEST_ZONE }
+
+        assertEquals(setOf(first, second), restored.tasks.value.toSet())
+        assertNull(legacy.read(TaskStore.FILE_NAME))
+        assertNotNull(jsonStorage.read(second.id + ".json"))
+    }
+
+    @Test
+    fun failedLegacyMigrationKeepsLegacyAndRewritesEveryTaskOnTheNextEdit() {
+        val legacy = InMemoryStorage()
+        val jsonStorage = FailingTaskStorage(failOnWrite = "task-b.json")
+        val list = TaskList("list-old", "Old")
+        val first = task(id = "task-a", listId = list.id, title = "First")
+        val second = task(id = "task-b", listId = list.id, title = "Second")
+        legacy.write(
+            TaskStore.FILE_NAME,
+            Json.encodeToString(
+                TaskFile.serializer(),
+                TaskFile(lists = listOf(list), tasks = listOf(first, second), activeListId = list.id)
+            )
+        )
+
+        val restored = TaskStore(jsonStorage, legacy, clock) { TEST_ZONE }
+
+        assertEquals(setOf(first, second), restored.tasks.value.toSet())
+        assertNotNull(legacy.read(TaskStore.FILE_NAME))
+        assertTrue(jsonStorage.names().isEmpty())
+        jsonStorage.failOnWrite = null
+        restored.renameList(list.id, "Migrated")
+        assertNotNull(jsonStorage.read(first.id + ".json"))
+        assertNotNull(jsonStorage.read(second.id + ".json"))
+    }
+
+    private class RecordingTaskStorage : dev.agentbayu.app.platform.TaskStorage {
+        private val delegate = InMemoryTaskStorage()
+        val commits = mutableListOf<Pair<Set<String>, Set<String>>>()
+
+        override fun read(name: String): String? = delegate.read(name)
+
+        override fun write(name: String, content: String) = delegate.write(name, content)
+
+        override fun delete(name: String) = delegate.delete(name)
+
+        override fun names(): List<String> = delegate.names()
+
+        override fun commit(writes: Map<String, String>, deletes: Set<String>) {
+            commits += writes.keys to deletes
+            delegate.commit(writes, deletes)
+        }
+
+        override fun clear() = delegate.clear()
+    }
+
+    private class FailingTaskStorage(
+        var failOnWrite: String? = null
+    ) : dev.agentbayu.app.platform.TaskStorage {
+        private val delegate = InMemoryTaskStorage()
+
+        override fun read(name: String): String? = delegate.read(name)
+
+        override fun write(name: String, content: String) {
+            if (name == failOnWrite) throw java.io.IOException("Write failed")
+            delegate.write(name, content)
+        }
+
+        override fun delete(name: String) = delegate.delete(name)
+
+        override fun names(): List<String> = delegate.names()
+
+        override fun clear() = delegate.clear()
     }
 }

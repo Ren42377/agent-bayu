@@ -21,20 +21,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import dev.agentbayu.app.ui.theme.GlassTileShape
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import dev.agentbayu.app.platform.ThemeMode
 import dev.agentbayu.app.ui.components.GlassBadge
-import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleIndigoLight
+import dev.agentbayu.app.ui.theme.AppleOrangeLight
 import dev.agentbayu.app.ui.theme.ApplePurpleLight
 import dev.agentbayu.app.ui.theme.AppleTealLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
@@ -46,11 +49,15 @@ fun SettingsScreen(
     versionName: String,
     useScreenContext: Boolean,
     themeMode: ThemeMode,
+    toolApprovalMode: ToolApprovalMode,
+    storageGranted: Boolean,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onToolApprovalModeChange: (ToolApprovalMode) -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
     onOpenProviders: () -> Unit,
+    onOpenCustomPrompt: () -> Unit,
     onOpenLogs: () -> Unit,
-    onOpenOnboarding: () -> Unit,
+    onOpenStorageSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
@@ -102,16 +109,6 @@ fun SettingsScreen(
             ThemeModeSelector(mode = themeMode, onModeChange = onThemeModeChange)
         }
 
-        SectionGroup(title = stringResource(R.string.settings_assistant)) {
-            NavigationSettingRow(
-                icon = painterResource(R.drawable.ic_setup),
-                iconColor = AppleGreenLight,
-                title = stringResource(R.string.settings_onboarding_title),
-                subtitle = stringResource(R.string.settings_onboarding_body),
-                onClick = onOpenOnboarding
-            )
-        }
-
         SectionGroup(title = stringResource(R.string.settings_ai)) {
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_spark),
@@ -122,11 +119,46 @@ fun SettingsScreen(
             )
             SettingDivider()
             NavigationSettingRow(
+                icon = painterResource(R.drawable.ic_edit),
+                iconColor = ApplePurpleLight,
+                title = stringResource(R.string.settings_custom_prompt_title),
+                subtitle = stringResource(R.string.settings_custom_prompt_body),
+                onClick = onOpenCustomPrompt
+            )
+            SettingDivider()
+            NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_pending),
                 iconColor = AppleTealLight,
                 title = stringResource(R.string.settings_logs_title),
                 subtitle = stringResource(R.string.settings_logs_body),
                 onClick = onOpenLogs
+            )
+        }
+
+        SectionGroup(title = stringResource(R.string.settings_tools)) {
+            ToggleSettingRow(
+                icon = painterResource(R.drawable.ic_check),
+                iconColor = AppleGreenLight,
+                title = stringResource(R.string.settings_tool_approval_title),
+                subtitle = stringResource(R.string.settings_tool_approval_body),
+                checked = toolApprovalMode == ToolApprovalMode.BYPASS,
+                onCheckedChange = { enabled ->
+                    onToolApprovalModeChange(
+                        if (enabled) ToolApprovalMode.BYPASS else ToolApprovalMode.ASK
+                    )
+                }
+            )
+            SettingDivider()
+            NavigationSettingRow(
+                icon = painterResource(R.drawable.ic_open_in_app),
+                iconColor = AppleOrangeLight,
+                title = stringResource(R.string.settings_storage_title),
+                subtitle = if (storageGranted) {
+                    stringResource(R.string.status_ready)
+                } else {
+                    stringResource(R.string.settings_storage_body)
+                },
+                onClick = onOpenStorageSettings
             )
         }
 
@@ -218,8 +250,9 @@ private fun NavigationSettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(GlassTileShape)
             .clickable(onClick = onClick)
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         GlassBadge(icon = icon, containerColor = iconColor)
@@ -257,7 +290,7 @@ private fun ToggleSettingRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         GlassBadge(icon = icon, containerColor = iconColor)

@@ -71,6 +71,7 @@ fun testProvider(
     effortMode: EffortMode = EffortMode.NONE,
     extraHeaders: Map<String, String> = emptyMap(),
     vision: Boolean = false,
+    tools: Boolean = false,
     oauth: OAuthConfig? = null
 ): ProviderEntry = ProviderEntry(
     id = id,
@@ -94,6 +95,7 @@ fun testProvider(
     effortMode = effortMode,
     extraHeaders = extraHeaders,
     vision = vision,
+    tools = tools,
     oauth = oauth,
     models = models
 )
@@ -152,6 +154,8 @@ fun testCandidate(
     extraHeaders: Map<String, String> = emptyMap(),
     vision: Boolean = false,
     providerVision: Boolean = false,
+    tools: Boolean = false,
+    providerTools: Boolean = false,
     oauth: OAuthConfig? = null
 ): Candidate {
     val model = ModelEntry(
@@ -164,7 +168,8 @@ fun testCandidate(
         outputPricePerMillion = outputPrice,
         unsupportedParams = modelUnsupportedParams,
         free = free,
-        vision = vision
+        vision = vision,
+        tools = tools
     )
     return Candidate(
         connection = testConnection(
@@ -193,6 +198,7 @@ fun testCandidate(
             unsupportedParams = providerUnsupportedParams,
             extraHeaders = extraHeaders,
             vision = providerVision,
+            tools = providerTools,
             oauth = oauth
         ),
         model = model

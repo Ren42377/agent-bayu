@@ -81,7 +81,7 @@ class HeaderTemplateTest {
     @Test
     fun plainValuesPassThroughUntouched() {
         val tokens = HeaderTokens("conn-1")
-        val agent = "antigravity/ide/2.1.1 darwin/arm64"
+        val agent = "antigravity/ide/2.11.0 darwin/arm64"
 
         assertEquals("desktop", tokens.expand("desktop"))
         assertEquals("", tokens.expand(""))

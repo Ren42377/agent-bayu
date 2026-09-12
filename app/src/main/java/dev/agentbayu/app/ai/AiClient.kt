@@ -4,6 +4,8 @@ import android.util.Log
 import dev.agentbayu.app.ai.adapter.ChatAdapter
 import dev.agentbayu.app.ai.adapter.ChatRequest
 import dev.agentbayu.app.ai.adapter.WireEvent
+import dev.agentbayu.app.ai.tools.ToolCall
+import dev.agentbayu.app.ai.tools.ToolSpec
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -13,6 +15,10 @@ sealed interface ReplyEvent {
     data class Started(val detail: ReplyDetail) : ReplyEvent
 
     data class Delta(val text: String) : ReplyEvent
+
+    data class Thinking(val text: String) : ReplyEvent
+
+    data class ToolUse(val call: ToolCall) : ReplyEvent
 
     data class Completed(val detail: ReplyDetail, val usage: TokenUsage) : ReplyEvent
 
@@ -29,23 +35,32 @@ class AiClient(
     private val usageTracker: UsageTracker,
     private val logStore: LogStore,
     private val clock: Clock = RealClock,
+    private val projects: ProjectResolver = ReadyProjectResolver,
     private val pause: suspend (Long) -> Unit = { delay(it) }
 ) {
 
-    fun stream(request: ChatRequest): Flow<ReplyEvent> = flow {
+    fun stream(
+        request: ChatRequest,
+        countRequest: Boolean = true
+    ): Flow<ReplyEvent> = flow {
         when (val resolution = activeProvider.resolve()) {
             is ActiveResolution.Unavailable -> {
                 logStore.warning(SOURCE, "No usable connection", resolution.problem.name)
                 emit(ReplyEvent.Unavailable(resolution.problem))
             }
 
-            is ActiveResolution.Ready -> streamCandidate(resolution.candidate, request)
+            is ActiveResolution.Ready -> streamCandidate(
+                resolution.candidate,
+                request,
+                countRequest
+            )
         }
     }
 
     private suspend fun FlowCollector<ReplyEvent>.streamCandidate(
         candidate: Candidate,
-        request: ChatRequest
+        request: ChatRequest,
+        countRequest: Boolean
     ) {
         val detail = detailOf(candidate)
         val route = candidate.provider.id + " " + candidate.model.id
@@ -59,40 +74,65 @@ class AiClient(
         val effective = request.copy(
             turns = fitToContext(visionAware(candidate, request), candidate.model),
             maxOutputTokens = candidate.provider.clampOutputTokens(request.maxOutputTokens),
-            effort = candidate.effort
+            effort = candidate.effort,
+            tools = toolsFor(candidate, request)
         )
         val connectionId = candidate.connection.id
         val credential = credentials.resolve(candidate)
         val startedAt = clock.nowMillis()
-        usageTracker.beginRequest(connectionId)
+        usageTracker.beginRequest(connectionId, countRequest)
         logStore.info(SOURCE, "Request started", route)
+
+        val routed = when (val resolution = projects.resolve(candidate, credential)) {
+            is ProjectResolution.Ready -> resolution.candidate
+            is ProjectResolution.Failed -> {
+                reportFailure(
+                    candidate,
+                    resolution.failure,
+                    detail.copy(totalMillis = clock.nowMillis() - startedAt)
+                )
+                return
+            }
+        }
 
         var firstTokenMillis = 0L
         var outputChars = 0
+        var toolChars = 0
+        var toolCalls = 0
         var wireUsage: WireEvent.Usage? = null
         var failure: RouteFailure? = null
         var attempt = 0
+
+        suspend fun markFirstToken() {
+            if (firstTokenMillis != 0L) return
+            firstTokenMillis = (clock.nowMillis() - startedAt).coerceAtLeast(1L)
+            usageTracker.recordFirstToken(connectionId, firstTokenMillis)
+            emit(ReplyEvent.Started(detail.copy(firstTokenMillis = firstTokenMillis)))
+        }
 
         while (true) {
             attempt += 1
             failure = null
             wireUsage = null
-            adapter.stream(candidate, credential.token, effective, credential.headers)
+            adapter.stream(routed, credential.token, effective, credential.headers)
                 .collect { event ->
                     when (event) {
                         is WireEvent.Delta -> {
-                            if (firstTokenMillis == 0L) {
-                                firstTokenMillis =
-                                    (clock.nowMillis() - startedAt).coerceAtLeast(1L)
-                                usageTracker.recordFirstToken(connectionId, firstTokenMillis)
-                                emit(
-                                    ReplyEvent.Started(
-                                        detail.copy(firstTokenMillis = firstTokenMillis)
-                                    )
-                                )
-                            }
+                            markFirstToken()
                             outputChars += event.text.length
                             emit(ReplyEvent.Delta(event.text))
+                        }
+
+                        is WireEvent.Thinking -> {
+                            markFirstToken()
+                            emit(ReplyEvent.Thinking(event.text))
+                        }
+
+                        is WireEvent.ToolUse -> {
+                            markFirstToken()
+                            toolCalls += 1
+                            toolChars += event.call.name.length + event.call.arguments.length
+                            emit(ReplyEvent.ToolUse(event.call))
                         }
 
                         is WireEvent.Usage -> wireUsage = event
@@ -101,38 +141,24 @@ class AiClient(
                     }
                 }
 
-            if (outputChars > 0) break
+            if (outputChars > 0 || toolCalls > 0) break
             val pending = failure ?: emptyReply()
             val wait = retryDelayFor(pending, attempt) ?: break
             logStore.warning(SOURCE, "Retrying request", route + " " + pending.logLabel)
             pause(wait)
         }
 
-        val reported = failure ?: if (outputChars == 0) emptyReply() else null
+        val reported = failure ?: if (outputChars == 0 && toolCalls == 0) emptyReply() else null
         val complete = detail.copy(
             firstTokenMillis = firstTokenMillis,
             totalMillis = clock.nowMillis() - startedAt
         )
         if (reported != null) {
-            usageTracker.recordFailure(connectionId, reported)
-            healthFor(reported)?.let { health ->
-                connections.markHealth(connectionId, health, reported.logLabel)
-            }
-            logStore.error(
-                SOURCE,
-                reported.message,
-                route + " " + reported.logLabel
-            )
-            Log.e(
-                TAG,
-                "Reply failed: provider=" + candidate.provider.id +
-                    " model=" + candidate.model.id + " " + reported.logLabel
-            )
-            emit(ReplyEvent.Failed(reported, complete))
+            reportFailure(candidate, reported, complete)
             return
         }
 
-        val usage = usageOf(candidate, effective, wireUsage, outputChars)
+        val usage = usageOf(candidate, effective, wireUsage, outputChars + toolChars)
         usageTracker.recordSuccess(connectionId, usage)
         connections.markHealth(connectionId, ConnectionHealth.READY, null)
         logStore.info(
@@ -142,6 +168,22 @@ class AiClient(
                 usage.outputTokens + " output tokens"
         )
         emit(ReplyEvent.Completed(complete, usage))
+    }
+
+    private suspend fun FlowCollector<ReplyEvent>.reportFailure(
+        candidate: Candidate,
+        failure: RouteFailure,
+        detail: ReplyDetail
+    ) {
+        val connectionId = candidate.connection.id
+        val route = candidate.provider.id + " " + candidate.model.id
+        usageTracker.recordFailure(connectionId, failure)
+        healthFor(failure)?.let { health ->
+            connections.markHealth(connectionId, health, failure.logLabel)
+        }
+        logStore.error(SOURCE, failure.message, route + " " + failure.logLabel)
+        Log.e(TAG, "Reply failed: " + route + " " + failure.logLabel)
+        emit(ReplyEvent.Failed(failure, detail))
     }
 
     private fun retryDelayFor(failure: RouteFailure, attempt: Int): Long? {
@@ -193,6 +235,13 @@ class AiClient(
         if (candidate.supportsVision) return request
         if (request.turns.none { it.images.isNotEmpty() }) return request
         return request.copy(turns = request.turns.map { it.copy(images = emptyList()) })
+    }
+
+    private fun toolsFor(candidate: Candidate, request: ChatRequest): List<ToolSpec> {
+        if (request.tools.isEmpty()) return request.tools
+        if (!candidate.supportsTools) return emptyList()
+        if (candidate.supportsVision) return request.tools
+        return request.tools.filterNot { it.needsVision }
     }
 
     private fun estimateInputTokens(request: ChatRequest): Int =

@@ -1,16 +1,11 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
@@ -43,18 +38,14 @@ internal fun EffortSelector(
     val selectedIndex = options.indexOf(selected).coerceAtLeast(0)
     val colors = remember(options) { options.map { effortColor(it) } }
     val stars = remember { starField() }
-    val transition = rememberInfiniteTransition(label = "effortStars")
-    val phase = transition.animateFloat(
-        initialValue = 0f,
-        targetValue = TWO_PI,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = STAR_CYCLE_MILLIS, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "effortStarPhase"
-    )
+    val phase = remember { mutableFloatStateOf(0f) }
     val drift = remember { mutableFloatStateOf(0f) }
-    val boost = remember { mutableFloatStateOf(0f) }
+    var previewValue by remember(options) { mutableFloatStateOf(selectedIndex.toFloat()) }
+    val pace by rememberUpdatedState(paceAt(options, previewValue))
+
+    LaunchedEffect(options, selectedIndex) {
+        previewValue = selectedIndex.toFloat()
+    }
 
     LaunchedEffect(Unit) {
         var lastFrame = withFrameNanos { it }
@@ -62,22 +53,63 @@ internal fun EffortSelector(
             val frame = withFrameNanos { it }
             val deltaSeconds = ((frame - lastFrame) / NANOS_PER_SECOND).fastCoerceIn(0f, 0.1f)
             lastFrame = frame
-            drift.floatValue += (STAR_DRIFT_SPEED + boost.floatValue) * deltaSeconds
+            val level = pace
+            drift.floatValue += level.driftSpeed * deltaSeconds
+            phase.floatValue = (phase.floatValue + level.twinkleSpeed * deltaSeconds) % TWO_PI
         }
     }
 
     GlassSegmentedSelector(
         labels = options.map { it.label },
         selectedIndex = selectedIndex,
-        onSelect = { index -> onSelect(options[index]) },
+        onSelect = { index -> options.getOrNull(index)?.let(onSelect) },
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
-        decoration = { value, velocity ->
-            boost.floatValue = velocity.fastCoerceIn(-MAX_STAR_SPEED, MAX_STAR_SPEED)
-            drawStars(stars, phase.value, value, drift.floatValue)
+        onValueChange = { value -> previewValue = value },
+        decoration = { value, _ ->
+            drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
     )
+}
+
+private data class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
+
+private fun paceAt(options: List<ReasoningEffort>, value: Float): StarPace {
+    val last = options.lastIndex
+    if (last < 0) return paceOf(null)
+    val clamped = value.fastCoerceIn(0f, last.toFloat())
+    val low = floor(clamped).toInt()
+    val high = ceil(clamped).toInt()
+    val lowPace = paceOf(options[low])
+    if (low == high) return lowPace
+    val highPace = paceOf(options[high])
+    val fraction = clamped - low
+    return StarPace(
+        driftSpeed = lowPace.driftSpeed + (highPace.driftSpeed - lowPace.driftSpeed) * fraction,
+        twinkleSpeed = lowPace.twinkleSpeed +
+            (highPace.twinkleSpeed - lowPace.twinkleSpeed) * fraction
+    )
+}
+
+private fun paceOf(effort: ReasoningEffort?): StarPace {
+    val drift = when (effort) {
+        ReasoningEffort.LOW -> 16f
+        ReasoningEffort.MEDIUM -> 50f
+        ReasoningEffort.HIGH -> 120f
+        ReasoningEffort.XHIGH -> 220f
+        ReasoningEffort.MAX -> 360f
+        null -> 16f
+    }
+    val twinkle = when (effort) {
+        ReasoningEffort.LOW -> 1.2f
+        ReasoningEffort.MEDIUM -> 2.5f
+        ReasoningEffort.HIGH -> 4.5f
+        ReasoningEffort.XHIGH -> 7.0f
+        ReasoningEffort.MAX -> 10.0f
+        null -> 1.2f
+    }
+    return StarPace(driftSpeed = drift, twinkleSpeed = twinkle)
 }
 
 private fun effortColor(effort: ReasoningEffort): Color = when (effort) {
@@ -138,12 +170,9 @@ private const val TWO_PI = 6.2831855f
 private const val NANOS_PER_SECOND = 1_000_000_000f
 private const val STAR_SEED = 20260901L
 private const val STAR_COUNT = 24
-private const val STAR_CYCLE_MILLIS = 4200
 private const val STAR_MIN_RADIUS = 0.6f
 private const val STAR_MAX_RADIUS = 1.4f
 private const val STAR_MIN_ALPHA = 0.12f
 private const val STAR_MAX_ALPHA = 0.85f
 private const val STAR_MARGIN = 0.12f
 private const val STAR_PARALLAX = 0.14f
-private const val STAR_DRIFT_SPEED = 16f
-private const val MAX_STAR_SPEED = 4000f

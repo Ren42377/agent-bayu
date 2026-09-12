@@ -10,7 +10,9 @@ import dev.agentbayu.app.ai.adapter.applyAuth
 import dev.agentbayu.app.ai.adapter.applyAuthHeaders
 import dev.agentbayu.app.ai.adapter.applyExtraHeaders
 import dev.agentbayu.app.ai.adapter.arrayField
+import dev.agentbayu.app.ai.adapter.booleanField
 import dev.agentbayu.app.ai.adapter.joinUrl
+import dev.agentbayu.app.ai.adapter.objectField
 import dev.agentbayu.app.ai.adapter.parseJsonObject
 import dev.agentbayu.app.ai.adapter.stringField
 import java.io.IOException
@@ -19,6 +21,8 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -40,7 +44,8 @@ class ConnectionTester(
     private val catalog: ProviderCatalog,
     private val credentials: CredentialProvider,
     private val adapters: Map<WireFormat, ChatAdapter>,
-    private val clock: Clock = RealClock
+    private val clock: Clock = RealClock,
+    private val projects: ProjectResolver = ReadyProjectResolver
 ) {
 
     suspend fun test(connection: Connection, apiKey: String? = null): ConnectionTestResult {
@@ -56,8 +61,12 @@ class ConnectionTester(
             effort = candidate.effort
         )
         val credential = credentialFor(candidate, apiKey)
+        val routed = when (val resolution = projects.resolve(candidate, credential)) {
+            is ProjectResolution.Ready -> resolution.candidate
+            is ProjectResolution.Failed -> return ConnectionTestResult.Failure(resolution.failure)
+        }
         val startedAt = clock.nowMillis()
-        val event = adapter.stream(candidate, credential.token, request, credential.headers)
+        val event = adapter.stream(routed, credential.token, request, credential.headers)
             .filter { it is WireEvent.Delta || it is WireEvent.Failure }
             .firstOrNull()
 
@@ -85,11 +94,11 @@ class ConnectionTester(
         val credential = credentialFor(candidate, apiKey)
 
         val request = Request.Builder()
-            .url(joinUrl(candidate.controlBaseUrl, path))
+            .url(joinUrl(candidate.baseUrl, path))
             .apply {
                 if (candidate.provider.modelsUsePost) {
                     header("Content-Type", "application/json")
-                    post(EMPTY_JSON_BODY.toRequestBody(StreamingHttp.jsonMediaType))
+                    post(discoveryBody(candidate).toRequestBody(StreamingHttp.jsonMediaType))
                 } else {
                     get()
                 }
@@ -130,6 +139,12 @@ class ConnectionTester(
         return results
     }
 
+    private fun discoveryBody(candidate: Candidate): String {
+        val projectId = candidate.connection.projectId?.takeIf { it.isNotBlank() }
+            ?: return EMPTY_JSON_BODY
+        return buildJsonObject { put(PROJECT_FIELD, projectId) }.toString()
+    }
+
     private fun parseModels(body: String, token: String?): List<String> {
         val root = parseJsonObject(body) ?: return emptyList()
         val fromData = root.arrayField("data")?.mapNotNull { (it as? JsonObject)?.stringField("id") }
@@ -141,7 +156,13 @@ class ConnectionTester(
                 ?: node.stringField("model")
             name?.removePrefix(GEMINI_MODEL_PREFIX)
         }
-        return fromModels?.matching(token)?.sorted().orEmpty()
+        if (fromModels != null) return fromModels.matching(token).sorted()
+        return root.objectField("models")
+            ?.filterValues { info -> (info as? JsonObject)?.booleanField(INTERNAL_FIELD) != true }
+            ?.keys
+            ?.map { key -> key.removePrefix(GEMINI_MODEL_PREFIX) }
+            ?.matching(token)
+            .orEmpty()
     }
 
     private fun List<String>.matching(token: String?): List<String> {
@@ -166,9 +187,11 @@ class ConnectionTester(
 
     companion object {
         const val PROBE_PROMPT = "ping"
-        const val PROBE_MAX_TOKENS = 16
+        const val PROBE_MAX_TOKENS = 512
         const val GEMINI_MODEL_PREFIX = "models/"
         const val ERROR_SNIPPET_LENGTH = 512
         private const val EMPTY_JSON_BODY = "{}"
+        private const val PROJECT_FIELD = "project"
+        private const val INTERNAL_FIELD = "isInternal"
     }
 }

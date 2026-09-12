@@ -27,6 +27,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -42,6 +43,7 @@ import dev.agentbayu.app.ui.ai.AiDropdown
 import dev.agentbayu.app.ui.ai.AiScreenHeader
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassToggle
+import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import java.time.Instant
 import java.time.LocalDate
@@ -176,6 +178,7 @@ fun TaskDetailScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .clip(CapsuleShape)
                         .clickable(onClick = onDelete)
                         .padding(vertical = 12.dp)
                 )
@@ -270,7 +273,8 @@ private fun SubtaskRow(
                     color = if (task.completed) scheme.primary else scheme.outlineVariant,
                     shape = CircleShape
                 )
-                .clickable(onClick = onToggle),
+                .clip(CircleShape)
+            .clickable(onClick = onToggle),
             contentAlignment = Alignment.Center
         ) {
             if (task.completed) {
@@ -296,8 +300,10 @@ private fun SubtaskRow(
             contentDescription = stringResource(R.string.tasks_delete),
             tint = scheme.onSurfaceVariant,
             modifier = Modifier
-                .size(18.dp)
+                .size(24.dp)
+                .clip(CircleShape)
                 .clickable(onClick = onDelete)
+                .padding(3.dp)
         )
     }
 }
@@ -370,7 +376,7 @@ private fun ActionBar(
             Text(
                 text = stringResource(R.string.tasks_detail_save),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary
+                color = MaterialTheme.colorScheme.onPrimary
             )
         }
     }
