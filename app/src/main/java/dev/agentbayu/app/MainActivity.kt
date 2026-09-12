@@ -88,7 +88,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         pendingTaskId.value = intent?.getStringExtra(EXTRA_TASK_ID)
         splashScreen.setKeepOnScreenCondition { !AppGraph.readiness.value }
-        AppGraph.warmUp(applicationContext)
+        AppGraph.warmUpApp(applicationContext)
         installCrashLogger(applicationContext)
         setContent {
             val ready by AppGraph.readiness.collectAsState()

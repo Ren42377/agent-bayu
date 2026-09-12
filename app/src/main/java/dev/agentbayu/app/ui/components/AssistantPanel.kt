@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.components
 
-import android.os.Build
+import android.view.View
+import android.view.ViewTreeObserver
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
@@ -13,19 +14,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -45,9 +44,11 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onPlaced
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -66,10 +67,16 @@ import dev.agentbayu.app.ui.theme.PanelShape
 import dev.agentbayu.app.ui.theme.ScrimBlack
 import dev.agentbayu.app.ui.theme.liquidGlass
 import dev.agentbayu.app.ui.theme.solidGlassStyle
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.coroutines.resume
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Composable
 fun AssistantPanel(
     visible: Boolean,
+    invocationId: Long,
+    manageImeInsets: Boolean,
     messages: List<ChatMessage>,
     input: String,
     isResponding: Boolean,
@@ -85,17 +92,21 @@ fun AssistantPanel(
 ) {
     val progress = remember { Animatable(0f) }
     var rendered by remember { mutableStateOf(false) }
+    var preparedInvocationId by remember { mutableStateOf(0L) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
     var dragging by remember { mutableStateOf(false) }
     val metrics = remember { PanelMetrics() }
     val panelBackdrop = remember { emptyBackdrop() }
-    val entryOffset = with(LocalDensity.current) { ENTRY_OFFSET.toPx() }
-    LaunchedEffect(visible) {
-        if (visible) {
+    val density = LocalDensity.current
+    val entryOffset = with(density) { ENTRY_OFFSET.toPx() }
+    LaunchedEffect(visible, invocationId) {
+        if (visible && invocationId > preparedInvocationId) {
+            progress.snapTo(0f)
             dragOffset = 0f
+            dragging = false
             rendered = true
-            progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
-        } else if (rendered) {
+            preparedInvocationId = invocationId
+        } else if (!visible && rendered) {
             progress.animateTo(0f, AgentBayuMotion.assistantPanelSpring)
             rendered = false
             onHidden()
@@ -115,10 +126,23 @@ fun AssistantPanel(
     }
     val inputFocus = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(Unit) {
-        withFrameNanos { }
+    val hostView = LocalView.current
+    val imeInsets = WindowInsets.ime
+    var inputPlaced by remember { mutableStateOf(false) }
+    LaunchedEffect(preparedInvocationId, visible) {
+        if (!visible || preparedInvocationId == 0L) return@LaunchedEffect
+        progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
+    }
+    LaunchedEffect(preparedInvocationId, visible, inputPlaced) {
+        if (!visible || preparedInvocationId == 0L || !inputPlaced) return@LaunchedEffect
+        hostView.awaitWindowFocus()
         runCatching { inputFocus.requestFocus() }
+        withFrameNanos { }
         keyboard?.show()
+        delay(IME_RETRY_DELAY_MILLIS)
+        if (imeInsets.getBottom(density) == 0) {
+            keyboard?.show()
+        }
     }
     CompositionLocalProvider(
         LocalGlassBackdrop provides panelBackdrop,
@@ -134,100 +158,131 @@ fun AssistantPanel(
             )
             Box(
                 modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .onSizeChanged { size -> metrics.height = size.height }
-                    .graphicsLayer {
-                        val value = progress.value
-                        alpha = value
-                        translationY = (1f - value) * entryOffset + dragOffset
-                    }
-                    .liquidGlass(shape = PanelShape)
-                    .pointerInput(Unit) { detectTapGestures { } }
+                    .fillMaxSize()
+                    .then(if (manageImeInsets) Modifier.imePadding() else Modifier)
             ) {
-                Column(
+                Box(
                     modifier = Modifier
+                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .then(
-                            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
-                                Modifier.navigationBarsPadding()
-                            } else {
-                                Modifier.windowInsetsPadding(
-                                    WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom)
-                                )
-                            }
-                        )
+                        .onSizeChanged { size -> metrics.height = size.height }
+                        .graphicsLayer {
+                            val value = progress.value
+                            alpha = value
+                            translationY = (1f - value) * entryOffset + dragOffset
+                        }
+                        .liquidGlass(shape = PanelShape)
+                        .pointerInput(Unit) { detectTapGestures { } }
                 ) {
-                    DragHandle(
-                        onDragStart = { dragging = true },
-                        onDrag = { amount ->
-                            dragOffset = (dragOffset + amount).coerceAtLeast(0f)
-                        },
-                        onDragStopped = {
-                            dragging = false
-                            val threshold = metrics.height * AgentBayuMotion.PanelDismissFraction
-                            if (dragOffset > threshold) {
-                                onDismiss()
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .navigationBarsPadding()
+                    ) {
+                        DragHandle(
+                            onDragStart = { dragging = true },
+                            onDrag = { amount ->
+                                dragOffset = (dragOffset + amount).coerceAtLeast(0f)
+                            },
+                            onDragStopped = {
+                                dragging = false
+                                val threshold = metrics.height * AgentBayuMotion.PanelDismissFraction
+                                if (dragOffset > threshold) {
+                                    onDismiss()
+                                }
+                            }
+                        )
+                        PanelHeader(
+                            isResponding = isResponding,
+                            detailLabel = messages.lastOrNull { message ->
+                                message.author == MessageAuthor.AGENT
+                            }?.detail?.label,
+                            onDismiss = onDismiss
+                        )
+                        Box(modifier = Modifier.animateContentSize(AgentBayuMotion.panelSizeSpec)) {
+                            if (messages.isEmpty()) {
+                                PanelGreeting(
+                                    suggestions = suggestions,
+                                    onSuggestionClick = onSuggestionClick
+                                )
+                            } else {
+                                MessageList(
+                                    messages = messages,
+                                    isResponding = isResponding,
+                                    modifier = Modifier.heightIn(max = MESSAGE_LIST_MAX_HEIGHT),
+                                    contentPadding = PaddingValues(
+                                        horizontal = 20.dp,
+                                        vertical = 8.dp
+                                    )
+                                )
                             }
                         }
-                    )
-                    PanelHeader(
-                        isResponding = isResponding,
-                        detailLabel = messages.lastOrNull { message ->
-                            message.author == MessageAuthor.AGENT
-                        }?.detail?.label,
-                        onDismiss = onDismiss
-                    )
-                    Box(modifier = Modifier.animateContentSize(AgentBayuMotion.panelSizeSpec)) {
-                        if (messages.isEmpty()) {
-                            PanelGreeting(
-                                suggestions = suggestions,
-                                onSuggestionClick = onSuggestionClick
+                        PromptBar(
+                            value = input,
+                            onValueChange = onInputChange,
+                            onSend = onSend,
+                            onMicClick = onMicClick,
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                .onPlaced { inputPlaced = true },
+                            focusRequester = inputFocus
+                        )
+                        Row(
+                            modifier = Modifier
+                                .padding(start = 12.dp, bottom = 8.dp)
+                                .clip(CapsuleShape)
+                                .clickable(onClick = onOpenApp)
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_open_in_app),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
                             )
-                        } else {
-                            MessageList(
-                                messages = messages,
-                                isResponding = isResponding,
-                                modifier = Modifier.heightIn(max = MESSAGE_LIST_MAX_HEIGHT),
-                                contentPadding = PaddingValues(
-                                    horizontal = 20.dp,
-                                    vertical = 8.dp
-                                )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = stringResource(R.string.overlay_open_app),
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
-                    }
-                    PromptBar(
-                        value = input,
-                        onValueChange = onInputChange,
-                        onSend = onSend,
-                        onMicClick = onMicClick,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        focusRequester = inputFocus
-                    )
-                    Row(
-                        modifier = Modifier
-                            .padding(start = 12.dp, bottom = 8.dp)
-                            .clip(CapsuleShape)
-                            .clickable(onClick = onOpenApp)
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_open_in_app),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = stringResource(R.string.overlay_open_app),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
                     }
                 }
             }
         }
+    }
+}
+
+private suspend fun View.awaitWindowFocus() {
+    if (hasWindowFocus()) return
+    suspendCancellableCoroutine { continuation ->
+        val observer = viewTreeObserver
+        val resumed = AtomicBoolean(false)
+        lateinit var listener: ViewTreeObserver.OnWindowFocusChangeListener
+        fun removeListener() {
+            if (observer.isAlive) {
+                observer.removeOnWindowFocusChangeListener(listener)
+            } else if (viewTreeObserver.isAlive) {
+                viewTreeObserver.removeOnWindowFocusChangeListener(listener)
+            }
+        }
+        fun resumeIfWaiting() {
+            if (resumed.compareAndSet(false, true)) {
+                removeListener()
+                continuation.resume(Unit)
+            }
+        }
+        listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
+            if (hasFocus && continuation.isActive) resumeIfWaiting()
+        }
+        observer.addOnWindowFocusChangeListener(listener)
+        continuation.invokeOnCancellation {
+            resumed.set(true)
+            removeListener()
+        }
+        if (hasWindowFocus() && continuation.isActive) resumeIfWaiting()
     }
 }
 
@@ -237,6 +292,7 @@ private class PanelMetrics {
 
 private val ENTRY_OFFSET = 220.dp
 private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
+private const val IME_RETRY_DELAY_MILLIS = 120L
 
 @Composable
 private fun DragHandle(

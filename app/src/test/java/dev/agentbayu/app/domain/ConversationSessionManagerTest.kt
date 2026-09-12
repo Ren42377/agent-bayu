@@ -2,7 +2,9 @@ package dev.agentbayu.app.domain
 
 import dev.agentbayu.app.ai.FakeClock
 import dev.agentbayu.app.platform.InMemoryStorage
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
@@ -16,6 +18,26 @@ import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ConversationSessionManagerTest {
+
+    @Test
+    fun awaitReadyCompletesAfterRestoredMessagesAreApplied() = runTest {
+        val fixture = fixture(this)
+        val restored = ChatMessage(id = 1L, author = MessageAuthor.USER, text = "restored")
+        val meta = ChatSessionMeta(id = "restored-session", title = "Restored")
+        fixture.store.saveSession(meta.id, listOf(restored))
+        fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
+        val waiting = async(start = CoroutineStart.UNDISPATCHED) { fixture.manager.awaitReady() }
+
+        assertFalse(waiting.isCompleted)
+        assertTrue(fixture.repository.messages.value.isEmpty())
+
+        fixture.manager.attach(backgroundScope)
+        assertFalse(waiting.isCompleted)
+        runCurrent()
+
+        assertTrue(waiting.isCompleted)
+        assertEquals(listOf(restored), fixture.repository.messages.value)
+    }
 
     @Test
     fun newSessionsHaveUniqueIdsAtTheSameTimestamp() = runTest {

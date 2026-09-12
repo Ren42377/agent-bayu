@@ -8,12 +8,15 @@ class AssistantPanelController {
 
     private val visibleState = MutableStateFlow(false)
     private val inputState = MutableStateFlow("")
+    private val invocationIdState = MutableStateFlow(0L)
 
     val visible: StateFlow<Boolean> = visibleState.asStateFlow()
     val input: StateFlow<String> = inputState.asStateFlow()
+    val invocationId: StateFlow<Long> = invocationIdState.asStateFlow()
 
     fun show() {
         inputState.value = ""
+        invocationIdState.value += 1
         visibleState.value = true
     }
 

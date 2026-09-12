@@ -8,6 +8,7 @@ import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -22,16 +23,23 @@ import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
 class AssistFallbackActivity : ComponentActivity() {
 
     private val panel = AssistantPanelController()
+    private var panelMounted = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        onBackPressedDispatcher.addCallback(this) { panel.requestHide() }
+        onBackPressedDispatcher.addCallback(this) {
+            if (panelMounted && panel.visible.value) {
+                panel.requestHide()
+            } else {
+                finish()
+            }
+        }
         AppGraph.warmUp(applicationContext)
         setContent {
-            val ready by AppGraph.readiness.collectAsState()
-            AgentBayuAppTheme {
-                if (ready) {
+            val ready by AppGraph.assistantReadiness.collectAsState()
+            if (ready) {
+                AgentBayuAppTheme {
                     FallbackPanel()
                 }
             }
@@ -40,14 +48,21 @@ class AssistFallbackActivity : ComponentActivity() {
 
     @Composable
     private fun FallbackPanel() {
+        DisposableEffect(Unit) {
+            panelMounted = true
+            onDispose { panelMounted = false }
+        }
         val chat = remember { AppGraph.chat(this) }
         val visible by panel.visible.collectAsState()
         val input by panel.input.collectAsState()
+        val invocationId by panel.invocationId.collectAsState()
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
         LaunchedEffect(Unit) { panel.show() }
         AssistantPanel(
             visible = visible,
+            invocationId = invocationId,
+            manageImeInsets = false,
             messages = messages,
             input = input,
             isResponding = responding,

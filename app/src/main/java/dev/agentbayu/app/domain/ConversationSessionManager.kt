@@ -4,6 +4,7 @@ import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.RealClock
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +42,7 @@ class ConversationSessionManager internal constructor(
     )
 
     private val mutex = Mutex()
+    private val ready = CompletableDeferred<Unit>()
     private val sessionCounter = AtomicLong(0L)
     private val sessionsState = MutableStateFlow<List<ChatSessionMeta>>(emptyList())
     private val activeState = MutableStateFlow<String?>(null)
@@ -75,10 +77,16 @@ class ConversationSessionManager internal constructor(
     fun attach(scope: CoroutineScope) {
         this.scope = scope
         scope.launch {
-            mutex.withLock {
-                withContext(ioDispatcher) {
-                    initializeLocked().also { restored -> repository.restore(restored) }
+            try {
+                mutex.withLock {
+                    withContext(ioDispatcher) {
+                        initializeLocked().also { restored -> repository.restore(restored) }
+                    }
                 }
+                ready.complete(Unit)
+            } catch (error: Throwable) {
+                ready.completeExceptionally(error)
+                throw error
             }
             repository.messages.collectLatest { snapshot ->
                 val expectedSessionId = activeState.value
@@ -97,6 +105,10 @@ class ConversationSessionManager internal constructor(
                 }
             }
         }
+    }
+
+    suspend fun awaitReady() {
+        ready.await()
     }
 
     fun startIncognito() {

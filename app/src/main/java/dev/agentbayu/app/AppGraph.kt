@@ -1,6 +1,7 @@
 package dev.agentbayu.app
 
 import android.content.Context
+import android.util.Log
 import dev.agentbayu.app.ai.ActiveProvider
 import dev.agentbayu.app.ai.AiClient
 import dev.agentbayu.app.ai.AntigravityProjectResolver
@@ -69,10 +70,13 @@ import dev.agentbayu.app.platform.files.AllFilesAccess
 import dev.agentbayu.app.platform.files.FileAccess
 import dev.agentbayu.app.platform.tasks.TaskAlarms
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -87,32 +91,93 @@ object AppGraph {
     private val warmUpDispatcher = Dispatchers.IO.limitedParallelism(1)
     private val conversation = ConversationRepository()
     private val clock: Clock = RealClock
+    private val assistantReadinessState = MutableStateFlow(false)
     private val readinessState = MutableStateFlow(false)
+    private val settingsLock = Any()
+    private val containerLock = Any()
+    private val taskHubLock = Any()
+    private val warmUpLock = Any()
 
+    val assistantReadiness: StateFlow<Boolean> = assistantReadinessState.asStateFlow()
     val readiness: StateFlow<Boolean> = readinessState.asStateFlow()
 
     @Volatile
     private var container: Container? = null
 
+    @Volatile
+    private var warmUpJob: Job? = null
+
+    private var fullWarmUpRequested = false
+    private var warmUpFailures = 0
+
     fun warmUp(context: Context) {
-        if (container != null) {
-            readinessState.value = true
-            return
-        }
-        scope.launch(warmUpDispatcher) {
-            runCatching {
-                synchronized(this@AppGraph) {
-                    if (container == null) {
-                        settings(context.applicationContext)
-                        container = build(context.applicationContext)
+        requestWarmUp(context.applicationContext, full = false)
+    }
+
+    fun warmUpApp(context: Context) {
+        requestWarmUp(context.applicationContext, full = true)
+    }
+
+    private fun requestWarmUp(context: Context, full: Boolean, retrying: Boolean = false) {
+        if (readinessState.value || (!full && assistantReadinessState.value)) return
+        synchronized(warmUpLock) {
+            if (full) fullWarmUpRequested = true
+            if (readinessState.value || (!full && assistantReadinessState.value)) return
+            if (warmUpJob != null) return
+            if (!retrying) warmUpFailures = 0
+            warmUpJob = scope.launch(warmUpDispatcher) {
+                var restartAllowed = false
+                try {
+                    if (!assistantReadinessState.value) {
+                        settings(context)
+                        val graph = container(context)
+                        graph.credentialStore.preload()
+                        graph.sessionManager.awaitReady()
+                        assistantReadinessState.value = true
+                    }
+                    val finishFullWarmUp = synchronized(warmUpLock) {
+                        fullWarmUpRequested && !readinessState.value
+                    }
+                    if (finishFullWarmUp) {
+                        taskHub(context)
+                        synchronized(warmUpLock) {
+                            readinessState.value = true
+                            fullWarmUpRequested = false
+                        }
+                    }
+                    synchronized(warmUpLock) { warmUpFailures = 0 }
+                    restartAllowed = true
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    val retry = synchronized(warmUpLock) {
+                        warmUpFailures += 1
+                        warmUpFailures <= MAX_WARM_UP_RETRIES
+                    }
+                    readinessState.value = false
+                    Log.e(TAG, "App startup failed", error)
+                    restartAllowed = retry
+                    if (retry) delay(WARM_UP_RETRY_DELAY_MILLIS)
+                } finally {
+                    val restartFull = synchronized(warmUpLock) {
+                        warmUpJob = null
+                        val needsWarmUp =
+                            !assistantReadinessState.value ||
+                                (fullWarmUpRequested && !readinessState.value)
+                        if (
+                            restartAllowed &&
+                            needsWarmUp &&
+                            warmUpFailures <= MAX_WARM_UP_RETRIES
+                        ) {
+                            fullWarmUpRequested
+                        } else {
+                            null
+                        }
+                    }
+                    if (restartFull != null) {
+                        requestWarmUp(context, full = restartFull, retrying = true)
                     }
                 }
-                taskHub(context.applicationContext)
-                container?.credentialStore?.preload()
-            }.onFailure { error ->
-                runCatching { CrashLog.record(context.applicationContext, error) }
             }
-            readinessState.value = true
         }
     }
 
@@ -176,8 +241,8 @@ object AppGraph {
 
     fun settings(context: Context): AppSettings {
         appSettings?.let { return it }
-        return synchronized(this) {
-            appSettings ?: AppSettings(context).also { appSettings = it }
+        return synchronized(settingsLock) {
+            appSettings ?: AppSettings(context.applicationContext).also { appSettings = it }
         }
     }
 
@@ -187,7 +252,7 @@ object AppGraph {
 
     private fun taskHub(context: Context): TaskHub {
         taskHub?.let { return it }
-        return synchronized(this) {
+        return synchronized(taskHubLock) {
             taskHub ?: buildTasks(context.applicationContext).also { taskHub = it }
         }
     }
@@ -205,11 +270,8 @@ object AppGraph {
 
     private fun container(context: Context): Container {
         container?.let { return it }
-        return synchronized(this) {
-            container ?: build(context.applicationContext).also {
-                container = it
-                readinessState.value = true
-            }
+        return synchronized(containerLock) {
+            container ?: build(context.applicationContext).also { container = it }
         }
     }
 
@@ -426,4 +488,7 @@ object AppGraph {
     private const val CATALOG_ASSET = "providers.json"
     private const val ATTACHMENT_DIRECTORY = "attachments"
     private const val CONNECT_TIMEOUT_SECONDS = 15L
+    private const val MAX_WARM_UP_RETRIES = 1
+    private const val WARM_UP_RETRY_DELAY_MILLIS = 250L
+    private const val TAG = "AgentBayu"
 }

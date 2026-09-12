@@ -15,7 +15,7 @@ concurrency:
 
 jobs:
   build:
-    name: Build debug APK
+    name: Build and validate Android
     runs-on: ubuntu-latest
 
     steps:
@@ -111,8 +111,35 @@ jobs:
             --notes "Debug build from ${GITHUB_REF_NAME} (${GITHUB_SHA})." \
             --prerelease
 
-      - name: Run lint and unit tests
-        run: gradle lint testDebugUnitTest --parallel --build-cache
+      - name: Validate debug and optimized release
+        run: gradle assembleRelease lint testDebugUnitTest --parallel --build-cache
+
+      - name: Record APK sizes
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          mkdir -p build-diagnostics
+          apks=(app/build/outputs/apk/debug/*.apk app/build/outputs/apk/release/*.apk)
+          if [[ ${#apks[@]} -eq 0 ]]; then
+            printf '%s\n' 'No APKs were produced.' > build-diagnostics/apk-sizes.txt
+          else
+            stat --printf='%n %s bytes\n' "${apks[@]}" | tee build-diagnostics/apk-sizes.txt
+          fi
+
+      - name: Upload build diagnostics
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: android-build-diagnostics-${{ github.run_id }}
+          path: |
+            build-diagnostics/apk-sizes.txt
+            app/build/reports/
+            app/build/outputs/mapping/release/
+            app/build/outputs/logs/
+          retention-days: 7
+          if-no-files-found: warn
 
       - name: Show lint report
         if: failure()
