@@ -24,7 +24,7 @@ fun CircleIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    buttonSize: Dp = 28.dp,
+    buttonSize: Dp = 36.dp,
     container: Color = Color.Transparent,
     iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     iconSize: Dp = 16.dp

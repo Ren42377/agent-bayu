@@ -52,6 +52,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -99,8 +100,23 @@ fun AssistantPanel(
 ) {
     val progress = remember { Animatable(0f) }
     var entryOffsetPx by remember { mutableFloatStateOf(INITIAL_ENTRY_OFFSET_PX) }
+    var sheetOffsetPx by remember { mutableFloatStateOf(0f) }
+    val dragScope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val configuration = LocalConfiguration.current
+    val flingThresholdPx = with(density) { DRAG_THRESHOLD.toPx() }
+    val dismissDragLimitPx = with(density) { DRAG_MAX.toPx() }
+    val expandDragLimitPx = with(density) { EXPAND_MAX_DRAG.toPx() }
+    val baseListMaxPx = with(density) { MESSAGE_LIST_MAX_HEIGHT.toPx() }
+    val screenHeightPx = with(density) { configuration.screenHeightDp.dp.toPx() }
+    val listMaxHeight = with(density) {
+        (baseListMaxPx - sheetOffsetPx)
+            .coerceIn(baseListMaxPx, screenHeightPx * EXPAND_HEIGHT_FRACTION)
+            .toDp()
+    }
     LaunchedEffect(visible, invocationId) {
         if (visible) {
+            sheetOffsetPx = 0f
             progress.snapTo(0f)
             progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
         } else if (progress.value > 0f) {
@@ -132,7 +148,10 @@ fun AssistantPanel(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .graphicsLayer { translationY = (1f - progress.value) * entryOffsetPx }
+                        .graphicsLayer {
+                            translationY = (1f - progress.value) * entryOffsetPx +
+                                sheetOffsetPx.coerceAtLeast(0f)
+                        }
                         .onSizeChanged { entryOffsetPx = it.height.toFloat() }
                         .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -149,7 +168,7 @@ fun AssistantPanel(
                         ResponseCard(
                             messages = messages,
                             isResponding = isResponding,
-                            onDismiss = onDismiss
+                            listMaxHeight = listMaxHeight
                         )
                     }
                     ScreenContextRow(
@@ -157,7 +176,24 @@ fun AssistantPanel(
                         active = screenshotActive,
                         onToggle = onToggleScreenshot
                     )
-                    DragPill(onOpenApp = onOpenApp, onDismiss = onDismiss)
+                    DragPill(
+                        onDrag = { amount ->
+                            sheetOffsetPx = (sheetOffsetPx + amount)
+                                .coerceIn(-expandDragLimitPx, dismissDragLimitPx)
+                        },
+                        onDragEnd = {
+                            when {
+                                sheetOffsetPx <= -flingThresholdPx -> onOpenApp()
+                                sheetOffsetPx >= flingThresholdPx -> onDismiss()
+                                else -> settle(sheetOffsetPx, dragScope) { value ->
+                                    sheetOffsetPx = value
+                                }
+                            }
+                        },
+                        onDragCancel = {
+                            settle(sheetOffsetPx, dragScope) { value -> sheetOffsetPx = value }
+                        }
+                    )
                     AssistantInputBar(
                         value = input,
                         onValueChange = onInputChange,
@@ -177,7 +213,7 @@ fun AssistantPanel(
 private fun ResponseCard(
     messages: List<ChatMessage>,
     isResponding: Boolean,
-    onDismiss: () -> Unit
+    listMaxHeight: Dp
 ) {
     Column(
         modifier = Modifier
@@ -194,24 +230,15 @@ private fun ResponseCard(
             isResponding = isResponding,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = MESSAGE_LIST_MAX_HEIGHT),
+                .heightIn(max = listMaxHeight),
             contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
         )
         Text(
             text = stringResource(R.string.overlay_disclaimer),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
+            modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 12.dp)
         )
-        Box(modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)) {
-            CircleIconButton(
-                icon = R.drawable.ic_close,
-                description = R.string.overlay_close,
-                onClick = onDismiss,
-                buttonSize = 36.dp,
-                iconSize = 18.dp
-            )
-        }
     }
 }
 
@@ -297,14 +324,10 @@ private fun ScreenContextRow(
 
 @Composable
 private fun DragPill(
-    onOpenApp: () -> Unit,
-    onDismiss: () -> Unit
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
 ) {
-    val scope = rememberCoroutineScope()
-    val density = LocalDensity.current
-    val threshold = with(density) { DRAG_THRESHOLD.toPx() }
-    val maxDrag = with(density) { DRAG_MAX.toPx() }
-    var offset by remember { mutableFloatStateOf(0f) }
     val description = stringResource(R.string.overlay_handle)
     Box(
         modifier = Modifier
@@ -314,19 +337,10 @@ private fun DragPill(
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, amount ->
                         change.consume()
-                        offset = (offset + amount).coerceIn(-maxDrag, maxDrag)
+                        onDrag(amount)
                     },
-                    onDragEnd = {
-                        val dragged = offset
-                        when {
-                            dragged <= -threshold -> onOpenApp()
-                            dragged >= threshold -> onDismiss()
-                            else -> settle(offset, scope) { value -> offset = value }
-                        }
-                    },
-                    onDragCancel = {
-                        settle(offset, scope) { value -> offset = value }
-                    }
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragCancel() }
                 )
             }
             .padding(vertical = 10.dp),
@@ -334,7 +348,6 @@ private fun DragPill(
     ) {
         Box(
             modifier = Modifier
-                .graphicsLayer { translationY = offset }
                 .size(width = 44.dp, height = 5.dp)
                 .clip(CircleShape)
                 .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
@@ -447,6 +460,8 @@ private fun AssistantInputBar(
 private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
 private val DRAG_THRESHOLD = 72.dp
 private val DRAG_MAX = 140.dp
+private val EXPAND_MAX_DRAG = 400.dp
+private const val EXPAND_HEIGHT_FRACTION = 0.7f
 private const val INITIAL_ENTRY_OFFSET_PX = 3000f
 private const val PanelScrimAlpha = 0.18f
 private val PanelRefractionHeight = 18.dp

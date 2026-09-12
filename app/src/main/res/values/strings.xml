@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Agent Bayu</string>
+    <string name="app_name">Bay</string>
 
     <string name="tab_chat">Chat</string>
     <string name="tab_settings">Pengaturan</string>
