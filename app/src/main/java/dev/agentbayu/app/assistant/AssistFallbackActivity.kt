@@ -2,7 +2,6 @@ package dev.agentbayu.app.assistant
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.addCallback
 import androidx.activity.compose.setContent
@@ -13,9 +12,9 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.MainActivity
@@ -42,6 +41,7 @@ class AssistFallbackActivity : ComponentActivity() {
             }
         }
         AppGraph.warmUp(applicationContext)
+        panel.show()
         setContent {
             val attachmentStore = remember { AppGraph.attachments(this) }
             AgentBayuAppTheme {
@@ -56,19 +56,32 @@ class AssistFallbackActivity : ComponentActivity() {
         }
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        panel.show()
+    }
+
+    override fun onDestroy() {
+        onPanelHidden = null
+        super.onDestroy()
+    }
+
     @Composable
     private fun FallbackPanel() {
         DisposableEffect(Unit) {
             panelMounted = true
-            onDispose { panelMounted = false }
+            onDispose {
+                panelMounted = false
+                if (panel.visible.value) {
+                    onPanelFinished()
+                }
+            }
         }
         val ready by AppGraph.assistantReadiness.collectAsState()
         val visible by panel.visible.collectAsState()
         val input by panel.input.collectAsState()
         val invocationId by panel.invocationId.collectAsState()
-        val invocationBaseline by panel.invocationBaseline.collectAsState()
         if (!ready) {
-            LaunchedEffect(Unit) { panel.show() }
             AssistantPanel(
                 visible = visible,
                 invocationId = invocationId,
@@ -83,7 +96,6 @@ class AssistFallbackActivity : ComponentActivity() {
                 onInputChange = {},
                 onSend = {},
                 onStop = {},
-                onMicClick = ::showMicNotice,
                 onOpenApp = ::openApp,
                 onDismiss = panel::requestHide,
                 onHidden = ::onPanelFinished
@@ -94,29 +106,15 @@ class AssistFallbackActivity : ComponentActivity() {
         val settings = remember { AppGraph.settings(this) }
         val attachmentStore = remember { AppGraph.attachments(this) }
         val useScreenContext by settings.useScreenContext.collectAsState()
-        val scope = rememberCoroutineScope()
         val screenshot by ScreenShotHolder.screenshot.collectAsState()
-        var screenshotActive by remember { mutableStateOf(false) }
+        var screenshotActive by remember(invocationId) { mutableStateOf(false) }
+        var turnStart by remember(invocationId) { mutableIntStateOf(-1) }
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
-        val overlayBaseline = if (invocationBaseline > 0) {
-            invocationBaseline
+        val overlayMessages = if (turnStart >= 0) {
+            messages.drop(turnStart)
         } else {
-            (messages.size - OVERLAY_TURN_LIMIT).coerceAtLeast(0)
-        }
-        val overlayMessages = remember(messages, overlayBaseline) {
-            if (overlayBaseline <= 0) {
-                messages.takeLast(OVERLAY_TURN_LIMIT)
-            } else {
-                messages.drop(overlayBaseline)
-            }
-        }
-        LaunchedEffect(Unit) {
-            if (AppGraph.assistantReadiness.value) {
-                panel.show(AppGraph.chat(this@AssistFallbackActivity).messages.value.size)
-            } else {
-                panel.show()
-            }
+            emptyList()
         }
         AssistantPanel(
             visible = visible,
@@ -139,30 +137,21 @@ class AssistFallbackActivity : ComponentActivity() {
                 val screenContext = if (useScreenContext) ScreenContextHolder.current() else null
                 val shot = if (screenshotActive) screenshot else null
                 screenshotActive = false
+                turnStart = chat.messages.value.size
                 if (shot == null) {
                     chat.send(text, screenContext)
                 } else {
-                    scope.launch {
+                    AppGraph.appScope().launch {
                         val attachment = attachmentStore.accept(shot)
                         chat.send(text, screenContext, attachment?.let(::listOf) ?: emptyList())
                     }
                 }
             },
             onStop = chat::cancel,
-            onMicClick = ::showMicNotice,
             onOpenApp = ::openApp,
             onDismiss = panel::requestHide,
             onHidden = ::onPanelFinished
         )
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        if (AppGraph.assistantReadiness.value) {
-            panel.show(AppGraph.chat(this).messages.value.size)
-        } else {
-            panel.show()
-        }
     }
 
     private fun onPanelFinished() {
@@ -170,10 +159,6 @@ class AssistFallbackActivity : ComponentActivity() {
         onPanelHidden = null
         runCatching { callback?.invoke() }
         finish()
-    }
-
-    private fun showMicNotice() {
-        Toast.makeText(this, R.string.mic_pending_message, Toast.LENGTH_SHORT).show()
     }
 
     private fun openApp() {
@@ -185,7 +170,6 @@ class AssistFallbackActivity : ComponentActivity() {
     }
 
     companion object {
-        private const val OVERLAY_TURN_LIMIT = 2
         var onPanelHidden: (() -> Unit)? = null
     }
 }

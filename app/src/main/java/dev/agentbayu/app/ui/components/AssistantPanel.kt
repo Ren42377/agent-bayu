@@ -89,7 +89,6 @@ fun AssistantPanel(
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
-    onMicClick: () -> Unit,
     onOpenApp: () -> Unit,
     onDismiss: () -> Unit,
     onHidden: () -> Unit,
@@ -157,7 +156,6 @@ fun AssistantPanel(
                         onSend = onSend,
                         onStop = onStop,
                         isResponding = isResponding,
-                        onMicClick = onMicClick,
                         enabled = enabled,
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -349,7 +347,6 @@ private fun AssistantInputBar(
     onSend: () -> Unit,
     onStop: () -> Unit,
     isResponding: Boolean,
-    onMicClick: () -> Unit,
     enabled: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -366,12 +363,6 @@ private fun AssistantInputBar(
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        AssistantCircleButton(
-            icon = R.drawable.ic_mic,
-            description = R.string.chat_mic,
-            onClick = onMicClick,
-            enabled = enabled && !isResponding
-        )
         Box(
             modifier = Modifier
                 .weight(1f)

@@ -209,6 +209,8 @@ object AppGraph {
 
     fun chat(context: Context): ChatController = container(context).chatController
 
+    fun appScope(): CoroutineScope = scope
+
     fun sessions(context: Context): ConversationSessionManager =
         container(context).sessionManager
 

@@ -157,7 +157,11 @@ class ChatController(
                         is AgentEvent.Failed -> {
                             closeThinking()
                             flush()
-                            if (!streamed) repository.replaceText(placeholder.id, event.message)
+                            if (!streamed) {
+                                repository.replaceText(placeholder.id, event.message)
+                            } else {
+                                repository.appendDelta(placeholder.id, "\n\n" + event.message)
+                            }
                         }
                     }
                 }
