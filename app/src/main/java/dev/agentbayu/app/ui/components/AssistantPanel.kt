@@ -1,15 +1,23 @@
 package dev.agentbayu.app.ui.components
 
+import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animate
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,30 +34,43 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.kyant.backdrop.backdrops.emptyBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
-import dev.agentbayu.app.ui.theme.GlassSolidDark
-import dev.agentbayu.app.ui.theme.GlassSolidLight
-import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import dev.agentbayu.app.ui.theme.GlassTileShape
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.ScrimBlack
+import dev.agentbayu.app.ui.theme.liquidGlass
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 @Composable
 fun AssistantPanel(
@@ -59,29 +80,31 @@ fun AssistantPanel(
     messages: List<ChatMessage>,
     input: String,
     isResponding: Boolean,
-    suggestions: List<ChatSuggestion>,
     enabled: Boolean,
+    screenshot: Bitmap?,
+    screenshotActive: Boolean,
+    onToggleScreenshot: () -> Unit,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
-    onSuggestionClick: (String) -> Unit,
     onMicClick: () -> Unit,
     onOpenApp: () -> Unit,
     onDismiss: () -> Unit,
     onHidden: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progress = remember { Animatable(1f) }
+    val progress = remember { Animatable(0f) }
+    val entryOffset = with(LocalDensity.current) { ENTRY_OFFSET.toPx() }
     LaunchedEffect(visible, invocationId) {
         if (visible) {
             progress.snapTo(0f)
-            progress.animateTo(1f, AgentBayuMotion.quickFade)
+            progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
         } else if (progress.value > 0f) {
-            progress.animateTo(0f, AgentBayuMotion.quickFade)
+            progress.animateTo(0f, AgentBayuMotion.assistantPanelSpring)
             onHidden()
         }
     }
-    val surfaceColor = if (LocalDarkTheme.current) GlassSolidDark else GlassSolidLight
+    val backdrop = remember { emptyBackdrop() }
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -98,89 +121,46 @@ fun AssistantPanel(
                 .fillMaxSize()
                 .then(if (manageImeInsets) Modifier.imePadding() else Modifier)
         ) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .pointerInput(Unit) { detectTapGestures { } },
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                if (messages.isEmpty()) {
-                    GreetingSection(
-                        suggestions = suggestions,
-                        surfaceColor = surfaceColor,
-                        onSuggestionClick = onSuggestionClick
-                    )
-                    OpenAppChip(
-                        onOpenApp = onOpenApp,
-                        filled = true,
-                        surfaceColor = surfaceColor
-                    )
-                } else {
-                    ResponseCard(
-                        messages = messages,
-                        isResponding = isResponding,
-                        surfaceColor = surfaceColor,
-                        onOpenApp = onOpenApp,
-                        onDismiss = onDismiss
-                    )
-                }
-                AssistantInputBar(
-                    value = input,
-                    onValueChange = onInputChange,
-                    onSend = onSend,
-                    onStop = onStop,
-                    isResponding = isResponding,
-                    onMicClick = onMicClick,
-                    enabled = enabled,
-                    surfaceColor = surfaceColor,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun GreetingSection(
-    suggestions: List<ChatSuggestion>,
-    surfaceColor: Color,
-    onSuggestionClick: (String) -> Unit
-) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = stringResource(R.string.chat_empty_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        if (suggestions.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                suggestions.forEach { suggestion ->
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(CapsuleShape)
-                            .background(surfaceColor)
-                            .clickable { onSuggestionClick(suggestion.label) }
-                            .padding(horizontal = 16.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Icon(
-                            painter = painterResource(suggestion.icon),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(20.dp)
-                        )
+            CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .graphicsLayer { translationY = (1f - progress.value) * entryOffset }
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .pointerInput(Unit) { detectTapGestures { } },
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (messages.isEmpty()) {
                         Text(
-                            text = suggestion.label,
-                            style = MaterialTheme.typography.bodyLarge,
+                            text = stringResource(R.string.chat_empty_title),
+                            style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface
                         )
+                    } else {
+                        ResponseCard(
+                            messages = messages,
+                            isResponding = isResponding,
+                            onDismiss = onDismiss
+                        )
                     }
+                    ScreenContextRow(
+                        screenshot = screenshot,
+                        active = screenshotActive,
+                        onToggle = onToggleScreenshot
+                    )
+                    DragPill(onOpenApp = onOpenApp, onDismiss = onDismiss)
+                    AssistantInputBar(
+                        value = input,
+                        onValueChange = onInputChange,
+                        onSend = onSend,
+                        onStop = onStop,
+                        isResponding = isResponding,
+                        onMicClick = onMicClick,
+                        enabled = enabled,
+                        modifier = Modifier.fillMaxWidth()
+                    )
                 }
             }
         }
@@ -191,15 +171,12 @@ private fun GreetingSection(
 private fun ResponseCard(
     messages: List<ChatMessage>,
     isResponding: Boolean,
-    surfaceColor: Color,
-    onOpenApp: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(GlassCardShape)
-            .background(surfaceColor)
+            .liquidGlass(shape = GlassCardShape)
     ) {
         MessageList(
             messages = messages,
@@ -215,12 +192,7 @@ private fun ResponseCard(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
         )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 8.dp, end = 12.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Box(modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)) {
             AssistantCircleButton(
                 icon = R.drawable.ic_close,
                 description = R.string.overlay_close,
@@ -228,51 +200,145 @@ private fun ResponseCard(
                 buttonSize = 36.dp,
                 iconSize = 18.dp
             )
-            Spacer(modifier = Modifier.weight(1f))
-            OpenAppChip(
-                onOpenApp = onOpenApp,
-                filled = false,
-                surfaceColor = surfaceColor
-            )
         }
     }
 }
 
 @Composable
-private fun OpenAppChip(
-    onOpenApp: () -> Unit,
-    filled: Boolean,
-    surfaceColor: Color,
-    modifier: Modifier = Modifier
+private fun ScreenContextRow(
+    screenshot: Bitmap?,
+    active: Boolean,
+    onToggle: () -> Unit
 ) {
-    val chipModifier = if (filled) {
-        Modifier
-            .clip(CapsuleShape)
-            .background(surfaceColor)
-            .clickable(onClick = onOpenApp)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-    } else {
-        Modifier
-            .clip(CapsuleShape)
-            .clickable(onClick = onOpenApp)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
-    }
-    Row(
-        modifier = modifier.then(chipModifier),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    AnimatedVisibility(
+        visible = screenshot != null,
+        enter = fadeIn(AgentBayuMotion.quickFade) + scaleIn(
+            initialScale = 0.85f,
+            animationSpec = AgentBayuMotion.snappySpring
+        ),
+        exit = fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = 0.85f)
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_open_in_app),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.size(18.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .clip(CapsuleShape)
+                    .liquidGlass(
+                        shape = CapsuleShape,
+                        tint = if (active) MaterialTheme.colorScheme.primary else Color.Unspecified
+                    )
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_image),
+                    contentDescription = null,
+                    tint = if (active) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(18.dp)
+                )
+                Text(
+                    text = stringResource(R.string.overlay_screen_context),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (active) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            }
+            AnimatedVisibility(
+                visible = active && screenshot != null,
+                enter = fadeIn(AgentBayuMotion.quickFade) + scaleIn(
+                    initialScale = 0.7f,
+                    animationSpec = AgentBayuMotion.snappySpring
+                ),
+                exit = fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = 0.7f)
+            ) {
+                val image = remember(screenshot) { screenshot?.asImageBitmap() }
+                val ratio = screenshot?.let { shot ->
+                    if (shot.height == 0) 1f else shot.width.toFloat() / shot.height.toFloat()
+                } ?: 1f
+                Image(
+                    bitmap = image!!,
+                    contentDescription = stringResource(R.string.overlay_screenshot),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .height(56.dp)
+                        .aspectRatio(ratio)
+                        .clip(GlassTileShape)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun DragPill(
+    onOpenApp: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val threshold = with(density) { DRAG_THRESHOLD.toPx() }
+    val maxDrag = with(density) { DRAG_MAX.toPx() }
+    var offset by remember { mutableFloatStateOf(0f) }
+    val description = stringResource(R.string.overlay_handle)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .semantics { contentDescription = description }
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, amount ->
+                        change.consume()
+                        offset = (offset + amount).coerceIn(-maxDrag, maxDrag)
+                    },
+                    onDragEnd = {
+                        val dragged = offset
+                        when {
+                            dragged <= -threshold -> onOpenApp()
+                            dragged >= threshold -> onDismiss()
+                            else -> settle(offset, scope) { value -> offset = value }
+                        }
+                    },
+                    onDragCancel = {
+                        settle(offset, scope) { value -> offset = value }
+                    }
+                )
+            }
+            .padding(vertical = 10.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(
+            modifier = Modifier
+                .graphicsLayer { translationY = offset }
+                .size(width = 44.dp, height = 5.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
         )
-        Text(
-            text = stringResource(R.string.overlay_open_app),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary
-        )
+    }
+}
+
+private fun settle(
+    from: Float,
+    scope: CoroutineScope,
+    onValue: (Float) -> Unit
+) {
+    scope.launch {
+        animate(
+            initialValue = from,
+            targetValue = 0f,
+            animationSpec = AgentBayuMotion.snappySpring
+        ) { value, _ -> onValue(value) }
     }
 }
 
@@ -285,7 +351,6 @@ private fun AssistantInputBar(
     isResponding: Boolean,
     onMicClick: () -> Unit,
     enabled: Boolean,
-    surfaceColor: Color,
     modifier: Modifier = Modifier
 ) {
     val canSend = enabled && !isResponding && value.isNotBlank()
@@ -297,7 +362,7 @@ private fun AssistantInputBar(
     Row(
         modifier = modifier
             .clip(CapsuleShape)
-            .background(surfaceColor)
+            .liquidGlass(shape = CapsuleShape)
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -396,4 +461,7 @@ private fun AssistantCircleButton(
     }
 }
 
+private val ENTRY_OFFSET = 220.dp
 private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
+private val DRAG_THRESHOLD = 72.dp
+private val DRAG_MAX = 140.dp

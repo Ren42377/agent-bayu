@@ -41,6 +41,20 @@ class ImagePipeline(private val context: Context) {
         }
     }
 
+    fun prepare(bitmap: Bitmap, maxEdge: Int = MAX_EDGE, quality: Int = QUALITY): PreparedImage? {
+        val scaled = scale(bitmap, maxEdge)
+        return try {
+            PreparedImage(
+                bytes = compress(scaled, quality),
+                mimeType = JPEG_MIME_TYPE,
+                width = scaled.width,
+                height = scaled.height
+            )
+        } finally {
+            recycleUnless(scaled, bitmap)
+        }
+    }
+
     fun prepareBytes(
         bytes: ByteArray,
         maxEdge: Int = MAX_EDGE,

@@ -8,17 +8,23 @@ import androidx.activity.addCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.MainActivity
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.AssistantPanel
-import dev.agentbayu.app.ui.components.defaultSuggestions
+import dev.agentbayu.app.ui.components.AttachmentThumbnails
+import dev.agentbayu.app.ui.components.LocalAttachmentLoader
 import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
+import kotlinx.coroutines.launch
 
 class AssistFallbackActivity : ComponentActivity() {
 
@@ -37,8 +43,15 @@ class AssistFallbackActivity : ComponentActivity() {
         }
         AppGraph.warmUp(applicationContext)
         setContent {
+            val attachmentStore = remember { AppGraph.attachments(this) }
             AgentBayuAppTheme {
-                FallbackPanel()
+                CompositionLocalProvider(
+                    LocalAttachmentLoader provides AttachmentThumbnails { id, edge ->
+                        attachmentStore.thumbnail(id, edge)
+                    }
+                ) {
+                    FallbackPanel()
+                }
             }
         }
     }
@@ -63,12 +76,13 @@ class AssistFallbackActivity : ComponentActivity() {
                 messages = emptyList(),
                 input = "",
                 isResponding = false,
-                suggestions = defaultSuggestions(),
                 enabled = false,
+                screenshot = null,
+                screenshotActive = false,
+                onToggleScreenshot = {},
                 onInputChange = {},
                 onSend = {},
                 onStop = {},
-                onSuggestionClick = {},
                 onMicClick = ::showMicNotice,
                 onOpenApp = ::openApp,
                 onDismiss = panel::requestHide,
@@ -78,7 +92,11 @@ class AssistFallbackActivity : ComponentActivity() {
         }
         val chat = remember { AppGraph.chat(this) }
         val settings = remember { AppGraph.settings(this) }
+        val attachmentStore = remember { AppGraph.attachments(this) }
         val useScreenContext by settings.useScreenContext.collectAsState()
+        val scope = rememberCoroutineScope()
+        val screenshot by ScreenShotHolder.screenshot.collectAsState()
+        var screenshotActive by remember { mutableStateOf(false) }
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
         val overlayBaseline = if (invocationBaseline > 0) {
@@ -107,17 +125,30 @@ class AssistFallbackActivity : ComponentActivity() {
             messages = overlayMessages,
             input = input,
             isResponding = responding,
-            suggestions = defaultSuggestions(),
             enabled = true,
+            screenshot = screenshot,
+            screenshotActive = screenshotActive,
+            onToggleScreenshot = {
+                if (screenshot != null) {
+                    screenshotActive = !screenshotActive
+                }
+            },
             onInputChange = panel::updateInput,
             onSend = {
-                chat.send(
-                    panel.takeInput(),
-                    if (useScreenContext) ScreenContextHolder.current() else null
-                )
+                val text = panel.takeInput()
+                val screenContext = if (useScreenContext) ScreenContextHolder.current() else null
+                val shot = if (screenshotActive) screenshot else null
+                screenshotActive = false
+                if (shot == null) {
+                    chat.send(text, screenContext)
+                } else {
+                    scope.launch {
+                        val attachment = attachmentStore.accept(shot)
+                        chat.send(text, screenContext, attachment?.let(::listOf) ?: emptyList())
+                    }
+                }
             },
             onStop = chat::cancel,
-            onSuggestionClick = { text -> chat.send(text) },
             onMicClick = ::showMicNotice,
             onOpenApp = ::openApp,
             onDismiss = panel::requestHide,

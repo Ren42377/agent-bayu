@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
+import android.service.voice.VoiceInteractionSession.AssistState
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
@@ -44,12 +45,18 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
 
     override fun onHide() {
         ScreenContextHolder.clear()
+        ScreenShotHolder.clear()
         super.onHide()
     }
 
     override fun onDestroy() {
         ScreenContextHolder.clear()
+        ScreenShotHolder.clear()
         super.onDestroy()
+    }
+
+    override fun onHandleAssistState(state: AssistState) {
+        state.screenshot?.let { screenshot -> ScreenShotHolder.update(screenshot) }
     }
 
     @Deprecated("Replaced by onHandleAssist(AssistState) on API 30 and above")
