@@ -111,8 +111,38 @@ jobs:
             --notes "Debug build from ${GITHUB_REF_NAME} (${GITHUB_SHA})." \
             --prerelease
 
+      - name: Restore release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p .signing
+          echo "$KEYSTORE_BASE64" | base64 --decode > .signing/release-keystore.jks
+          printf 'storeFile=release-keystore.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > .signing/keystore.properties
+
       - name: Validate debug and optimized release
         run: gradle assembleRelease lint testDebugUnitTest --parallel --build-cache
+
+      - name: Publish optimized release APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+
+          release_apks=(app/build/outputs/apk/release/*.apk)
+
+          if [[ ${#release_apks[@]} -ne 1 ]]; then
+            echo "Expected exactly one release APK, found ${#release_apks[@]}."
+            exit 1
+          fi
+
+          cp "${release_apks[0]}" dist/agent-bayu-release.apk
+          gh release upload debug dist/agent-bayu-release.apk --clobber
 
       - name: Record APK sizes
         if: always()
