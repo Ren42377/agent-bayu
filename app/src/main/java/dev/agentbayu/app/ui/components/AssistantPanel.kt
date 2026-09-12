@@ -191,7 +191,7 @@ private fun ResponseCard(
             modifier = Modifier.padding(start = 20.dp, end = 20.dp, bottom = 4.dp)
         )
         Box(modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)) {
-            AssistantCircleButton(
+            CircleIconButton(
                 icon = R.drawable.ic_close,
                 description = R.string.overlay_close,
                 onClick = onDismiss,
@@ -394,7 +394,7 @@ private fun AssistantInputBar(
             )
         }
         if (isResponding) {
-            AssistantCircleButton(
+            CircleIconButton(
                 icon = R.drawable.ic_stop,
                 description = R.string.chat_stop,
                 onClick = onStop,
@@ -403,7 +403,7 @@ private fun AssistantInputBar(
                 iconSize = 16.dp
             )
         } else {
-            AssistantCircleButton(
+            CircleIconButton(
                 icon = R.drawable.ic_send,
                 description = R.string.chat_send,
                 onClick = { submit() },
@@ -420,35 +420,6 @@ private fun AssistantInputBar(
                 iconSize = 18.dp
             )
         }
-    }
-}
-
-@Composable
-private fun AssistantCircleButton(
-    icon: Int,
-    description: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    buttonSize: Dp = 40.dp,
-    container: Color = Color.Transparent,
-    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    iconSize: Dp = 20.dp
-) {
-    Box(
-        modifier = modifier
-            .size(buttonSize)
-            .clip(CircleShape)
-            .background(container)
-            .clickable(enabled = enabled, onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = stringResource(description),
-            tint = iconTint,
-            modifier = Modifier.size(iconSize)
-        )
     }
 }
 

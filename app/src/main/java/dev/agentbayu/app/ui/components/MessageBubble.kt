@@ -123,44 +123,26 @@ private fun ReplyActions(
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (onCopy != null && message.text.isNotBlank()) {
-            ReplyActionButton(
+            CircleIconButton(
                 icon = R.drawable.ic_copy,
                 description = R.string.chat_copy_reply,
                 onClick = { onCopy(message) }
             )
         }
         if (onRegenerate != null && message.text.isNotBlank()) {
-            ReplyActionButton(
+            CircleIconButton(
                 icon = R.drawable.ic_refresh,
                 description = R.string.chat_regenerate_reply,
                 onClick = { onRegenerate(message) }
             )
         }
         if (onShowDetail != null && message.detail != null) {
-            ReplyActionButton(
+            CircleIconButton(
                 icon = R.drawable.ic_more_vert,
                 description = R.string.route_show,
                 onClick = { onShowDetail(message) }
             )
         }
-    }
-}
-
-@Composable
-private fun ReplyActionButton(icon: Int, description: Int, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .size(28.dp)
-            .clip(CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(icon),
-            contentDescription = stringResource(description),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp)
-        )
     }
 }
 
@@ -207,7 +189,7 @@ private fun UserMessage(
             }
         }
         if (!message.streaming && onEdit != null) {
-            ReplyActionButton(
+            CircleIconButton(
                 icon = R.drawable.ic_edit,
                 description = R.string.chat_edit_message,
                 onClick = { onEdit(message) }

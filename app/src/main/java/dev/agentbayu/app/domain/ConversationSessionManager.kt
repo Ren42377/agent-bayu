@@ -134,16 +134,12 @@ class ConversationSessionManager internal constructor(
             if (incognitoState.value) {
                 attachmentIdsOf(snapshot).forEach(discardAttachment)
             } else if (snapshot.isEmpty()) {
-                activeState.value?.let { emptyId ->
-                    sessionsState.value = sessionsState.value.filterNot { it.id == emptyId }
-                    store.deleteSessionFile(emptyId)
-                    activeState.value = null
-                }
+                discardEmptyActiveLocked()
             } else {
                 persistSnapshotLocked(snapshot)
             }
             incognitoState.value = true
-            incognitoTokenState.value = incognitoTokenState.value + 1L
+            bumpIncognitoTokenLocked()
             activeState.value = null
             repository.clear()
             saveIndexLocked()
@@ -156,7 +152,7 @@ class ConversationSessionManager internal constructor(
             if (!incognitoState.value) return@switchSession
             attachmentIdsOf(repository.messages.value).forEach(discardAttachment)
             incognitoState.value = false
-            incognitoTokenState.value = incognitoTokenState.value + 1L
+            bumpIncognitoTokenLocked()
             activeState.value = null
             repository.clear()
             saveIndexLocked()
@@ -168,14 +164,11 @@ class ConversationSessionManager internal constructor(
             val wasIncognito = incognitoState.value
             val snapshot = repository.messages.value
             if (wasIncognito) {
-                incognitoTokenState.value = incognitoTokenState.value + 1L
+                bumpIncognitoTokenLocked()
             }
             if (snapshot.isEmpty()) {
                 if (!wasIncognito) {
-                    activeState.value?.let { emptyId ->
-                        sessionsState.value = sessionsState.value.filterNot { it.id == emptyId }
-                        store.deleteSessionFile(emptyId)
-                    }
+                    discardEmptyActiveLocked()
                 }
                 incognitoState.value = false
                 activeState.value = null
@@ -206,14 +199,10 @@ class ConversationSessionManager internal constructor(
             }
             val snapshot = repository.messages.value
             if (incognitoState.value) {
-                incognitoTokenState.value = incognitoTokenState.value + 1L
+                bumpIncognitoTokenLocked()
                 attachmentIdsOf(snapshot).forEach(discardAttachment)
             } else if (snapshot.isEmpty()) {
-                activeState.value?.let { emptyId ->
-                    sessionsState.value = sessionsState.value.filterNot { it.id == emptyId }
-                    store.deleteSessionFile(emptyId)
-                    activeState.value = null
-                }
+                discardEmptyActiveLocked()
             } else {
                 persistSnapshotLocked(snapshot)
             }
@@ -231,15 +220,11 @@ class ConversationSessionManager internal constructor(
             val wasIncognito = incognitoState.value
             val snapshot = repository.messages.value
             if (wasIncognito) {
-                incognitoTokenState.value = incognitoTokenState.value + 1L
+                bumpIncognitoTokenLocked()
                 attachmentIdsOf(snapshot).forEach(discardAttachment)
             } else if (activeState.value != sessionId) {
                 if (snapshot.isEmpty()) {
-                    activeState.value?.let { emptyId ->
-                        sessionsState.value = sessionsState.value.filterNot { it.id == emptyId }
-                        store.deleteSessionFile(emptyId)
-                        activeState.value = null
-                    }
+                    discardEmptyActiveLocked()
                 } else {
                     persistSnapshotLocked(snapshot)
                 }
@@ -352,16 +337,24 @@ class ConversationSessionManager internal constructor(
         return index
     }
 
+    private fun discardEmptyActiveLocked() {
+        activeState.value?.let { emptyId ->
+            sessionsState.value = sessionsState.value.filterNot { it.id == emptyId }
+            store.deleteSessionFile(emptyId)
+            activeState.value = null
+        }
+    }
+
+    private fun bumpIncognitoTokenLocked() {
+        incognitoTokenState.value = incognitoTokenState.value + 1L
+    }
+
     private fun persistSnapshotLocked(messages: List<ChatMessage>) {
         if (incognitoState.value) return
         val snapshot = messages.filter { !it.streaming || it.text.isNotBlank() }
         if (snapshot.isEmpty()) {
-            activeState.value?.let { emptyId ->
-                sessionsState.value = sessionsState.value.filterNot { it.id == emptyId }
-                store.deleteSessionFile(emptyId)
-                activeState.value = null
-                saveIndexLocked()
-            }
+            discardEmptyActiveLocked()
+            saveIndexLocked()
             return
         }
         val activeId = activeState.value ?: createSessionLocked().id
