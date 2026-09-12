@@ -203,11 +203,7 @@ internal fun GlassSegmentedSelector(
                     Text(
                         text = label,
                         style = MaterialTheme.typography.labelMedium,
-                        color = if (index == currentIndex) {
-                            tintProvider?.invoke(dragAnimation.value) ?: tint
-                        } else {
-                            labelColor
-                        }
+                        color = labelColor
                     )
                 }
             }
@@ -221,8 +217,7 @@ internal fun GlassSegmentedSelector(
                     backdrop = indicatorBackdrop,
                     shape = { CapsuleShape },
                     effects = {
-                        val progress = LIQUID_REST_FLOOR +
-                            (1f - LIQUID_REST_FLOOR) * dragAnimation.pressProgress
+                        val progress = dragAnimation.pressProgress
                         lens(
                             SELECTOR_LENS_HEIGHT.toPx() * progress,
                             SELECTOR_LENS_AMOUNT.toPx() * progress,
@@ -230,18 +225,13 @@ internal fun GlassSegmentedSelector(
                         )
                     },
                     highlight = {
-                        val progress = LIQUID_REST_FLOOR +
-                            (1f - LIQUID_REST_FLOOR) * dragAnimation.pressProgress
-                        Highlight.Default.copy(alpha = progress)
+                        Highlight.Default.copy(alpha = dragAnimation.pressProgress)
                     },
                     shadow = {
-                        val progress = LIQUID_REST_FLOOR +
-                            (1f - LIQUID_REST_FLOOR) * dragAnimation.pressProgress
-                        Shadow(alpha = progress)
+                        Shadow(alpha = dragAnimation.pressProgress)
                     },
                     innerShadow = {
-                        val progress = LIQUID_REST_FLOOR +
-                            (1f - LIQUID_REST_FLOOR) * dragAnimation.pressProgress
+                        val progress = dragAnimation.pressProgress
                         InnerShadow(radius = SELECTOR_INNER_SHADOW * progress, alpha = progress)
                     },
                     layerBlock = {
@@ -254,15 +244,11 @@ internal fun GlassSegmentedSelector(
                             .fastCoerceIn(-SELECTOR_SQUISH, SELECTOR_SQUISH)
                     },
                     onDrawSurface = {
-                        val progress = LIQUID_REST_FLOOR +
-                            (1f - LIQUID_REST_FLOOR) * dragAnimation.pressProgress
+                        val progress = dragAnimation.pressProgress
+                        val activeTint = tintProvider?.invoke(dragAnimation.value) ?: tint
                         drawRect(
-                            if (darkTheme) {
-                                Color.White.copy(alpha = SELECTOR_FILL_ALPHA)
-                            } else {
-                                Color.Black.copy(alpha = SELECTOR_FILL_ALPHA)
-                            },
-                            alpha = progress
+                            activeTint.copy(alpha = SELECTOR_TINT_ALPHA),
+                            alpha = 1f - progress * SELECTOR_PRESSED_TINT_FADE
                         )
                     }
                 )
@@ -299,7 +285,7 @@ internal fun GlassSegmentedSelector(
                         color = Color.White,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - abs(index - dragAnimation.value))
-                                .fastCoerceIn(0f, 1f) * dragAnimation.pressProgress
+                                .fastCoerceIn(0f, 1f)
                         }
                     )
                 }
@@ -317,8 +303,8 @@ private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
-private const val SELECTOR_FILL_ALPHA = 0.1f
-private const val LIQUID_REST_FLOOR = 0.35f
+private const val SELECTOR_TINT_ALPHA = 0.92f
+private const val SELECTOR_PRESSED_TINT_FADE = 0.35f
 private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f

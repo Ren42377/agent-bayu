@@ -126,6 +126,20 @@ fun AssistantPanel(
     }
     val scrimBackdrop = rememberLayerBackdrop()
     val panelGlass = clearPanelGlassStyle()
+    val onPillDrag: (Float) -> Unit = { amount ->
+        sheetOffsetPx = (sheetOffsetPx + amount)
+            .coerceIn(-expandDragLimitPx, dismissDragLimitPx)
+    }
+    val onPillDragEnd: () -> Unit = {
+        when {
+            sheetOffsetPx <= -flingThresholdPx -> onOpenApp()
+            sheetOffsetPx >= flingThresholdPx -> onDismiss()
+            else -> settle(sheetOffsetPx, dragScope) { value -> sheetOffsetPx = value }
+        }
+    }
+    val onPillDragCancel: () -> Unit = {
+        settle(sheetOffsetPx, dragScope) { value -> sheetOffsetPx = value }
+    }
     Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -168,7 +182,10 @@ fun AssistantPanel(
                         ResponseCard(
                             messages = messages,
                             isResponding = isResponding,
-                            listMaxHeight = listMaxHeight
+                            listMaxHeight = listMaxHeight,
+                            onDrag = onPillDrag,
+                            onDragEnd = onPillDragEnd,
+                            onDragCancel = onPillDragCancel
                         )
                     }
                     ScreenContextRow(
@@ -176,24 +193,13 @@ fun AssistantPanel(
                         active = screenshotActive,
                         onToggle = onToggleScreenshot
                     )
-                    DragPill(
-                        onDrag = { amount ->
-                            sheetOffsetPx = (sheetOffsetPx + amount)
-                                .coerceIn(-expandDragLimitPx, dismissDragLimitPx)
-                        },
-                        onDragEnd = {
-                            when {
-                                sheetOffsetPx <= -flingThresholdPx -> onOpenApp()
-                                sheetOffsetPx >= flingThresholdPx -> onDismiss()
-                                else -> settle(sheetOffsetPx, dragScope) { value ->
-                                    sheetOffsetPx = value
-                                }
-                            }
-                        },
-                        onDragCancel = {
-                            settle(sheetOffsetPx, dragScope) { value -> sheetOffsetPx = value }
-                        }
-                    )
+                    if (messages.isEmpty()) {
+                        DragPill(
+                            onDrag = onPillDrag,
+                            onDragEnd = onPillDragEnd,
+                            onDragCancel = onPillDragCancel
+                        )
+                    }
                     AssistantInputBar(
                         value = input,
                         onValueChange = onInputChange,
@@ -213,7 +219,10 @@ fun AssistantPanel(
 private fun ResponseCard(
     messages: List<ChatMessage>,
     isResponding: Boolean,
-    listMaxHeight: Dp
+    listMaxHeight: Dp,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -225,6 +234,11 @@ private fun ResponseCard(
                 depthEffect = true
             )
     ) {
+        DragPill(
+            onDrag = onDrag,
+            onDragEnd = onDragEnd,
+            onDragCancel = onDragCancel
+        )
         MessageList(
             messages = messages,
             isResponding = isResponding,
@@ -261,40 +275,33 @@ private fun ScreenContextRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier
-                    .clip(CapsuleShape)
-                    .liquidGlass(
-                        shape = CapsuleShape,
-                        tint = if (active) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                        refractionHeight = PanelRefractionHeight,
-                        refractionAmount = PanelRefractionAmount,
-                        depthEffect = true
+            if (!active) {
+                Row(
+                    modifier = Modifier
+                        .clip(CapsuleShape)
+                        .liquidGlass(
+                            shape = CapsuleShape,
+                            refractionHeight = PanelRefractionHeight,
+                            refractionAmount = PanelRefractionAmount,
+                            depthEffect = true
+                        )
+                        .clickable(onClick = onToggle)
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_image),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
-                    .clickable(onClick = onToggle)
-                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_image),
-                    contentDescription = null,
-                    tint = if (active) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = stringResource(R.string.overlay_screen_context),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = if (active) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
+                    Text(
+                        text = stringResource(R.string.overlay_screen_context),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
             }
             AnimatedVisibility(
                 visible = active && screenshot != null,
@@ -316,6 +323,7 @@ private fun ScreenContextRow(
                         .height(56.dp)
                         .aspectRatio(ratio)
                         .clip(GlassTileShape)
+                        .clickable(onClick = onToggle)
                 )
             }
         }
@@ -427,31 +435,31 @@ private fun AssistantInputBar(
                 modifier = Modifier.fillMaxWidth()
             )
         }
-        if (isResponding) {
-            CircleIconButton(
-                icon = R.drawable.ic_stop,
-                description = R.string.chat_stop,
-                onClick = onStop,
-                container = MaterialTheme.colorScheme.error,
-                iconTint = Color.White,
-                iconSize = 16.dp
-            )
-        } else {
-            CircleIconButton(
-                icon = R.drawable.ic_send,
-                description = R.string.chat_send,
-                onClick = { submit() },
-                container = if (canSend) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    Color.Transparent
+        GlassButton(
+            onClick = if (isResponding) onStop else submit,
+            modifier = Modifier.size(40.dp),
+            enabled = isResponding || canSend,
+            tint = when {
+                isResponding -> MaterialTheme.colorScheme.error
+                canSend -> MaterialTheme.colorScheme.primary
+                else -> Color.Unspecified
+            },
+            shape = CircleShape,
+            contentPadding = GlassButtonDefaults.IconPadding
+        ) {
+            Icon(
+                painter = painterResource(
+                    if (isResponding) R.drawable.ic_stop else R.drawable.ic_send
+                ),
+                contentDescription = stringResource(
+                    if (isResponding) R.string.chat_stop else R.string.chat_send
+                ),
+                tint = when {
+                    isResponding -> Color.White
+                    canSend -> MaterialTheme.colorScheme.onPrimary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 },
-                iconTint = if (canSend) {
-                    MaterialTheme.colorScheme.onPrimary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
-                },
-                iconSize = 18.dp
+                modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
             )
         }
     }

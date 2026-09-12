@@ -207,7 +207,7 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
             modifier = Modifier
                 .clip(GlassBadgeShape)
                 .clickable { expanded = !expanded }
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(vertical = 2.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
