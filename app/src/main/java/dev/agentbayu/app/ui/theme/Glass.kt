@@ -96,6 +96,18 @@ fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     }
 }
 
+@Composable
+fun clearPanelGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
+    val style = currentGlassStyle(darkTheme)
+    return style.copy(
+        fill = style.fill.copy(alpha = CLEAR_PANEL_FILL_ALPHA),
+        brightness = 0f,
+        saturation = 1f,
+        vibrant = false,
+        highlightAlpha = CLEAR_PANEL_HIGHLIGHT_ALPHA
+    )
+}
+
 private const val CHROME_SATURATION = 0.9f
 
 @Composable
@@ -126,7 +138,10 @@ fun Modifier.liquidGlass(
     tintAlpha: Float = LIQUID_TINT_ALPHA,
     tintProvider: (() -> Color)? = null,
     layerBlock: (GraphicsLayerScope.() -> Unit)? = null,
-    exportedBackdrop: LayerBackdrop? = null
+    exportedBackdrop: LayerBackdrop? = null,
+    refractionHeight: Dp? = null,
+    refractionAmount: Dp? = null,
+    depthEffect: Boolean = false
 ): Modifier {
     return this.drawBackdrop(
         backdrop = backdrop,
@@ -139,9 +154,17 @@ fun Modifier.liquidGlass(
                 vibrancy()
             }
             if (size.isSpecified) {
-                val corner = (shape as? CornerBasedShape)?.topStart?.toPx(size, this) ?: 0f
-                val radius = corner.coerceAtMost(size.minDimension * 0.5f)
-                lens(radius * style.refractionHeightRatio, radius * style.refractionAmountRatio)
+                if (refractionHeight != null && refractionAmount != null) {
+                    lens(
+                        refractionHeight.toPx(),
+                        refractionAmount.toPx(),
+                        depthEffect = depthEffect
+                    )
+                } else {
+                    val corner = (shape as? CornerBasedShape)?.topStart?.toPx(size, this) ?: 0f
+                    val radius = corner.coerceAtMost(size.minDimension * 0.5f)
+                    lens(radius * style.refractionHeightRatio, radius * style.refractionAmountRatio)
+                }
             }
         },
         highlight = {
@@ -169,3 +192,5 @@ fun Modifier.liquidGlass(
 }
 
 private const val LIQUID_TINT_ALPHA = 0.75f
+private const val CLEAR_PANEL_FILL_ALPHA = 0.28f
+private const val CLEAR_PANEL_HIGHLIGHT_ALPHA = 0.9f

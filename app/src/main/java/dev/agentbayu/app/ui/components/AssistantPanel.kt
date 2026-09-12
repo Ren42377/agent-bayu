@@ -61,7 +61,8 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.kyant.backdrop.backdrops.emptyBackdrop
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
@@ -69,7 +70,9 @@ import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
+import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.ScrimBlack
+import dev.agentbayu.app.ui.theme.clearPanelGlassStyle
 import dev.agentbayu.app.ui.theme.liquidGlass
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -105,13 +108,15 @@ fun AssistantPanel(
             onHidden()
         }
     }
-    val backdrop = remember { emptyBackdrop() }
+    val scrimBackdrop = rememberLayerBackdrop()
+    val panelGlass = clearPanelGlassStyle()
     Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .layerBackdrop(scrimBackdrop)
                 .graphicsLayer { alpha = progress.value }
-                .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
+                .background(ScrimBlack.copy(alpha = PanelScrimAlpha))
                 .pointerInput(Unit) { detectTapGestures { onDismiss() } }
         )
         Box(
@@ -119,7 +124,10 @@ fun AssistantPanel(
                 .fillMaxSize()
                 .then(if (manageImeInsets) Modifier.imePadding() else Modifier)
         ) {
-            CompositionLocalProvider(LocalGlassBackdrop provides backdrop) {
+            CompositionLocalProvider(
+                LocalGlassBackdrop provides scrimBackdrop,
+                LocalGlassStyle provides panelGlass
+            ) {
                 Column(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -174,7 +182,12 @@ private fun ResponseCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(shape = GlassCardShape)
+            .liquidGlass(
+                shape = GlassCardShape,
+                refractionHeight = PanelRefractionHeight,
+                refractionAmount = PanelRefractionAmount,
+                depthEffect = true
+            )
     ) {
         MessageList(
             messages = messages,
@@ -226,7 +239,10 @@ private fun ScreenContextRow(
                     .clip(CapsuleShape)
                     .liquidGlass(
                         shape = CapsuleShape,
-                        tint = if (active) MaterialTheme.colorScheme.primary else Color.Unspecified
+                        tint = if (active) MaterialTheme.colorScheme.primary else Color.Unspecified,
+                        refractionHeight = PanelRefractionHeight,
+                        refractionAmount = PanelRefractionAmount,
+                        depthEffect = true
                     )
                     .clickable(onClick = onToggle)
                     .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -359,7 +375,12 @@ private fun AssistantInputBar(
     Row(
         modifier = modifier
             .clip(CapsuleShape)
-            .liquidGlass(shape = CapsuleShape)
+            .liquidGlass(
+                shape = CapsuleShape,
+                refractionHeight = PanelRefractionHeight,
+                refractionAmount = PanelRefractionAmount,
+                depthEffect = true
+            )
             .padding(horizontal = 6.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -427,3 +448,6 @@ private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
 private val DRAG_THRESHOLD = 72.dp
 private val DRAG_MAX = 140.dp
 private const val INITIAL_ENTRY_OFFSET_PX = 3000f
+private const val PanelScrimAlpha = 0.18f
+private val PanelRefractionHeight = 18.dp
+private val PanelRefractionAmount = 36.dp
