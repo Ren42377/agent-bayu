@@ -144,6 +144,15 @@ jobs:
           cp "${release_apks[0]}" dist/agent-bayu-release.apk
           gh release upload debug dist/agent-bayu-release.apk --clobber
 
+      - name: Upload release APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          path: dist/agent-bayu-release.apk
+          archive: false
+          overwrite: true
+          retention-days: 1
+          if-no-files-found: error
+
       - name: Record APK sizes
         if: always()
         shell: bash
