@@ -4,130 +4,34 @@ import android.app.assist.AssistContent
 import android.app.assist.AssistStructure
 import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.service.voice.VoiceInteractionSession
 import android.util.Log
 import android.view.View
 import android.view.WindowManager
-import android.widget.Toast
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.ComposeView
 import androidx.core.view.WindowCompat
-import androidx.lifecycle.setViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeViewModelStoreOwner
-import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import dev.agentbayu.app.AppGraph
-import dev.agentbayu.app.MainActivity
 import dev.agentbayu.app.R
-import dev.agentbayu.app.domain.ChatController
-import dev.agentbayu.app.ui.components.AssistantPanel
-import dev.agentbayu.app.ui.components.defaultSuggestions
-import dev.agentbayu.app.ui.theme.AgentBayuAppTheme
 
 class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(context) {
-
-    private val viewTreeOwner = SessionViewTreeOwner()
-    private val panel = AssistantPanelController()
 
     override fun onCreate() {
         setTheme(R.style.Theme_AgentBayu_Session)
         super.onCreate()
-        viewTreeOwner.create()
     }
 
     override fun onCreateContentView(): View {
         AppGraph.warmUp(context)
-        val view = ComposeView(context)
-        view.setViewTreeLifecycleOwner(viewTreeOwner)
-        view.setViewTreeViewModelStoreOwner(viewTreeOwner)
-        view.setViewTreeSavedStateRegistryOwner(viewTreeOwner)
-        view.setContent {
-            AgentBayuAppTheme {
-                SessionPanel()
-            }
-        }
-        return view
-    }
-
-    @Composable
-    private fun SessionPanel() {
-        val ready by AppGraph.assistantReadiness.collectAsState()
-        val visible by panel.visible.collectAsState()
-        val input by panel.input.collectAsState()
-        val invocationId by panel.invocationId.collectAsState()
-        val invocationBaseline by panel.invocationBaseline.collectAsState()
-        if (!ready) {
-            AssistantPanel(
-                visible = visible,
-                invocationId = invocationId,
-                manageImeInsets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
-                messages = emptyList(),
-                input = "",
-                isResponding = false,
-                suggestions = defaultSuggestions(),
-                enabled = false,
-                onInputChange = {},
-                onSend = {},
-                onStop = {},
-                onSuggestionClick = {},
-                onMicClick = ::showMicNotice,
-                onOpenApp = ::openApp,
-                onDismiss = ::dismissPanel,
-                onHidden = ::finishPanel
-            )
-            return
-        }
-        val chat = remember { AppGraph.chat(context) }
-        val settings = remember { AppGraph.settings(context) }
-        val messages by chat.messages.collectAsState()
-        val responding by chat.isResponding.collectAsState()
-        val useScreenContext by settings.useScreenContext.collectAsState()
-        val overlayBaseline = if (invocationBaseline > 0) {
-            invocationBaseline
-        } else {
-            (messages.size - OVERLAY_TURN_LIMIT).coerceAtLeast(0)
-        }
-        val overlayMessages = remember(messages, overlayBaseline) {
-            if (overlayBaseline <= 0) {
-                messages.takeLast(OVERLAY_TURN_LIMIT)
-            } else {
-                messages.drop(overlayBaseline)
-            }
-        }
-        AssistantPanel(
-            visible = visible,
-            invocationId = invocationId,
-            manageImeInsets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
-            messages = overlayMessages,
-            input = input,
-            isResponding = responding,
-            suggestions = defaultSuggestions(),
-            enabled = true,
-            onInputChange = panel::updateInput,
-            onSend = { send(chat, panel.takeInput(), useScreenContext) },
-            onStop = chat::cancel,
-            onSuggestionClick = { text -> send(chat, text, useScreenContext) },
-            onMicClick = ::showMicNotice,
-            onOpenApp = ::openApp,
-            onDismiss = ::dismissPanel,
-            onHidden = ::finishPanel
-        )
+        return View(context)
     }
 
     override fun onPrepareShow(args: Bundle?, showFlags: Int) {
         super.onPrepareShow(args, showFlags)
         window.window?.let { sessionWindow ->
             WindowCompat.setDecorFitsSystemWindows(sessionWindow, false)
-            sessionWindow.setSoftInputMode(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
-                } else {
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-                }
+            sessionWindow.addFlags(
+                WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
             )
         }
     }
@@ -135,32 +39,17 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
     override fun onShow(args: Bundle?, showFlags: Int) {
         super.onShow(args, showFlags)
         closeSystemDialogs()
-        AssistantKeepaliveService.start(context)
-        viewTreeOwner.resume()
-        if (AppGraph.assistantReadiness.value) {
-            panel.show(AppGraph.chat(context).messages.value.size)
-        } else {
-            panel.show()
-        }
+        launchPanel()
     }
 
     override fun onHide() {
-        AssistantKeepaliveService.stop(context)
-        panel.reset()
-        viewTreeOwner.pause()
         ScreenContextHolder.clear()
         super.onHide()
     }
 
     override fun onDestroy() {
-        AssistantKeepaliveService.stop(context)
-        viewTreeOwner.destroy()
         ScreenContextHolder.clear()
         super.onDestroy()
-    }
-
-    override fun onBackPressed() {
-        dismissPanel()
     }
 
     @Deprecated("Replaced by onHandleAssist(AssistState) on API 30 and above")
@@ -176,39 +65,19 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         }
     }
 
-    private fun send(chat: ChatController, text: String, useScreenContext: Boolean) {
-        if (text.isBlank()) {
-            return
-        }
-        chat.send(text, if (useScreenContext) ScreenContextHolder.current() else null)
-    }
-
-    private fun dismissPanel() {
-        panel.requestHide()
-    }
-
-    private fun finishPanel() {
-        hide()
-    }
-
-    private fun showMicNotice() {
-        Toast.makeText(context, R.string.mic_pending_message, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun openApp() {
-        val intent = Intent(context, MainActivity::class.java)
+    private fun launchPanel() {
+        AssistFallbackActivity.onPanelHidden = { hide() }
+        val intent = Intent(context, AssistFallbackActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         try {
             startAssistantActivity(intent)
         } catch (error: RuntimeException) {
-            Log.e(TAG, "Unable to start assistant activity", error)
-            context.startActivity(intent)
+            Log.e(TAG, "Unable to start assistant panel activity", error)
+            hide()
         }
-        dismissPanel()
     }
 
     private companion object {
         const val TAG = "AgentBayu"
-        const val OVERLAY_TURN_LIMIT = 2
     }
 }

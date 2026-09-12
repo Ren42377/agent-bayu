@@ -59,7 +59,7 @@ class AssistFallbackActivity : ComponentActivity() {
             AssistantPanel(
                 visible = visible,
                 invocationId = invocationId,
-                manageImeInsets = false,
+                manageImeInsets = true,
                 messages = emptyList(),
                 input = "",
                 isResponding = false,
@@ -72,11 +72,13 @@ class AssistFallbackActivity : ComponentActivity() {
                 onMicClick = ::showMicNotice,
                 onOpenApp = ::openApp,
                 onDismiss = panel::requestHide,
-                onHidden = ::finish
+                onHidden = ::onPanelFinished
             )
             return
         }
         val chat = remember { AppGraph.chat(this) }
+        val settings = remember { AppGraph.settings(this) }
+        val useScreenContext by settings.useScreenContext.collectAsState()
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
         val overlayBaseline = if (invocationBaseline > 0) {
@@ -101,20 +103,25 @@ class AssistFallbackActivity : ComponentActivity() {
         AssistantPanel(
             visible = visible,
             invocationId = invocationId,
-            manageImeInsets = false,
+            manageImeInsets = true,
             messages = overlayMessages,
             input = input,
             isResponding = responding,
             suggestions = defaultSuggestions(),
             enabled = true,
             onInputChange = panel::updateInput,
-            onSend = { chat.send(panel.takeInput()) },
+            onSend = {
+                chat.send(
+                    panel.takeInput(),
+                    if (useScreenContext) ScreenContextHolder.current() else null
+                )
+            },
             onStop = chat::cancel,
             onSuggestionClick = { text -> chat.send(text) },
             onMicClick = ::showMicNotice,
             onOpenApp = ::openApp,
             onDismiss = panel::requestHide,
-            onHidden = ::finish
+            onHidden = ::onPanelFinished
         )
     }
 
@@ -127,19 +134,11 @@ class AssistFallbackActivity : ComponentActivity() {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        AssistantKeepaliveService.start(applicationContext)
-    }
-
-    override fun onPause() {
-        AssistantKeepaliveService.stop(applicationContext)
-        super.onPause()
-    }
-
-    override fun onDestroy() {
-        AssistantKeepaliveService.stop(applicationContext)
-        super.onDestroy()
+    private fun onPanelFinished() {
+        val callback = onPanelHidden
+        onPanelHidden = null
+        runCatching { callback?.invoke() }
+        finish()
     }
 
     private fun showMicNotice() {
@@ -156,5 +155,6 @@ class AssistFallbackActivity : ComponentActivity() {
 
     private companion object {
         const val OVERLAY_TURN_LIMIT = 2
+        var onPanelHidden: (() -> Unit)? = null
     }
 }
