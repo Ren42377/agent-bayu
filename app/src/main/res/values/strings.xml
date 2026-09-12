@@ -23,9 +23,7 @@
 
     <string name="overlay_close">Tutup panel</string>
     <string name="overlay_open_app">Lanjut di aplikasi</string>
-    <string name="overlay_handle">Geser ke bawah untuk menutup</string>
-    <string name="overlay_title">Agent Bayu</string>
-    <string name="overlay_subtitle">Siap membantu</string>
+    <string name="overlay_disclaimer">Agent Bayu dapat melakukan kesalahan.</string>
 
     <string name="setup_title">Siapkan Agent Bayu</string>
     <string name="setup_subtitle">Siapkan izin dan pintasan supaya Bayu bisa dipanggil dari mana saja.</string>

@@ -115,7 +115,12 @@ private fun MessageListBody(
             }
     }
 
-    LaunchedEffect(itemCount) {
+    LaunchedEffect(
+        itemCount,
+        visible.lastOrNull()?.text,
+        visible.lastOrNull()?.segments,
+        showTyping
+    ) {
         if (itemCount == 0) return@LaunchedEffect
         val previousCount = scrolledCount.intValue
         val itemAdded = itemCount > previousCount
@@ -127,29 +132,11 @@ private fun MessageListBody(
             listState.scrollToItem(itemCount - 1)
             return@LaunchedEffect
         }
-        if (!itemAdded || !follow.value || listState.isScrollInProgress) return@LaunchedEffect
+        if (!follow.value || listState.isScrollInProgress) return@LaunchedEffect
         withFrameNanos { }
         try {
             val overflow = listState.bottomOverflow()
             if (overflow > 0f) listState.scrollBy(overflow)
-        } catch (cancellation: CancellationException) {
-            currentCoroutineContext().ensureActive()
-        }
-    }
-
-    LaunchedEffect(
-        visible.lastOrNull()?.text,
-        visible.lastOrNull()?.segments,
-        showTyping
-    ) {
-        if (itemCount == 0 || !follow.value || listState.isScrollInProgress) {
-            return@LaunchedEffect
-        }
-        withFrameNanos { }
-        val overflow = listState.bottomOverflow()
-        if (overflow <= 0f) return@LaunchedEffect
-        try {
-            listState.scrollBy(overflow)
         } catch (cancellation: CancellationException) {
             currentCoroutineContext().ensureActive()
         }

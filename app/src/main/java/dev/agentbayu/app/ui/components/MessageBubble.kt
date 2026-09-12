@@ -80,10 +80,19 @@ fun MessageBubble(
                 is MessageSegment.Thinking -> ThinkingRow(segment = segment)
 
                 is MessageSegment.Prose -> if (segment.text.isNotBlank()) {
-                    MarkdownMessage(
-                        content = segment.text,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    if (message.streaming) {
+                        Text(
+                            text = segment.text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    } else {
+                        MarkdownMessage(
+                            content = segment.text,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
 
                 is MessageSegment.Tool -> ToolRow(segment = segment, isDark = isDark)
@@ -210,25 +219,6 @@ private fun UserMessage(
 @Composable
 private fun ThinkingRow(segment: MessageSegment.Thinking) {
     var expanded by remember { mutableStateOf(false) }
-    var liveMillis by remember { mutableLongStateOf(0L) }
-    val running = !segment.done
-
-    LaunchedEffect(running) {
-        if (!running) return@LaunchedEffect
-        val startedAt = System.nanoTime()
-        while (true) {
-            liveMillis = (System.nanoTime() - startedAt) / NANOS_PER_MILLI
-            delay(TICK_MILLIS)
-        }
-    }
-
-    val millis = if (running) liveMillis else segment.millis
-    val seconds = (millis / MILLIS_PER_SECOND).toInt()
-    val label = if (seconds <= 0) {
-        stringResource(R.string.chat_thought)
-    } else {
-        stringResource(R.string.chat_thought_seconds, seconds)
-    }
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -239,11 +229,7 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            ThinkingLabel(running = !segment.done, doneMillis = segment.millis)
             Icon(
                 painter = painterResource(R.drawable.ic_chevron),
                 contentDescription = null,
@@ -273,6 +259,33 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
             )
         }
     }
+}
+
+@Composable
+private fun ThinkingLabel(running: Boolean, doneMillis: Long) {
+    var liveMillis by remember { mutableLongStateOf(0L) }
+
+    LaunchedEffect(running) {
+        if (!running) return@LaunchedEffect
+        val startedAt = System.nanoTime()
+        while (true) {
+            liveMillis = (System.nanoTime() - startedAt) / NANOS_PER_MILLI
+            delay(TICK_MILLIS)
+        }
+    }
+
+    val millis = if (running) liveMillis else doneMillis
+    val seconds = (millis / MILLIS_PER_SECOND).toInt()
+    val label = if (seconds <= 0) {
+        stringResource(R.string.chat_thought)
+    } else {
+        stringResource(R.string.chat_thought_seconds, seconds)
+    }
+    Text(
+        text = label,
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant
+    )
 }
 
 @Composable

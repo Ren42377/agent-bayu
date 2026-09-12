@@ -76,6 +76,7 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
             suggestions = defaultSuggestions(),
             onInputChange = panel::updateInput,
             onSend = { send(chat, panel.takeInput(), useScreenContext) },
+            onStop = chat::cancel,
             onSuggestionClick = { text -> send(chat, text, useScreenContext) },
             onMicClick = ::showMicNotice,
             onOpenApp = ::openApp,

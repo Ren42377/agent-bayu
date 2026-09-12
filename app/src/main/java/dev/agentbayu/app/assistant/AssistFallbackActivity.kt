@@ -69,6 +69,7 @@ class AssistFallbackActivity : ComponentActivity() {
             suggestions = defaultSuggestions(),
             onInputChange = panel::updateInput,
             onSend = { chat.send(panel.takeInput()) },
+            onStop = chat::cancel,
             onSuggestionClick = { text -> chat.send(text) },
             onMicClick = ::showMicNotice,
             onOpenApp = ::openApp,
