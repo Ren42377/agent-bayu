@@ -136,7 +136,7 @@ class ChatControllerTest {
     }
 
     @Test
-    fun failureAfterFirstTokenKeepsStreamedText() = runTest {
+    fun failureAfterFirstTokenKeepsStreamedTextAndShowsError() = runTest {
         val chat = controller(
             engine {
                 listOf(AgentEvent.Delta("separuh"), AgentEvent.Failed("putus"))
@@ -146,7 +146,7 @@ class ChatControllerTest {
         chat.send("hi")
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals("separuh", repository.messages.value.last().text)
+        assertEquals("separuh\n\nputus", repository.messages.value.last().text)
     }
 
     @Test
