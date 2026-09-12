@@ -153,8 +153,8 @@ class AssistFallbackActivity : ComponentActivity() {
         panel.requestHide()
     }
 
-    private companion object {
-        const val OVERLAY_TURN_LIMIT = 2
+    companion object {
+        private const val OVERLAY_TURN_LIMIT = 2
         var onPanelHidden: (() -> Unit)? = null
     }
 }
