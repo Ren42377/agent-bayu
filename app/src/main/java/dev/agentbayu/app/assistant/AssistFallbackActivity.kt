@@ -37,11 +37,8 @@ class AssistFallbackActivity : ComponentActivity() {
         }
         AppGraph.warmUp(applicationContext)
         setContent {
-            val ready by AppGraph.assistantReadiness.collectAsState()
-            if (ready) {
-                AgentBayuAppTheme {
-                    FallbackPanel()
-                }
+            AgentBayuAppTheme {
+                FallbackPanel()
             }
         }
     }
@@ -52,21 +49,64 @@ class AssistFallbackActivity : ComponentActivity() {
             panelMounted = true
             onDispose { panelMounted = false }
         }
-        val chat = remember { AppGraph.chat(this) }
+        val ready by AppGraph.assistantReadiness.collectAsState()
         val visible by panel.visible.collectAsState()
         val input by panel.input.collectAsState()
         val invocationId by panel.invocationId.collectAsState()
+        val invocationBaseline by panel.invocationBaseline.collectAsState()
+        if (!ready) {
+            LaunchedEffect(Unit) { panel.show() }
+            AssistantPanel(
+                visible = visible,
+                invocationId = invocationId,
+                manageImeInsets = false,
+                messages = emptyList(),
+                input = "",
+                isResponding = false,
+                suggestions = defaultSuggestions(),
+                enabled = false,
+                onInputChange = {},
+                onSend = {},
+                onStop = {},
+                onSuggestionClick = {},
+                onMicClick = ::showMicNotice,
+                onOpenApp = ::openApp,
+                onDismiss = panel::requestHide,
+                onHidden = ::finish
+            )
+            return
+        }
+        val chat = remember { AppGraph.chat(this) }
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
-        LaunchedEffect(Unit) { panel.show() }
+        val overlayBaseline = if (invocationBaseline > 0) {
+            invocationBaseline
+        } else {
+            (messages.size - OVERLAY_TURN_LIMIT).coerceAtLeast(0)
+        }
+        val overlayMessages = remember(messages, overlayBaseline) {
+            if (overlayBaseline <= 0) {
+                messages.takeLast(OVERLAY_TURN_LIMIT)
+            } else {
+                messages.drop(overlayBaseline)
+            }
+        }
+        LaunchedEffect(Unit) {
+            if (AppGraph.assistantReadiness.value) {
+                panel.show(AppGraph.chat(this@AssistFallbackActivity).messages.value.size)
+            } else {
+                panel.show()
+            }
+        }
         AssistantPanel(
             visible = visible,
             invocationId = invocationId,
             manageImeInsets = false,
-            messages = messages,
+            messages = overlayMessages,
             input = input,
             isResponding = responding,
             suggestions = defaultSuggestions(),
+            enabled = true,
             onInputChange = panel::updateInput,
             onSend = { chat.send(panel.takeInput()) },
             onStop = chat::cancel,
@@ -80,7 +120,11 @@ class AssistFallbackActivity : ComponentActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
-        panel.show()
+        if (AppGraph.assistantReadiness.value) {
+            panel.show(AppGraph.chat(this).messages.value.size)
+        } else {
+            panel.show()
+        }
     }
 
     private fun showMicNotice() {
@@ -93,5 +137,9 @@ class AssistFallbackActivity : ComponentActivity() {
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
         panel.requestHide()
+    }
+
+    private companion object {
+        const val OVERLAY_TURN_LIMIT = 2
     }
 }

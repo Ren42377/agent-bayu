@@ -1,7 +1,5 @@
 package dev.agentbayu.app.ui.components
 
-import android.view.View
-import android.view.ViewTreeObserver
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,12 +10,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -31,24 +27,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onPlaced
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -64,10 +50,6 @@ import dev.agentbayu.app.ui.theme.GlassSolidDark
 import dev.agentbayu.app.ui.theme.GlassSolidLight
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.ScrimBlack
-import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.coroutines.resume
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.suspendCancellableCoroutine
 
 @Composable
 fun AssistantPanel(
@@ -78,6 +60,7 @@ fun AssistantPanel(
     input: String,
     isResponding: Boolean,
     suggestions: List<ChatSuggestion>,
+    enabled: Boolean,
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onStop: () -> Unit,
@@ -88,51 +71,25 @@ fun AssistantPanel(
     onHidden: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val progress = remember { Animatable(0f) }
-    var rendered by remember { mutableStateOf(false) }
-    var preparedInvocationId by remember { mutableStateOf(0L) }
-    val density = LocalDensity.current
-    val entryOffset = with(density) { ENTRY_OFFSET.toPx() }
+    val progress = remember { Animatable(1f) }
     LaunchedEffect(visible, invocationId) {
-        if (visible && invocationId > preparedInvocationId) {
+        if (visible) {
             progress.snapTo(0f)
-            rendered = true
-            preparedInvocationId = invocationId
-        } else if (!visible && rendered) {
-            progress.animateTo(0f, AgentBayuMotion.assistantPanelSpring)
-            rendered = false
+            progress.animateTo(1f, AgentBayuMotion.quickFade)
+        } else if (progress.value > 0f) {
+            progress.animateTo(0f, AgentBayuMotion.quickFade)
             onHidden()
         }
     }
-    if (!rendered) {
-        return
-    }
-    val inputFocus = remember { FocusRequester() }
-    val keyboard = LocalSoftwareKeyboardController.current
-    val hostView = LocalView.current
-    val imeInsets = WindowInsets.ime
-    var inputPlaced by remember { mutableStateOf(false) }
-    LaunchedEffect(preparedInvocationId, visible) {
-        if (!visible || preparedInvocationId == 0L) return@LaunchedEffect
-        progress.animateTo(1f, AgentBayuMotion.assistantPanelSpring)
-    }
-    LaunchedEffect(preparedInvocationId, visible, inputPlaced) {
-        if (!visible || preparedInvocationId == 0L || !inputPlaced) return@LaunchedEffect
-        hostView.awaitWindowFocus()
-        runCatching { inputFocus.requestFocus() }
-        withFrameNanos { }
-        keyboard?.show()
-        delay(IME_RETRY_DELAY_MILLIS)
-        if (imeInsets.getBottom(density) == 0) {
-            keyboard?.show()
-        }
-    }
     val surfaceColor = if (LocalDarkTheme.current) GlassSolidDark else GlassSolidLight
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .graphicsLayer { alpha = progress.value }
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .graphicsLayer { alpha = progress.value }
                 .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
                 .pointerInput(Unit) { detectTapGestures { onDismiss() } }
         )
@@ -145,11 +102,6 @@ fun AssistantPanel(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .graphicsLayer {
-                        val value = progress.value
-                        alpha = value
-                        translationY = (1f - value) * entryOffset
-                    }
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 12.dp)
                     .pointerInput(Unit) { detectTapGestures { } },
@@ -182,11 +134,9 @@ fun AssistantPanel(
                     onStop = onStop,
                     isResponding = isResponding,
                     onMicClick = onMicClick,
-                    focusRequester = inputFocus,
+                    enabled = enabled,
                     surfaceColor = surfaceColor,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onPlaced { inputPlaced = true }
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
@@ -334,11 +284,11 @@ private fun AssistantInputBar(
     onStop: () -> Unit,
     isResponding: Boolean,
     onMicClick: () -> Unit,
-    focusRequester: FocusRequester?,
+    enabled: Boolean,
     surfaceColor: Color,
     modifier: Modifier = Modifier
 ) {
-    val canSend = !isResponding && value.isNotBlank()
+    val canSend = enabled && !isResponding && value.isNotBlank()
     val submit = {
         if (canSend) {
             onSend()
@@ -355,7 +305,7 @@ private fun AssistantInputBar(
             icon = R.drawable.ic_mic,
             description = R.string.chat_mic,
             onClick = onMicClick,
-            enabled = !isResponding
+            enabled = enabled && !isResponding
         )
         Box(
             modifier = Modifier
@@ -373,7 +323,7 @@ private fun AssistantInputBar(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                enabled = !isResponding,
+                enabled = enabled && !isResponding,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
                     color = MaterialTheme.colorScheme.onSurface
                 ),
@@ -384,15 +334,7 @@ private fun AssistantInputBar(
                 ),
                 keyboardActions = KeyboardActions(onSend = { submit() }),
                 maxLines = 5,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .then(
-                        if (focusRequester != null) {
-                            Modifier.focusRequester(focusRequester)
-                        } else {
-                            Modifier
-                        }
-                    )
+                modifier = Modifier.fillMaxWidth()
             )
         }
         if (isResponding) {
@@ -454,37 +396,4 @@ private fun AssistantCircleButton(
     }
 }
 
-private suspend fun View.awaitWindowFocus() {
-    if (hasWindowFocus()) return
-    suspendCancellableCoroutine { continuation ->
-        val observer = viewTreeObserver
-        val resumed = AtomicBoolean(false)
-        lateinit var listener: ViewTreeObserver.OnWindowFocusChangeListener
-        fun removeListener() {
-            if (observer.isAlive) {
-                observer.removeOnWindowFocusChangeListener(listener)
-            } else if (viewTreeObserver.isAlive) {
-                viewTreeObserver.removeOnWindowFocusChangeListener(listener)
-            }
-        }
-        fun resumeIfWaiting() {
-            if (resumed.compareAndSet(false, true)) {
-                removeListener()
-                continuation.resume(Unit)
-            }
-        }
-        listener = ViewTreeObserver.OnWindowFocusChangeListener { hasFocus ->
-            if (hasFocus && continuation.isActive) resumeIfWaiting()
-        }
-        observer.addOnWindowFocusChangeListener(listener)
-        continuation.invokeOnCancellation {
-            resumed.set(true)
-            removeListener()
-        }
-        if (hasWindowFocus() && continuation.isActive) resumeIfWaiting()
-    }
-}
-
-private val ENTRY_OFFSET = 220.dp
 private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
-private const val IME_RETRY_DELAY_MILLIS = 120L

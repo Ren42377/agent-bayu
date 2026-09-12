@@ -65,6 +65,14 @@ class ConversationSessionManager internal constructor(
 
     private var scope: CoroutineScope? = null
 
+    private data class AttachmentPrune(
+        val sessions: List<ChatSessionMeta>,
+        val activeId: String?,
+        val activeMessages: List<ChatMessage>
+    )
+
+    private var pendingAttachmentPrune: AttachmentPrune? = null
+
     fun bindCancel(block: () -> Unit) {
         cancelStreaming = block
     }
@@ -84,6 +92,15 @@ class ConversationSessionManager internal constructor(
                     }
                 }
                 ready.complete(Unit)
+                consumeAttachmentPrune()?.let { prune ->
+                    scope.launch {
+                        mutex.withLock {
+                            withContext(ioDispatcher) {
+                                pruneAttachmentsLocked(prune.sessions, prune.activeId, prune.activeMessages)
+                            }
+                        }
+                    }
+                }
             } catch (error: Throwable) {
                 ready.completeExceptionally(error)
                 throw error
@@ -287,8 +304,14 @@ class ConversationSessionManager internal constructor(
         val activeId = index.activeSessionId?.takeIf { id -> sessions.any { it.id == id } }
         activeState.value = activeId
         val active = if (activeId == null) emptyList() else store.loadSession(activeId)
-        pruneAttachmentsLocked(sessions, activeId, active)
+        pendingAttachmentPrune = AttachmentPrune(sessions, activeId, active)
         return active
+    }
+
+    private fun consumeAttachmentPrune(): AttachmentPrune? {
+        val prune = pendingAttachmentPrune
+        pendingAttachmentPrune = null
+        return prune
     }
 
     private fun pruneAttachmentsLocked(

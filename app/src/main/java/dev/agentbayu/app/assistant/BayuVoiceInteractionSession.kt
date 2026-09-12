@@ -46,11 +46,8 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         view.setViewTreeViewModelStoreOwner(viewTreeOwner)
         view.setViewTreeSavedStateRegistryOwner(viewTreeOwner)
         view.setContent {
-            val ready by AppGraph.assistantReadiness.collectAsState()
-            if (ready) {
-                AgentBayuAppTheme {
-                    SessionPanel()
-                }
+            AgentBayuAppTheme {
+                SessionPanel()
             }
         }
         return view
@@ -58,22 +55,58 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
 
     @Composable
     private fun SessionPanel() {
-        val chat = remember { AppGraph.chat(context) }
-        val settings = remember { AppGraph.settings(context) }
+        val ready by AppGraph.assistantReadiness.collectAsState()
         val visible by panel.visible.collectAsState()
         val input by panel.input.collectAsState()
         val invocationId by panel.invocationId.collectAsState()
+        val invocationBaseline by panel.invocationBaseline.collectAsState()
+        if (!ready) {
+            AssistantPanel(
+                visible = visible,
+                invocationId = invocationId,
+                manageImeInsets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
+                messages = emptyList(),
+                input = "",
+                isResponding = false,
+                suggestions = defaultSuggestions(),
+                enabled = false,
+                onInputChange = {},
+                onSend = {},
+                onStop = {},
+                onSuggestionClick = {},
+                onMicClick = ::showMicNotice,
+                onOpenApp = ::openApp,
+                onDismiss = ::dismissPanel,
+                onHidden = ::finishPanel
+            )
+            return
+        }
+        val chat = remember { AppGraph.chat(context) }
+        val settings = remember { AppGraph.settings(context) }
         val messages by chat.messages.collectAsState()
         val responding by chat.isResponding.collectAsState()
         val useScreenContext by settings.useScreenContext.collectAsState()
+        val overlayBaseline = if (invocationBaseline > 0) {
+            invocationBaseline
+        } else {
+            (messages.size - OVERLAY_TURN_LIMIT).coerceAtLeast(0)
+        }
+        val overlayMessages = remember(messages, overlayBaseline) {
+            if (overlayBaseline <= 0) {
+                messages.takeLast(OVERLAY_TURN_LIMIT)
+            } else {
+                messages.drop(overlayBaseline)
+            }
+        }
         AssistantPanel(
             visible = visible,
             invocationId = invocationId,
             manageImeInsets = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R,
-            messages = messages,
+            messages = overlayMessages,
             input = input,
             isResponding = responding,
             suggestions = defaultSuggestions(),
+            enabled = true,
             onInputChange = panel::updateInput,
             onSend = { send(chat, panel.takeInput(), useScreenContext) },
             onStop = chat::cancel,
@@ -91,11 +124,9 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
             WindowCompat.setDecorFitsSystemWindows(sessionWindow, false)
             sessionWindow.setSoftInputMode(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING or
-                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_NOTHING
                 } else {
-                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE or
-                        WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE
+                    WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
                 }
             )
         }
@@ -105,7 +136,11 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
         super.onShow(args, showFlags)
         closeSystemDialogs()
         viewTreeOwner.resume()
-        panel.show()
+        if (AppGraph.assistantReadiness.value) {
+            panel.show(AppGraph.chat(context).messages.value.size)
+        } else {
+            panel.show()
+        }
     }
 
     override fun onHide() {
@@ -171,5 +206,6 @@ class BayuVoiceInteractionSession(context: Context) : VoiceInteractionSession(co
 
     private companion object {
         const val TAG = "AgentBayu"
+        const val OVERLAY_TURN_LIMIT = 2
     }
 }
