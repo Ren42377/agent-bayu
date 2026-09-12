@@ -50,6 +50,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -94,7 +95,7 @@ fun AssistantPanel(
     modifier: Modifier = Modifier
 ) {
     val progress = remember { Animatable(0f) }
-    val entryOffset = with(LocalDensity.current) { ENTRY_OFFSET.toPx() }
+    var entryOffsetPx by remember { mutableFloatStateOf(INITIAL_ENTRY_OFFSET_PX) }
     LaunchedEffect(visible, invocationId) {
         if (visible) {
             progress.snapTo(0f)
@@ -105,14 +106,11 @@ fun AssistantPanel(
         }
     }
     val backdrop = remember { emptyBackdrop() }
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .graphicsLayer { alpha = progress.value }
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
+                .graphicsLayer { alpha = progress.value }
                 .background(ScrimBlack.copy(alpha = AgentBayuMotion.ScrimAlpha))
                 .pointerInput(Unit) { detectTapGestures { onDismiss() } }
         )
@@ -126,7 +124,8 @@ fun AssistantPanel(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .graphicsLayer { translationY = (1f - progress.value) * entryOffset }
+                        .graphicsLayer { translationY = (1f - progress.value) * entryOffsetPx }
+                        .onSizeChanged { entryOffsetPx = it.height.toFloat() }
                         .navigationBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .pointerInput(Unit) { detectTapGestures { } },
@@ -461,7 +460,7 @@ private fun AssistantCircleButton(
     }
 }
 
-private val ENTRY_OFFSET = 220.dp
 private val MESSAGE_LIST_MAX_HEIGHT = 320.dp
 private val DRAG_THRESHOLD = 72.dp
 private val DRAG_MAX = 140.dp
+private const val INITIAL_ENTRY_OFFSET_PX = 3000f
