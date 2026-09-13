@@ -21,7 +21,6 @@
 
     <string name="overlay_close">Close panel</string>
     <string name="overlay_disclaimer">Bay can make mistakes.</string>
-    <string name="overlay_handle">Swipe up to open the app, swipe down to close the panel</string>
     <string name="overlay_screen_context">Screen context</string>
     <string name="overlay_screenshot">Screenshot</string>
 

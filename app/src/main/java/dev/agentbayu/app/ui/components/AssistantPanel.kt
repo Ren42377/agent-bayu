@@ -57,8 +57,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.Dp
@@ -127,18 +125,18 @@ fun AssistantPanel(
     }
     val scrimBackdrop = rememberLayerBackdrop()
     val panelGlass = panelGlassStyle()
-    val onPillDrag: (Float) -> Unit = { amount ->
+    val onPanelDrag: (Float) -> Unit = { amount ->
         sheetOffsetPx = (sheetOffsetPx + amount)
             .coerceIn(-expandDragLimitPx, dismissDragLimitPx)
     }
-    val onPillDragEnd: () -> Unit = {
+    val onPanelDragEnd: () -> Unit = {
         when {
             sheetOffsetPx <= -flingThresholdPx -> onOpenApp()
             sheetOffsetPx >= flingThresholdPx -> onDismiss()
             else -> settle(sheetOffsetPx, dragScope) { value -> sheetOffsetPx = value }
         }
     }
-    val onPillDragCancel: () -> Unit = {
+    val onPanelDragCancel: () -> Unit = {
         settle(sheetOffsetPx, dragScope) { value -> sheetOffsetPx = value }
     }
     Box(modifier = modifier.fillMaxSize()) {
@@ -177,7 +175,10 @@ fun AssistantPanel(
                         ResponseCard(
                             messages = messages,
                             isResponding = isResponding,
-                            listMaxHeight = listMaxHeight
+                            listMaxHeight = listMaxHeight,
+                            onDrag = onPanelDrag,
+                            onDragEnd = onPanelDragEnd,
+                            onDragCancel = onPanelDragCancel
                         )
                     }
                     ScreenContextRow(
@@ -192,9 +193,9 @@ fun AssistantPanel(
                         onStop = onStop,
                         isResponding = isResponding,
                         enabled = enabled,
-                        onDrag = onPillDrag,
-                        onDragEnd = onPillDragEnd,
-                        onDragCancel = onPillDragCancel,
+                        onDrag = onPanelDrag,
+                        onDragEnd = onPanelDragEnd,
+                        onDragCancel = onPanelDragCancel,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -207,12 +208,25 @@ fun AssistantPanel(
 private fun ResponseCard(
     messages: List<ChatMessage>,
     isResponding: Boolean,
-    listMaxHeight: Dp
+    listMaxHeight: Dp,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .glassSurface(shape = GlassCardShape)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, amount ->
+                        change.consume()
+                        onDrag(amount)
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragCancel() }
+                )
+            }
     ) {
         MessageList(
             messages = messages,
@@ -298,39 +312,6 @@ private fun ScreenContextRow(
     }
 }
 
-@Composable
-private fun DragPill(
-    onDrag: (Float) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit
-) {
-    val description = stringResource(R.string.overlay_handle)
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .semantics { contentDescription = description }
-            .pointerInput(Unit) {
-                detectVerticalDragGestures(
-                    onVerticalDrag = { change, amount ->
-                        change.consume()
-                        onDrag(amount)
-                    },
-                    onDragEnd = { onDragEnd() },
-                    onDragCancel = { onDragCancel() }
-                )
-            }
-            .padding(vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 44.dp, height = 5.dp)
-                .clip(CircleShape)
-                .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
-        )
-    }
-}
-
 private fun settle(
     from: Float,
     scope: CoroutineScope,
@@ -368,12 +349,17 @@ private fun AssistantInputBar(
         modifier = modifier
             .clip(CapsuleShape)
             .glassSurface(shape = CapsuleShape)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, amount ->
+                        change.consume()
+                        onDrag(amount)
+                    },
+                    onDragEnd = { onDragEnd() },
+                    onDragCancel = { onDragCancel() }
+                )
+            }
     ) {
-        DragPill(
-            onDrag = onDrag,
-            onDragEnd = onDragEnd,
-            onDragCancel = onDragCancel
-        )
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
