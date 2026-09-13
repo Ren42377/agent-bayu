@@ -2,7 +2,9 @@ package dev.agentbayu.app.ai.tools
 
 import dev.agentbayu.app.domain.tasks.REMINDER_HOUR
 import dev.agentbayu.app.domain.tasks.TaskItem
+import dev.agentbayu.app.domain.tasks.TaskRepeat
 import dev.agentbayu.app.domain.tasks.TaskStore
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalDateTime
@@ -10,6 +12,8 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.time.format.TextStyle
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -181,6 +185,72 @@ class ListTasksTool(private val store: () -> TaskStore) : ToolHandler {
     private companion object {
         const val NAME = "list_tasks"
         const val INDENT = "  "
+    }
+}
+
+class ReadTaskTool(private val store: () -> TaskStore) : ToolHandler {
+
+    override val spec: ToolSpec = ToolSpec(
+        name = NAME,
+        description = "Read one task in full: its notes, due moment, deadline, extra " +
+            "reminders, repeat rule, and subtasks. Read the ids with list_tasks first.",
+        parameters = toolSchema(
+            ToolField("task_id", "string", "Id of the task, as reported by list_tasks")
+        )
+    )
+
+    override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
+        val taskId = ToolArguments(call.arguments).text("task_id")
+            ?: return@withContext call.problem("A task_id is required")
+        val tasks = store()
+        val task = tasks.find(taskId)
+            ?: return@withContext call.problem("No task with id " + taskId)
+        call.reply(describe(task, tasks))
+    }
+
+    private fun describe(task: TaskItem, tasks: TaskStore): String {
+        val lines = ArrayList<String>()
+        lines += "Id: " + task.id
+        lines += "Title: " + task.title
+        lines += "List: " + (tasks.findList(task.listId)?.title ?: task.listId)
+        lines += "Status: " + if (task.completed) "done" else "open"
+        lines += "Notes: " + task.details.ifEmpty { "(no notes)" }
+        task.dueAtMillis?.let { lines += "Due: " + formatMoment(it, task.hasTime) }
+        task.deadlineAtMillis?.let { lines += "Deadline: " + formatMoment(it, false) }
+        if (task.reminders.isNotEmpty()) {
+            lines += "Extra reminders: " + task.reminders.sorted()
+                .joinToString(", ") { formatMoment(it, true) }
+        }
+        task.repeat?.let { lines += "Repeat: " + describeRepeat(it) }
+        lines += "Starred: " + if (task.starred) "yes" else "no"
+        val subtasks = tasks.tasks.value
+            .filter { it.parentId == task.id }
+            .sortedBy { it.position }
+        if (subtasks.isNotEmpty()) {
+            lines += "Subtasks:"
+            subtasks.forEach { sub ->
+                lines += "  " + sub.id + "  " + sub.title + if (sub.completed) " [done]" else ""
+            }
+        }
+        return lines.joinToString("\n")
+    }
+
+    private fun describeRepeat(repeat: TaskRepeat): String {
+        val parts = ArrayList<String>()
+        parts += "every " + repeat.every + " " + repeat.unit.name.lowercase()
+        if (repeat.weekdays.isNotEmpty()) {
+            parts += "on " + repeat.weekdays.sorted().joinToString(",") { weekdayName(it) }
+        }
+        repeat.endAtMillis?.let { parts += "until " + formatMoment(it, false) }
+        repeat.endAfterCount?.let { parts += "for " + it + " occurrences" }
+        return parts.joinToString(" ")
+    }
+
+    private fun weekdayName(day: Int): String =
+        DayOfWeek.of(day.coerceIn(1, 7)).getDisplayName(TextStyle.SHORT, Locale.ENGLISH)
+
+    private companion object {
+        const val NAME = "read_task"
     }
 }
 

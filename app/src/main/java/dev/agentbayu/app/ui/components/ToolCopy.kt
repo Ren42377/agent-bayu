@@ -8,6 +8,10 @@ import dev.agentbayu.app.R
 internal fun toolDisplayName(name: String): String = when (name) {
     "create_task" -> stringResource(R.string.tool_name_create_task)
     "list_tasks" -> stringResource(R.string.tool_name_list_tasks)
+    "read_task" -> stringResource(R.string.tool_name_read_task)
+    "set_task_time" -> stringResource(R.string.tool_name_set_task_time)
+    "set_task_deadline" -> stringResource(R.string.tool_name_set_task_deadline)
+    "set_task_reminders" -> stringResource(R.string.tool_name_set_task_reminders)
     "complete_task" -> stringResource(R.string.tool_name_complete_task)
     "delete_task" -> stringResource(R.string.tool_name_delete_task)
     "create_alarm" -> stringResource(R.string.tool_name_create_alarm)
