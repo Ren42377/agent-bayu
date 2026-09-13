@@ -1,27 +1,54 @@
 package dev.agentbayu.app.ui.ai
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.rangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
 import dev.agentbayu.app.ai.ReasoningEffort
-import dev.agentbayu.app.ui.components.GlassSegmentedSelector
+import dev.agentbayu.app.ui.components.DampedDragAnimation
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleMagentaLight
 import dev.agentbayu.app.ui.theme.AppleOrangeLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.AppleYellowLight
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.sin
@@ -59,8 +86,8 @@ internal fun EffortSelector(
         }
     }
 
-    GlassSegmentedSelector(
-        labels = options.map { it.label },
+    EffortSlider(
+        stopCount = options.size,
         selectedIndex = selectedIndex,
         onSelect = { index -> options.getOrNull(index)?.let(onSelect) },
         modifier = modifier,
@@ -71,6 +98,174 @@ internal fun EffortSelector(
             drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
     )
+}
+
+@Composable
+private fun EffortSlider(
+    stopCount: Int,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color,
+    tintProvider: ((Float) -> Color)?,
+    onValueChange: ((Float) -> Unit)?,
+    decoration: (DrawScope.(Float, Float) -> Unit)? = null
+) {
+    if (stopCount < 2) return
+    val lastIndex = stopCount - 1
+    val safeSelectedIndex = selectedIndex.fastCoerceIn(0, lastIndex)
+    val darkTheme = LocalDarkTheme.current
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = if (darkTheme) SLIDER_TRACK_ALPHA_DARK else SLIDER_TRACK_ALPHA_LIGHT
+    )
+    val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
+    val animationScope = rememberCoroutineScope()
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val touchSlop = LocalViewConfiguration.current.touchSlop
+    var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(SLIDER_TRACK_HEIGHT)
+            .semantics {
+                rangeInfo = ProgressBarRangeInfo(
+                    safeSelectedIndex / lastIndex.toFloat(),
+                    0f..1f,
+                    lastIndex
+                )
+            }
+    ) {
+        val density = LocalDensity.current
+        val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
+        val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
+        fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
+
+        val dragAnimation = remember(animationScope, lastIndex) {
+            var travel = 0f
+            var downIndex = safeSelectedIndex
+            var dragAnchor = 0f
+            var dragDistance = 0f
+            DampedDragAnimation(
+                animationScope = animationScope,
+                initialValue = safeSelectedIndex.toFloat(),
+                valueRange = 0f..lastIndex.toFloat(),
+                visibilityThreshold = 0.001f,
+                initialScale = 1f,
+                pressedScale = SLIDER_THUMB_PRESSED_SCALE,
+                onDragStarted = { position ->
+                    travel = 0f
+                    dragAnchor = value
+                    dragDistance = 0f
+                    downIndex = ((position.x - thumbRadiusPx) / (travelPx / lastIndex))
+                        .fastRoundToInt()
+                        .fastCoerceIn(0, lastIndex)
+                },
+                onDragStopped = {
+                    val selected = if (travel < touchSlop) {
+                        downIndex
+                    } else {
+                        targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
+                    }
+                    currentIndex = selected
+                    animateToValue(selected.toFloat(), pressed = false)
+                    currentOnSelect(selected)
+                },
+                onDrag = { _, dragAmount ->
+                    travel += abs(dragAmount.x)
+                    dragDistance += dragAmount.x
+                    val target = (dragAnchor + dragDistance / (travelPx / lastIndex))
+                        .fastCoerceIn(0f, lastIndex.toFloat())
+                    updateValue(target)
+                },
+                onDragCanceled = {
+                    animateToValue(currentIndex.toFloat(), pressed = false)
+                }
+            )
+        }
+        LaunchedEffect(selectedIndex) {
+            val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
+            currentIndex = safeIndex
+            dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+        }
+        LaunchedEffect(dragAnimation) {
+            snapshotFlow { dragAnimation.value }.collect { value ->
+                currentOnValueChange?.invoke(value)
+            }
+        }
+        LaunchedEffect(dragAnimation) {
+            withFrameNanos { }
+            dragAnimation.prewarm()
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .drawBehind {
+                    val trackRadius = size.height / 2f
+                    val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
+                    val fillRight = thumbRadiusPx + fillFraction * travelPx
+                    drawRoundRect(
+                        color = trackColor,
+                        cornerRadius = CornerRadius(trackRadius)
+                    )
+                    if (fillRight > 0f) {
+                        val fill = Path().apply {
+                            addRoundRect(
+                                RoundRect(
+                                    left = 0f,
+                                    top = 0f,
+                                    right = fillRight,
+                                    bottom = size.height,
+                                    topLeftCornerRadius = CornerRadius(trackRadius),
+                                    bottomLeftCornerRadius = CornerRadius(trackRadius)
+                                )
+                            )
+                        }
+                        val fillColor = tintProvider?.invoke(dragAnimation.value) ?: tint
+                        drawPath(fill, fillColor)
+                        decoration?.let {
+                            clipPath(fill) {
+                                it(dragAnimation.value, dragAnimation.velocity)
+                            }
+                        }
+                    }
+                    val dotRadius = SLIDER_DOT_DIAMETER.toPx() / 2f
+                    for (index in 0..lastIndex) {
+                        val center = stopCenterPx(index)
+                        drawCircle(
+                            color = if (center <= fillRight) {
+                                Color.White.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+                            } else {
+                                dotColor
+                            },
+                            radius = dotRadius,
+                            center = Offset(center, size.height / 2f)
+                        )
+                    }
+                }
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .size(SLIDER_THUMB_DIAMETER)
+                .graphicsLayer {
+                    translationX = (dragAnimation.value / lastIndex) * travelPx
+                    scaleX = dragAnimation.scaleX
+                    scaleY = dragAnimation.scaleY
+                }
+                .shadow(
+                    elevation = SLIDER_THUMB_SHADOW,
+                    shape = CircleShape,
+                    clip = false
+                )
+                .background(Color.White, CircleShape)
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .then(dragAnimation.modifier)
+        )
+    }
 }
 
 private data class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
@@ -176,3 +371,12 @@ private const val STAR_MIN_ALPHA = 0.12f
 private const val STAR_MAX_ALPHA = 0.85f
 private const val STAR_MARGIN = 0.12f
 private const val STAR_PARALLAX = 0.14f
+private const val SLIDER_TRACK_ALPHA_DARK = 0.10f
+private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
+private const val SLIDER_DOT_REST_ALPHA = 0.30f
+private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
+private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
+private val SLIDER_TRACK_HEIGHT = 26.dp
+private val SLIDER_THUMB_DIAMETER = 32.dp
+private val SLIDER_DOT_DIAMETER = 4.dp
+private val SLIDER_THUMB_SHADOW = 3.dp
