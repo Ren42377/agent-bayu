@@ -35,7 +35,7 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
-import androidx.compose.ui.semantics.rangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
@@ -129,7 +129,7 @@ private fun EffortSlider(
             .fillMaxWidth()
             .height(SLIDER_TRACK_HEIGHT)
             .semantics {
-                rangeInfo = ProgressBarRangeInfo(
+                progressBarRangeInfo = ProgressBarRangeInfo(
                     safeSelectedIndex / lastIndex.toFloat(),
                     0f..1f,
                     lastIndex
