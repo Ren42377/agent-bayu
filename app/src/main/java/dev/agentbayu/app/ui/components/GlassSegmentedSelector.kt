@@ -244,11 +244,10 @@ internal fun GlassSegmentedSelector(
                             .fastCoerceIn(-SELECTOR_SQUISH, SELECTOR_SQUISH)
                     },
                     onDrawSurface = {
-                        val progress = dragAnimation.pressProgress
                         val activeTint = tintProvider?.invoke(dragAnimation.value) ?: tint
                         drawRect(
                             activeTint.copy(alpha = SELECTOR_TINT_ALPHA),
-                            alpha = 1f - progress * SELECTOR_PRESSED_TINT_FADE
+                            alpha = 1f - dragAnimation.pressProgress
                         )
                     }
                 )
@@ -304,7 +303,6 @@ private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
 private const val SELECTOR_TINT_ALPHA = 0.92f
-private const val SELECTOR_PRESSED_TINT_FADE = 0.35f
 private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f

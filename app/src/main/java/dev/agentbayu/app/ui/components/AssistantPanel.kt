@@ -194,11 +194,22 @@ fun AssistantPanel(
                         onToggle = onToggleScreenshot
                     )
                     if (messages.isEmpty()) {
-                        DragPill(
-                            onDrag = onPillDrag,
-                            onDragEnd = onPillDragEnd,
-                            onDragCancel = onPillDragCancel
-                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .liquidGlass(
+                                    shape = CapsuleShape,
+                                    refractionHeight = PanelRefractionHeight,
+                                    refractionAmount = PanelRefractionAmount,
+                                    depthEffect = true
+                                )
+                        ) {
+                            DragPill(
+                                onDrag = onPillDrag,
+                                onDragEnd = onPillDragEnd,
+                                onDragCancel = onPillDragCancel
+                            )
+                        }
                     }
                     AssistantInputBar(
                         value = input,
