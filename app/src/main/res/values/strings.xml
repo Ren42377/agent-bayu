@@ -331,8 +331,7 @@
     <string name="tasks_detail_due">Tanggal mulai</string>
     <string name="tasks_detail_time">Jam</string>
     <string name="tasks_detail_deadline">Tenggat</string>
-    <string name="tasks_detail_reminders">Pengingat tambahan</string>
-    <string name="tasks_detail_reminder_add">Tambah pengingat</string>
+    <string name="tasks_detail_schedule_add">Tambah jadwal</string>
     <string name="tasks_detail_reminder_remove">Hapus pengingat</string>
     <string name="tasks_detail_repeat">Ulangi</string>
     <string name="tasks_detail_repeat_none">Tidak berulang</string>

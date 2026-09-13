@@ -68,12 +68,11 @@ fun TaskDetailScreen(
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
-    var duePicker by remember { mutableStateOf(false) }
-    var timePicker by remember { mutableStateOf(false) }
     var deadlinePicker by remember { mutableStateOf(false) }
-    var reminderDatePicker by remember { mutableStateOf(false) }
-    var reminderTimePicker by remember { mutableStateOf(false) }
-    var pendingReminderDate by remember { mutableStateOf<LocalDate?>(null) }
+    var scheduleDatePicker by remember { mutableStateOf(false) }
+    var scheduleTimePicker by remember { mutableStateOf(false) }
+    var editingMoment by remember { mutableStateOf<Long?>(null) }
+    var pendingScheduleDate by remember { mutableStateOf<LocalDate?>(null) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -109,32 +108,17 @@ fun TaskDetailScreen(
             }
 
             TaskSection(title = stringResource(R.string.tasks_detail_schedule)) {
-                TaskFieldRow(
-                    label = stringResource(R.string.tasks_detail_due),
-                    value = dateFieldLabel(draft.dueAtMillis),
-                    onClick = { duePicker = true }
-                )
-                TaskFieldRow(
-                    label = stringResource(R.string.tasks_detail_time),
-                    value = if (draft.hasTime && draft.dueAtMillis != null) {
-                        timeLabel(draft.dueAtMillis)
-                    } else {
-                        stringResource(R.string.tasks_date_none)
-                    },
-                    onClick = { timePicker = true }
-                )
-                TaskFieldRow(
-                    label = stringResource(R.string.tasks_detail_deadline),
-                    value = dateFieldLabel(draft.deadlineAtMillis),
-                    onClick = { deadlinePicker = true }
-                )
-            }
-
-            TaskSection(title = stringResource(R.string.tasks_detail_reminders)) {
-                draft.reminders.sorted().forEach { moment ->
+                scheduleMoments(draft).forEach { moment ->
                     TaskFieldRow(
-                        label = reminderLabel(moment),
+                        label = scheduleRowLabel(
+                            moment,
+                            moment != draft.dueAtMillis || draft.hasTime
+                        ),
                         value = "",
+                        onClick = {
+                            editingMoment = moment
+                            scheduleDatePicker = true
+                        },
                         trailing = {
                             Icon(
                                 painter = painterResource(R.drawable.ic_close),
@@ -145,26 +129,32 @@ fun TaskDetailScreen(
                                 modifier = Modifier
                                     .size(24.dp)
                                     .clip(CircleShape)
-                                    .clickable {
-                                        onDraftChange(draft.copy(reminders = draft.reminders - moment))
-                                    }
+                                    .clickable { removeScheduleMoment(draft, moment, onDraftChange) }
                                     .padding(3.dp)
                             )
                         }
                     )
                 }
                 TaskFieldRow(
-                    label = stringResource(R.string.tasks_detail_reminder_add),
+                    label = stringResource(R.string.tasks_detail_schedule_add),
                     value = "",
-                    onClick = { reminderDatePicker = true },
+                    onClick = {
+                        editingMoment = null
+                        scheduleDatePicker = true
+                    },
                     trailing = {
                         Icon(
                             painter = painterResource(R.drawable.ic_add),
-                            contentDescription = stringResource(R.string.tasks_detail_reminder_add),
+                            contentDescription = stringResource(R.string.tasks_detail_schedule_add),
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(18.dp)
                         )
                     }
+                )
+                TaskFieldRow(
+                    label = stringResource(R.string.tasks_detail_deadline),
+                    value = dateFieldLabel(draft.deadlineAtMillis),
+                    onClick = { deadlinePicker = true }
                 )
             }
 
@@ -233,44 +223,6 @@ fun TaskDetailScreen(
     }
 
     TaskDatePickerDialog(
-        visible = duePicker,
-        title = stringResource(R.string.tasks_detail_due),
-        initialDate = draft.dueAtMillis?.let { localDateOf(it) },
-        onSelect = { date ->
-            onDraftChange(
-                draft.copy(dueAtMillis = mergeDate(date, draft.dueAtMillis, draft.hasTime))
-            )
-        },
-        onClear = { onDraftChange(draft.copy(dueAtMillis = null, hasTime = false)) },
-        onDismiss = { duePicker = false }
-    )
-
-    TaskTimePickerDialog(
-        visible = timePicker,
-        title = stringResource(R.string.tasks_detail_time),
-        initialHour = draft.dueAtMillis?.let { localTimeOf(it).hour } ?: DEFAULT_HOUR,
-        initialMinute = draft.dueAtMillis?.let { localTimeOf(it).minute } ?: 0,
-        onSelect = { hour, minute ->
-            onDraftChange(
-                draft.copy(
-                    dueAtMillis = mergeTime(draft.dueAtMillis, hour, minute),
-                    hasTime = true
-                )
-            )
-        },
-        onClear = {
-            val date = draft.dueAtMillis?.let { localDateOf(it) }
-            onDraftChange(
-                draft.copy(
-                    dueAtMillis = date?.let { startOfDay(it) },
-                    hasTime = false
-                )
-            )
-        },
-        onDismiss = { timePicker = false }
-    )
-
-    TaskDatePickerDialog(
         visible = deadlinePicker,
         title = stringResource(R.string.tasks_detail_deadline),
         initialDate = draft.deadlineAtMillis?.let { localDateOf(it) },
@@ -280,38 +232,34 @@ fun TaskDetailScreen(
     )
 
     TaskDatePickerDialog(
-        visible = reminderDatePicker,
-        title = stringResource(R.string.tasks_detail_reminder_add),
-        initialDate = pendingReminderDate,
+        visible = scheduleDatePicker,
+        title = stringResource(R.string.tasks_detail_schedule),
+        initialDate = editingMoment?.let { localDateOf(it) },
         onSelect = { date ->
-            pendingReminderDate = date
-            reminderTimePicker = true
+            pendingScheduleDate = date
+            scheduleTimePicker = true
         },
-        onDismiss = { reminderDatePicker = false }
+        onDismiss = { scheduleDatePicker = false }
     )
 
     TaskTimePickerDialog(
-        visible = reminderTimePicker,
-        title = stringResource(R.string.tasks_detail_reminder_add),
-        initialHour = DEFAULT_HOUR,
-        initialMinute = 0,
+        visible = scheduleTimePicker,
+        title = stringResource(R.string.tasks_detail_schedule),
+        initialHour = editingMoment?.let { localTimeOf(it).hour } ?: DEFAULT_HOUR,
+        initialMinute = editingMoment?.let { localTimeOf(it).minute } ?: 0,
         onSelect = { hour, minute ->
-            val date = pendingReminderDate
+            val date = pendingScheduleDate
             if (date != null) {
                 onDraftChange(
-                    draft.copy(
-                        reminders = (draft.reminders + atTimeMillis(date, hour, minute))
-                            .distinct()
-                            .sorted()
-                    )
+                    applyScheduleMoment(draft, editingMoment, atTimeMillis(date, hour, minute))
                 )
             }
-            pendingReminderDate = null
-            reminderTimePicker = false
+            pendingScheduleDate = null
+            scheduleTimePicker = false
         },
         onDismiss = {
-            pendingReminderDate = null
-            reminderTimePicker = false
+            pendingScheduleDate = null
+            scheduleTimePicker = false
         }
     )
 }
@@ -465,8 +413,43 @@ private fun localDateOf(atMillis: Long): LocalDate = Instant.ofEpochMilli(atMill
     .toLocalDate()
 
 @Composable
-private fun reminderLabel(atMillis: Long): String =
-    stringResource(R.string.tasks_due_with_time, dayLabel(atMillis), timeLabel(atMillis))
+private fun scheduleRowLabel(moment: Long, hasTime: Boolean): String =
+    if (hasTime) {
+        stringResource(R.string.tasks_due_with_time, dayLabel(moment), timeLabel(moment))
+    } else {
+        dayLabel(moment)
+    }
+
+private fun scheduleMoments(draft: TaskDraft): List<Long> =
+    (listOfNotNull(draft.dueAtMillis) + draft.reminders).distinct().sorted()
+
+private fun applyScheduleMoment(draft: TaskDraft, edited: Long?, moment: Long): TaskDraft = when {
+    edited == null && draft.dueAtMillis == null ->
+        draft.copy(dueAtMillis = moment, hasTime = true)
+
+    edited == null ->
+        draft.copy(reminders = (draft.reminders + moment).distinct().sorted())
+
+    edited == draft.dueAtMillis ->
+        draft.copy(dueAtMillis = moment, hasTime = true)
+
+    else ->
+        draft.copy(reminders = (draft.reminders - edited + moment).distinct().sorted())
+}
+
+private fun removeScheduleMoment(
+    draft: TaskDraft,
+    moment: Long,
+    onDraftChange: (TaskDraft) -> Unit
+) {
+    if (moment == draft.dueAtMillis) {
+        onDraftChange(
+            draft.copy(dueAtMillis = null, hasTime = false, reminders = draft.reminders - moment)
+        )
+    } else {
+        onDraftChange(draft.copy(reminders = draft.reminders - moment))
+    }
+}
 
 private fun localTimeOf(atMillis: Long): LocalTime = Instant.ofEpochMilli(atMillis)
     .atZone(ZoneId.systemDefault())
@@ -482,16 +465,6 @@ private fun atTimeMillis(date: LocalDate, hour: Int, minute: Int): Long = date
     .atZone(ZoneId.systemDefault())
     .toInstant()
     .toEpochMilli()
-
-private fun mergeDate(date: LocalDate, previous: Long?, hasTime: Boolean): Long {
-    if (!hasTime || previous == null) return startOfDay(date)
-    val time = localTimeOf(previous)
-    return atTimeMillis(date, time.hour, time.minute)
-}
-
-private fun mergeTime(previous: Long?, hour: Int, minute: Int): Long {
-    val date = previous?.let { localDateOf(it) } ?: LocalDate.now(ZoneId.systemDefault())
-    return atTimeMillis(date, hour, minute)
 }
 
 private const val DEFAULT_HOUR = 9
