@@ -104,12 +104,18 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete debug --yes --cleanup-tag || true
-          gh release create debug dist/agent-bayu-debug.apk \
-            --target "$GITHUB_SHA" \
-            --title "Debug APK" \
-            --notes "Debug build from ${GITHUB_REF_NAME} (${GITHUB_SHA})." \
-            --prerelease
+          set -euo pipefail
+          notes="Debug build from ${GITHUB_REF_NAME} (${GITHUB_SHA})."
+          if gh release view debug >/dev/null 2>&1; then
+            gh release upload debug dist/agent-bayu-debug.apk --clobber
+            gh release edit debug --title "Debug APK" --notes "$notes" --prerelease
+          else
+            gh release create debug dist/agent-bayu-debug.apk \
+              --target "$GITHUB_SHA" \
+              --title "Debug APK" \
+              --notes "$notes" \
+              --prerelease
+          fi
 
       - name: Restore release signing
         env:
