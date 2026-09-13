@@ -232,8 +232,16 @@ private fun ThemeModeSelector(
             ThemeMode.DARK -> stringResource(R.string.theme_mode_dark)
         }
     }
+    val icons = options.map { option ->
+        when (option) {
+            ThemeMode.SYSTEM -> R.drawable.ic_theme_system
+            ThemeMode.LIGHT -> R.drawable.ic_theme_light
+            ThemeMode.DARK -> R.drawable.ic_theme_dark
+        }
+    }
     GlassSegmentedSelector(
         labels = labels,
+        icons = icons.map { painterResource(it) },
         selectedIndex = options.indexOf(mode).coerceAtLeast(0),
         onSelect = { index -> onModeChange(options[index]) }
     )

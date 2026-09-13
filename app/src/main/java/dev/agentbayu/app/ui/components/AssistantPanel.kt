@@ -18,10 +18,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -172,20 +170,11 @@ fun AssistantPanel(
                         .pointerInput(Unit) { detectTapGestures { } },
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    if (messages.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.chat_empty_title),
-                            style = MaterialTheme.typography.titleLarge,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    } else {
+                    if (messages.isNotEmpty()) {
                         ResponseCard(
                             messages = messages,
                             isResponding = isResponding,
-                            listMaxHeight = listMaxHeight,
-                            onDrag = onPillDrag,
-                            onDragEnd = onPillDragEnd,
-                            onDragCancel = onPillDragCancel
+                            listMaxHeight = listMaxHeight
                         )
                     }
                     ScreenContextRow(
@@ -193,24 +182,6 @@ fun AssistantPanel(
                         active = screenshotActive,
                         onToggle = onToggleScreenshot
                     )
-                    if (messages.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .liquidGlass(
-                                    shape = CapsuleShape,
-                                    refractionHeight = PanelRefractionHeight,
-                                    refractionAmount = PanelRefractionAmount,
-                                    depthEffect = true
-                                )
-                        ) {
-                            DragPill(
-                                onDrag = onPillDrag,
-                                onDragEnd = onPillDragEnd,
-                                onDragCancel = onPillDragCancel
-                            )
-                        }
-                    }
                     AssistantInputBar(
                         value = input,
                         onValueChange = onInputChange,
@@ -218,6 +189,9 @@ fun AssistantPanel(
                         onStop = onStop,
                         isResponding = isResponding,
                         enabled = enabled,
+                        onDrag = onPillDrag,
+                        onDragEnd = onPillDragEnd,
+                        onDragCancel = onPillDragCancel,
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -230,10 +204,7 @@ fun AssistantPanel(
 private fun ResponseCard(
     messages: List<ChatMessage>,
     isResponding: Boolean,
-    listMaxHeight: Dp,
-    onDrag: (Float) -> Unit,
-    onDragEnd: () -> Unit,
-    onDragCancel: () -> Unit
+    listMaxHeight: Dp
 ) {
     Column(
         modifier = Modifier
@@ -245,11 +216,6 @@ private fun ResponseCard(
                 depthEffect = true
             )
     ) {
-        DragPill(
-            onDrag = onDrag,
-            onDragEnd = onDragEnd,
-            onDragCancel = onDragCancel
-        )
         MessageList(
             messages = messages,
             isResponding = isResponding,
@@ -323,16 +289,12 @@ private fun ScreenContextRow(
                 exit = fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = 0.7f)
             ) {
                 val image = remember(screenshot) { screenshot?.asImageBitmap() }
-                val ratio = screenshot?.let { shot ->
-                    if (shot.height == 0) 1f else shot.width.toFloat() / shot.height.toFloat()
-                } ?: 1f
                 Image(
                     bitmap = image!!,
                     contentDescription = stringResource(R.string.overlay_screenshot),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .height(56.dp)
-                        .aspectRatio(ratio)
+                        .size(120.dp)
                         .clip(GlassTileShape)
                         .clickable(onClick = onToggle)
                 )
@@ -396,6 +358,9 @@ private fun AssistantInputBar(
     onStop: () -> Unit,
     isResponding: Boolean,
     enabled: Boolean,
+    onDrag: (Float) -> Unit,
+    onDragEnd: () -> Unit,
+    onDragCancel: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val canSend = enabled && !isResponding && value.isNotBlank()
@@ -404,7 +369,7 @@ private fun AssistantInputBar(
             onSend()
         }
     }
-    Row(
+    Column(
         modifier = modifier
             .clip(CapsuleShape)
             .liquidGlass(
@@ -413,9 +378,16 @@ private fun AssistantInputBar(
                 refractionAmount = PanelRefractionAmount,
                 depthEffect = true
             )
-            .padding(horizontal = 6.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
     ) {
+        DragPill(
+            onDrag = onDrag,
+            onDragEnd = onDragEnd,
+            onDragCancel = onDragCancel
+        )
+        Row(
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -472,6 +444,7 @@ private fun AssistantInputBar(
                 },
                 modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
             )
+        }
         }
     }
 }

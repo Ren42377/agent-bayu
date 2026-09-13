@@ -99,8 +99,9 @@ fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
 @Composable
 fun clearPanelGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     val style = currentGlassStyle(darkTheme)
+    val fillAlpha = if (darkTheme) CLEAR_PANEL_FILL_ALPHA_DARK else CLEAR_PANEL_FILL_ALPHA_LIGHT
     return style.copy(
-        fill = style.fill.copy(alpha = CLEAR_PANEL_FILL_ALPHA),
+        fill = style.fill.copy(alpha = fillAlpha),
         brightness = 0f,
         saturation = 1f,
         vibrant = false,
@@ -192,5 +193,6 @@ fun Modifier.liquidGlass(
 }
 
 private const val LIQUID_TINT_ALPHA = 0.75f
-private const val CLEAR_PANEL_FILL_ALPHA = 0.28f
+private const val CLEAR_PANEL_FILL_ALPHA_DARK = 0.28f
+private const val CLEAR_PANEL_FILL_ALPHA_LIGHT = 0.78f
 private const val CLEAR_PANEL_HIGHLIGHT_ALPHA = 0.9f

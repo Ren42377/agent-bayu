@@ -2,6 +2,7 @@ package dev.agentbayu.app.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -9,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +34,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -63,6 +67,7 @@ internal fun GlassSegmentedSelector(
     tint: Color = MaterialTheme.colorScheme.primary,
     tintProvider: ((Float) -> Color)? = null,
     onValueChange: ((Float) -> Unit)? = null,
+    icons: List<Painter> = emptyList(),
     decoration: (DrawScope.(Float, Float) -> Unit)? = null
 ) {
     if (labels.isEmpty()) {
@@ -207,9 +212,9 @@ internal fun GlassSegmentedSelector(
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
+                    SelectorLabel(
+                        label = label,
+                        icon = icons.getOrNull(index),
                         color = labelColor
                     )
                 }
@@ -285,9 +290,9 @@ internal fun GlassSegmentedSelector(
                         .fillMaxHeight(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = label,
-                        style = MaterialTheme.typography.labelMedium,
+                    SelectorLabel(
+                        label = label,
+                        icon = icons.getOrNull(index),
                         color = Color.White,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - abs(index - dragAnimation.value))
@@ -301,6 +306,34 @@ internal fun GlassSegmentedSelector(
             modifier = Modifier
                 .matchParentSize()
                 .then(dragAnimation.modifier)
+        )
+    }
+}
+
+@Composable
+private fun SelectorLabel(
+    label: String,
+    icon: Painter?,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (icon != null) {
+            Icon(
+                painter = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = color
         )
     }
 }

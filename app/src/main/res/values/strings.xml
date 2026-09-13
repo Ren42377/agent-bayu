@@ -10,7 +10,6 @@
     <string name="onboarding_finish">Selesai</string>
     <string name="onboarding_skip">Lewati</string>
 
-    <string name="chat_empty_title">Halo, saya Bayu.</string>
     <string name="chat_input_hint">Tanya Agent Bayu</string>
     <string name="chat_send">Kirim</string>
     <string name="chat_mic">Bicara</string>
