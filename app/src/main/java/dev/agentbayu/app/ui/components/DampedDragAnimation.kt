@@ -43,6 +43,8 @@ internal class DampedDragAnimation(
     private val mutatorMutex = MutatorMutex()
     private val velocityTracker = VelocityTracker()
     private var pressJob: Job? = null
+    var isGestureActive: Boolean = false
+        private set
 
     val value: Float get() = valueAnimation.value
     val targetValue: Float get() = valueAnimation.targetValue
@@ -54,16 +56,19 @@ internal class DampedDragAnimation(
     val modifier: Modifier = Modifier.pointerInput(Unit) {
         inspectDragGestures(
             onDragStart = { down ->
+                isGestureActive = true
                 onDragStarted(down.position)
                 press()
             },
             onDragEnd = {
                 onDragStopped()
                 release()
+                isGestureActive = false
             },
             onDragCancel = {
                 onDragCanceled()
                 release()
+                isGestureActive = false
             }
         ) { _, dragAmount ->
             onDrag(size, dragAmount)

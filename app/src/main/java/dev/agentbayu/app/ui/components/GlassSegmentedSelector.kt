@@ -93,6 +93,8 @@ internal fun GlassSegmentedSelector(
         val dragAnimation = remember(animationScope, segmentWidthPx, lastIndex) {
             var travel = 0f
             var downIndex = safeSelectedIndex
+            var dragAnchor = 0f
+            var dragDistance = 0f
             DampedDragAnimation(
                 animationScope = animationScope,
                 initialValue = safeSelectedIndex.toFloat(),
@@ -103,6 +105,8 @@ internal fun GlassSegmentedSelector(
                 onDragStarted = { position ->
                     travel = 0f
                     downIndex = (position.x / segmentWidthPx).toInt().fastCoerceIn(0, lastIndex)
+                    dragAnchor = value
+                    dragDistance = 0f
                 },
                 onDragStopped = {
                     val selected = if (travel < touchSlop) {
@@ -116,7 +120,8 @@ internal fun GlassSegmentedSelector(
                 },
                 onDrag = { _, dragAmount ->
                     travel += abs(dragAmount.x)
-                    val target = (targetValue + dragAmount.x / segmentWidthPx)
+                    dragDistance += dragAmount.x
+                    val target = (dragAnchor + dragDistance / segmentWidthPx)
                         .fastCoerceIn(0f, lastIndex.toFloat())
                     updateValue(target)
                 },
@@ -125,10 +130,12 @@ internal fun GlassSegmentedSelector(
                 }
             )
         }
-        LaunchedEffect(selectedIndex) {
+        LaunchedEffect(dragAnimation, selectedIndex) {
             val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
             currentIndex = safeIndex
-            dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+            if (!dragAnimation.isGestureActive) {
+                dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+            }
         }
         LaunchedEffect(dragAnimation) {
             snapshotFlow { dragAnimation.value }.collect { value ->
