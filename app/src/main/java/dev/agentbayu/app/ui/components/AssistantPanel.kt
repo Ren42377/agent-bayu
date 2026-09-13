@@ -1,13 +1,16 @@
 package dev.agentbayu.app.ui.components
 
 import android.graphics.Bitmap
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animate
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -71,8 +74,8 @@ import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.ScrimBlack
-import dev.agentbayu.app.ui.theme.clearPanelGlassStyle
-import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.panelGlassStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -123,7 +126,7 @@ fun AssistantPanel(
         }
     }
     val scrimBackdrop = rememberLayerBackdrop()
-    val panelGlass = clearPanelGlassStyle()
+    val panelGlass = panelGlassStyle()
     val onPillDrag: (Float) -> Unit = { amount ->
         sheetOffsetPx = (sheetOffsetPx + amount)
             .coerceIn(-expandDragLimitPx, dismissDragLimitPx)
@@ -209,12 +212,7 @@ private fun ResponseCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .liquidGlass(
-                shape = GlassCardShape,
-                refractionHeight = PanelRefractionHeight,
-                refractionAmount = PanelRefractionAmount,
-                depthEffect = true
-            )
+            .glassSurface(shape = GlassCardShape)
     ) {
         MessageList(
             messages = messages,
@@ -247,21 +245,37 @@ private fun ScreenContextRow(
         ),
         exit = fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = 0.85f)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            if (!active) {
+        AnimatedContent(
+            targetState = active,
+            transitionSpec = {
+                (fadeIn(
+                    animationSpec = tween(durationMillis = 180, delayMillis = 200)
+                ) + scaleIn(
+                    initialScale = 0.85f,
+                    animationSpec = AgentBayuMotion.snappySpring
+                )) togetherWith (
+                    fadeOut(animationSpec = tween(durationMillis = 180)) +
+                        scaleOut(targetScale = 0.85f)
+                )
+            },
+            label = "ScreenContextSwitch"
+        ) { isActive ->
+            if (isActive && screenshot != null) {
+                val image = remember(screenshot) { screenshot?.asImageBitmap() }
+                Image(
+                    bitmap = image!!,
+                    contentDescription = stringResource(R.string.overlay_screenshot),
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(120.dp)
+                        .clip(GlassTileShape)
+                        .clickable(onClick = onToggle)
+                )
+            } else {
                 Row(
                     modifier = Modifier
                         .clip(CapsuleShape)
-                        .liquidGlass(
-                            shape = CapsuleShape,
-                            refractionHeight = PanelRefractionHeight,
-                            refractionAmount = PanelRefractionAmount,
-                            depthEffect = true
-                        )
+                        .glassSurface(shape = CapsuleShape)
                         .clickable(onClick = onToggle)
                         .padding(horizontal = 14.dp, vertical = 10.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -279,25 +293,6 @@ private fun ScreenContextRow(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                 }
-            }
-            AnimatedVisibility(
-                visible = active && screenshot != null,
-                enter = fadeIn(AgentBayuMotion.quickFade) + scaleIn(
-                    initialScale = 0.7f,
-                    animationSpec = AgentBayuMotion.snappySpring
-                ),
-                exit = fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = 0.7f)
-            ) {
-                val image = remember(screenshot) { screenshot?.asImageBitmap() }
-                Image(
-                    bitmap = image!!,
-                    contentDescription = stringResource(R.string.overlay_screenshot),
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(120.dp)
-                        .clip(GlassTileShape)
-                        .clickable(onClick = onToggle)
-                )
             }
         }
     }
@@ -372,12 +367,7 @@ private fun AssistantInputBar(
     Column(
         modifier = modifier
             .clip(CapsuleShape)
-            .liquidGlass(
-                shape = CapsuleShape,
-                refractionHeight = PanelRefractionHeight,
-                refractionAmount = PanelRefractionAmount,
-                depthEffect = true
-            )
+            .glassSurface(shape = CapsuleShape)
     ) {
         DragPill(
             onDrag = onDrag,
@@ -385,7 +375,7 @@ private fun AssistantInputBar(
             onDragCancel = onDragCancel
         )
         Row(
-            modifier = Modifier.padding(horizontal = 6.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
         Box(
@@ -456,5 +446,3 @@ private val EXPAND_MAX_DRAG = 400.dp
 private const val EXPAND_HEIGHT_FRACTION = 0.7f
 private const val INITIAL_ENTRY_OFFSET_PX = 3000f
 private const val PanelScrimAlpha = 0.18f
-private val PanelRefractionHeight = 18.dp
-private val PanelRefractionAmount = 36.dp

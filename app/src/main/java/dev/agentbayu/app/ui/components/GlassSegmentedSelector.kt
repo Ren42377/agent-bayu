@@ -5,6 +5,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -91,7 +92,7 @@ internal fun GlassSegmentedSelector(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(SELECTOR_HEIGHT)
+            .height(if (icons.isEmpty()) SELECTOR_HEIGHT else SELECTOR_WITH_ICONS_HEIGHT)
     ) {
         val segmentWidth = maxWidth / labels.size
         val segmentWidthPx = (constraints.maxWidth.toFloat() / labels.size).coerceAtLeast(1f)
@@ -317,19 +318,26 @@ private fun SelectorLabel(
     color: Color,
     modifier: Modifier = Modifier
 ) {
-    Row(
+    if (icon == null) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = color,
+            modifier = modifier
+        )
+        return
+    }
+    Column(
         modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        if (icon != null) {
-            Icon(
-                painter = icon,
-                contentDescription = null,
-                tint = color,
-                modifier = Modifier.size(14.dp)
-            )
-        }
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = color,
+            modifier = Modifier.size(16.dp)
+        )
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
@@ -347,6 +355,7 @@ private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f
 private val SELECTOR_HEIGHT = 36.dp
+private val SELECTOR_WITH_ICONS_HEIGHT = 52.dp
 private val SELECTOR_LENS_HEIGHT = 10.dp
 private val SELECTOR_LENS_AMOUNT = 14.dp
 private val SELECTOR_INNER_SHADOW = 8.dp

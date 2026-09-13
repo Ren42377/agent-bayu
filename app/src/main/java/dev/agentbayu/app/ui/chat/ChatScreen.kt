@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.offset
@@ -152,7 +153,29 @@ fun ChatScreen(
             )
         }
 
-        val headerModifier = Modifier
+            if (incognito && messages.isEmpty()) {
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = stringResource(R.string.chat_incognito_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = stringResource(R.string.chat_incognito_body),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(top = 10.dp)
+                    )
+                }
+            }
+
+            val headerModifier = Modifier
             .align(Alignment.TopCenter)
             .fillMaxWidth()
             .onSizeChanged { size ->
@@ -235,7 +258,7 @@ fun ChatScreen(
             }
 
             Column(modifier = footerModifier) {
-                if (messages.isEmpty()) {
+                if (messages.isEmpty() && !incognito) {
                     SuggestionRows(
                         suggestions = suggestions,
                         onSelect = onSuggestionClick,

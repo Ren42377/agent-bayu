@@ -402,6 +402,8 @@
     <string name="chat_attachment_preview">Pratinjau gambar</string>
     <string name="chat_incognito_enter">Masuk mode incognito</string>
     <string name="chat_incognito_exit">Keluar dari mode incognito</string>
+    <string name="chat_incognito_title">Obrolan sementara</string>
+    <string name="chat_incognito_body">Obrolan ini tidak akan muncul di riwayat.</string>
     <string name="chat_new_session">Buka sesi baru</string>
     <string name="chat_copied">Jawaban disalin.</string>
     <string name="chat_thought">Berpikir</string>
