@@ -51,7 +51,7 @@ internal fun TaskDatePickerDialog(
     title: String,
     initialDate: LocalDate?,
     onSelect: (LocalDate) -> Unit,
-    onClear: () -> Unit,
+    onClear: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val today = remember { LocalDate.now() }
@@ -129,19 +129,21 @@ internal fun TaskDatePickerDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                GlassButton(
-                    onClick = {
-                        onDismiss()
-                        onClear()
-                    },
-                    modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(vertical = 12.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.tasks_clear_value),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.error
-                    )
+                if (onClear != null) {
+                    GlassButton(
+                        onClick = {
+                            onDismiss()
+                            onClear()
+                        },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(vertical = 12.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.tasks_clear_value),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

@@ -47,7 +47,7 @@ internal fun TaskTimePickerDialog(
     initialHour: Int,
     initialMinute: Int,
     onSelect: (Int, Int) -> Unit,
-    onClear: () -> Unit,
+    onClear: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val state = key(visible, initialHour, initialMinute) {
@@ -138,20 +138,22 @@ internal fun TaskTimePickerDialog(
                     )
                 }
             }
-            Text(
-                text = stringResource(R.string.tasks_clear_value),
-                style = MaterialTheme.typography.labelMedium,
-                color = scheme.error,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(GlassTileShape)
-                    .clickable {
-                        onDismiss()
-                        onClear()
-                    }
-                    .padding(vertical = 8.dp)
-            )
+            if (onClear != null) {
+                Text(
+                    text = stringResource(R.string.tasks_clear_value),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = scheme.error,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(GlassTileShape)
+                        .clickable {
+                            onDismiss()
+                            onClear()
+                        }
+                        .padding(vertical = 8.dp)
+                )
+            }
         }
     }
 }

@@ -15,7 +15,7 @@ class TaskAlarmReceiver : BroadcastReceiver() {
             ACTION_TASK_SHOW -> {
                 val task = store.find(taskId) ?: return
                 if (task.completed) return
-                notifications.show(task)
+                notifications.show(task, intent.getLongExtra(EXTRA_TRIGGER_MILLIS, 0L))
                 AppGraph.taskAlarms(context).sync(store.tasks.value)
             }
 

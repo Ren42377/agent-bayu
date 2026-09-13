@@ -41,6 +41,9 @@ import dev.agentbayu.app.ai.tools.MoveFileTool
 import dev.agentbayu.app.ai.tools.ReadFileTool
 import dev.agentbayu.app.ai.tools.RequestPermissionTool
 import dev.agentbayu.app.ai.tools.SearchFilesTool
+import dev.agentbayu.app.ai.tools.SetTaskDeadlineTool
+import dev.agentbayu.app.ai.tools.SetTaskRemindersTool
+import dev.agentbayu.app.ai.tools.SetTaskTimeTool
 import dev.agentbayu.app.ai.tools.ToolRegistry
 import dev.agentbayu.app.ai.tools.ViewImageTool
 import dev.agentbayu.app.ai.tools.WebSearchTool
@@ -373,6 +376,9 @@ object AppGraph {
                         defaultListTitle = context.getString(R.string.tasks_list_default)
                     ),
                     ListTasksTool { tasks(context) },
+                    SetTaskTimeTool(store = { tasks(context) }),
+                    SetTaskDeadlineTool(store = { tasks(context) }),
+                    SetTaskRemindersTool(store = { tasks(context) }),
                     CompleteTaskTool { tasks(context) },
                     DeleteTaskTool { tasks(context) },
                     CreateAlarmTool(context),

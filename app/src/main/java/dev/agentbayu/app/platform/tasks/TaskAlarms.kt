@@ -10,7 +10,7 @@ import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.RealClock
 import dev.agentbayu.app.domain.tasks.TaskItem
 import dev.agentbayu.app.domain.tasks.nextTriggerMillis
-import dev.agentbayu.app.domain.tasks.triggerAtMillis
+import dev.agentbayu.app.domain.tasks.triggerMomentsOf
 import java.time.ZoneId
 
 class TaskAlarms(
@@ -39,7 +39,12 @@ class TaskAlarms(
         val wanted = tasks.mapNotNull { task ->
             val snoozedAt = snoozed[task.id]?.takeIf { !task.completed && it > now }
             val at = snoozedAt ?: nextTriggerMillis(task, timeZone, now)
-            at?.let { task.id to Reminder(it, snoozedAt != null || task.hasTime) }
+            at?.let {
+                task.id to Reminder(
+                    it,
+                    snoozedAt != null || task.hasTime || it in task.reminders
+                )
+            }
         }.toMap()
         (scheduled.keys - wanted.keys).toList().forEach { cancel(it) }
         wanted.forEach { (taskId, reminder) ->
@@ -78,7 +83,7 @@ class TaskAlarms(
         tasks.asSequence()
             .filter { !it.completed }
             .filter { snoozed[it.id] == null }
-            .mapNotNull { task -> triggerAtMillis(task, timeZone)?.let { task to it } }
+            .flatMap { task -> triggerMomentsOf(task, timeZone).map { task to it } }
             .filter { (_, at) -> at > since && at <= now && at >= oldest }
             .sortedBy { (_, at) -> at }
             .take(MAX_CATCH_UP_COUNT)
@@ -87,7 +92,7 @@ class TaskAlarms(
 
     private fun schedule(taskId: String, atMillis: Long, exactTime: Boolean) {
         val alarms = manager ?: return
-        val intent = taskBroadcast(context, taskId, ACTION_TASK_SHOW)
+        val intent = taskBroadcast(context, taskId, ACTION_TASK_SHOW, atMillis)
         if (!canScheduleExact()) {
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, atMillis, intent)
             return

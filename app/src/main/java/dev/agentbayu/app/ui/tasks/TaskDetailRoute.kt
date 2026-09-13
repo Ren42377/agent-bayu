@@ -113,6 +113,7 @@ private fun save(
             dueAtMillis = draft.dueAtMillis,
             hasTime = draft.hasTime && draft.dueAtMillis != null,
             deadlineAtMillis = draft.deadlineAtMillis,
+            reminders = draft.reminders,
             repeat = if (repeatAllowed) draft.repeat else null
         )
     )
@@ -130,6 +131,7 @@ private fun draftOf(task: TaskItem?, listId: String): TaskDraft = TaskDraft(
     dueAtMillis = task?.dueAtMillis,
     hasTime = task?.hasTime ?: false,
     deadlineAtMillis = task?.deadlineAtMillis,
+    reminders = task?.reminders ?: emptyList(),
     repeat = task?.repeat,
     starred = task?.starred ?: false,
     listId = task?.listId ?: listId

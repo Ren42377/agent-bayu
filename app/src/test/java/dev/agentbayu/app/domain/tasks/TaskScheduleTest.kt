@@ -161,6 +161,61 @@ class TaskScheduleTest {
     }
 
     @Test
+    fun theNextTriggerIsTheEarliestOfDueAndReminders() {
+        val target = task(
+            dueAtMillis = at("2026-09-05", "08:00"),
+            hasTime = true,
+            reminders = listOf(at("2026-09-04", "16:00"))
+        )
+        assertEquals(
+            at("2026-09-04", "16:00"),
+            nextTriggerMillis(target, TEST_ZONE, at("2026-09-03", "10:00"))
+        )
+    }
+
+    @Test
+    fun pastRemindersAreSkippedWhileTheDueStillFires() {
+        val target = task(
+            dueAtMillis = at("2026-09-05", "08:00"),
+            hasTime = true,
+            reminders = listOf(at("2026-09-01", "16:00"))
+        )
+        assertEquals(
+            at("2026-09-05", "08:00"),
+            nextTriggerMillis(target, TEST_ZONE, at("2026-09-03", "10:00"))
+        )
+    }
+
+    @Test
+    fun aTaskWithOnlyRemindersWalksThroughEveryMoment() {
+        val target = task(
+            reminders = listOf(at("2026-09-06", "16:00"), at("2026-09-04", "09:00"))
+        )
+        assertEquals(
+            at("2026-09-04", "09:00"),
+            nextTriggerMillis(target, TEST_ZONE, at("2026-09-03", "10:00"))
+        )
+        assertEquals(
+            at("2026-09-06", "16:00"),
+            nextTriggerMillis(target, TEST_ZONE, at("2026-09-05", "10:00"))
+        )
+        assertNull(nextTriggerMillis(target, TEST_ZONE, at("2026-09-06", "17:00")))
+    }
+
+    @Test
+    fun triggerMomentsListDueAndEveryReminderSorted() {
+        val target = task(
+            dueAtMillis = at("2026-09-05", "08:00"),
+            hasTime = true,
+            reminders = listOf(at("2026-09-04", "16:00"), at("2026-09-05", "08:00"))
+        )
+        assertEquals(
+            listOf(at("2026-09-04", "16:00"), at("2026-09-05", "08:00")),
+            triggerMomentsOf(target, TEST_ZONE)
+        )
+    }
+
+    @Test
     fun theDateSortPutsUndatedTasksLast() {
         val undated = task(id = "a", position = 0)
         val later = task(id = "b", dueAtMillis = at("2026-09-05", "08:00"), position = 1)

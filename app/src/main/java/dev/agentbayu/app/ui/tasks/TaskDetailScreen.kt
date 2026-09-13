@@ -71,6 +71,9 @@ fun TaskDetailScreen(
     var duePicker by remember { mutableStateOf(false) }
     var timePicker by remember { mutableStateOf(false) }
     var deadlinePicker by remember { mutableStateOf(false) }
+    var reminderDatePicker by remember { mutableStateOf(false) }
+    var reminderTimePicker by remember { mutableStateOf(false) }
+    var pendingReminderDate by remember { mutableStateOf<LocalDate?>(null) }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -124,6 +127,44 @@ fun TaskDetailScreen(
                     label = stringResource(R.string.tasks_detail_deadline),
                     value = dateFieldLabel(draft.deadlineAtMillis),
                     onClick = { deadlinePicker = true }
+                )
+            }
+
+            TaskSection(title = stringResource(R.string.tasks_detail_reminders)) {
+                draft.reminders.sorted().forEach { moment ->
+                    TaskFieldRow(
+                        label = reminderLabel(moment),
+                        value = "",
+                        trailing = {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_close),
+                                contentDescription = stringResource(
+                                    R.string.tasks_detail_reminder_remove
+                                ),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier
+                                    .size(24.dp)
+                                    .clip(CircleShape)
+                                    .clickable {
+                                        onDraftChange(draft.copy(reminders = draft.reminders - moment))
+                                    }
+                                    .padding(3.dp)
+                            )
+                        }
+                    )
+                }
+                TaskFieldRow(
+                    label = stringResource(R.string.tasks_detail_reminder_add),
+                    value = "",
+                    onClick = { reminderDatePicker = true },
+                    trailing = {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_add),
+                            contentDescription = stringResource(R.string.tasks_detail_reminder_add),
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
                 )
             }
 
@@ -237,6 +278,42 @@ fun TaskDetailScreen(
         onClear = { onDraftChange(draft.copy(deadlineAtMillis = null)) },
         onDismiss = { deadlinePicker = false }
     )
+
+    TaskDatePickerDialog(
+        visible = reminderDatePicker,
+        title = stringResource(R.string.tasks_detail_reminder_add),
+        initialDate = pendingReminderDate,
+        onSelect = { date ->
+            pendingReminderDate = date
+            reminderTimePicker = true
+        },
+        onDismiss = { reminderDatePicker = false }
+    )
+
+    TaskTimePickerDialog(
+        visible = reminderTimePicker,
+        title = stringResource(R.string.tasks_detail_reminder_add),
+        initialHour = DEFAULT_HOUR,
+        initialMinute = 0,
+        onSelect = { hour, minute ->
+            val date = pendingReminderDate
+            if (date != null) {
+                onDraftChange(
+                    draft.copy(
+                        reminders = (draft.reminders + atTimeMillis(date, hour, minute))
+                            .distinct()
+                            .sorted()
+                    )
+                )
+            }
+            pendingReminderDate = null
+            reminderTimePicker = false
+        },
+        onDismiss = {
+            pendingReminderDate = null
+            reminderTimePicker = false
+        }
+    )
 }
 
 data class TaskDraft(
@@ -245,6 +322,7 @@ data class TaskDraft(
     val dueAtMillis: Long? = null,
     val hasTime: Boolean = false,
     val deadlineAtMillis: Long? = null,
+    val reminders: List<Long> = emptyList(),
     val repeat: TaskRepeat? = null,
     val starred: Boolean = false,
     val listId: String = ""
@@ -385,6 +463,10 @@ private fun ActionBar(
 private fun localDateOf(atMillis: Long): LocalDate = Instant.ofEpochMilli(atMillis)
     .atZone(ZoneId.systemDefault())
     .toLocalDate()
+
+@Composable
+private fun reminderLabel(atMillis: Long): String =
+    stringResource(R.string.tasks_due_with_time, dayLabel(atMillis), timeLabel(atMillis))
 
 private fun localTimeOf(atMillis: Long): LocalTime = Instant.ofEpochMilli(atMillis)
     .atZone(ZoneId.systemDefault())

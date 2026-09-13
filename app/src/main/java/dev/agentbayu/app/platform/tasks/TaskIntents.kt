@@ -9,16 +9,23 @@ internal const val ACTION_TASK_SHOW = "dev.agentbayu.app.action.TASK_SHOW"
 internal const val ACTION_TASK_COMPLETE = "dev.agentbayu.app.action.TASK_COMPLETE"
 internal const val ACTION_TASK_SNOOZE = "dev.agentbayu.app.action.TASK_SNOOZE"
 internal const val EXTRA_TASK_ID = "dev.agentbayu.app.extra.TASK_ID"
+internal const val EXTRA_TRIGGER_MILLIS = "dev.agentbayu.app.extra.TRIGGER_MILLIS"
 
 private const val REQUEST_MIX = 31
 
-internal fun taskBroadcast(context: Context, taskId: String, action: String): PendingIntent =
+internal fun taskBroadcast(
+    context: Context,
+    taskId: String,
+    action: String,
+    atMillis: Long = 0L
+): PendingIntent =
     PendingIntent.getBroadcast(
         context,
         taskRequestCode(taskId, action),
         Intent(context, TaskAlarmReceiver::class.java).also {
             it.action = action
             it.putExtra(EXTRA_TASK_ID, taskId)
+            if (atMillis > 0L) it.putExtra(EXTRA_TRIGGER_MILLIS, atMillis)
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
     )

@@ -36,6 +36,7 @@ data class TaskItem(
     val dueAtMillis: Long? = null,
     val hasTime: Boolean = false,
     val deadlineAtMillis: Long? = null,
+    val reminders: List<Long> = emptyList(),
     val repeat: TaskRepeat? = null,
     val starred: Boolean = false,
     val starredAtMillis: Long? = null,

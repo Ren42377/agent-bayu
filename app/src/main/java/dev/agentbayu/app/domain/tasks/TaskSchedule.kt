@@ -19,6 +19,21 @@ fun triggerAtMillis(task: TaskItem, zone: ZoneId): Long? {
 
 fun nextTriggerMillis(task: TaskItem, zone: ZoneId, nowMillis: Long): Long? {
     if (task.completed) return null
+    val due = dueTriggerMillis(task, zone, nowMillis)
+    val reminder = task.reminders.filter { it > nowMillis }.minOrNull()
+    return when {
+        due == null -> reminder
+        reminder == null -> due
+        else -> minOf(due, reminder)
+    }
+}
+
+fun triggerMomentsOf(task: TaskItem, zone: ZoneId): List<Long> = buildList {
+    triggerAtMillis(task, zone)?.let { add(it) }
+    addAll(task.reminders)
+}.distinct().sorted()
+
+private fun dueTriggerMillis(task: TaskItem, zone: ZoneId, nowMillis: Long): Long? {
     val base = triggerAtMillis(task, zone) ?: return null
     if (base > nowMillis) return base
     val repeat = task.repeat ?: return nudgeAtMillis(nowMillis, zone)
