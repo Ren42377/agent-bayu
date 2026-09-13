@@ -465,7 +465,6 @@ private fun atTimeMillis(date: LocalDate, hour: Int, minute: Int): Long = date
     .atZone(ZoneId.systemDefault())
     .toInstant()
     .toEpochMilli()
-}
 
 private const val DEFAULT_HOUR = 9
 
