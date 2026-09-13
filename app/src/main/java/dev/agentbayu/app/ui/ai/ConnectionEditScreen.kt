@@ -523,7 +523,6 @@ fun AiDropdown(
                         indication = null,
                         onClick = { expanded = true }
                     )
-                    .then(interactiveHighlight.modifier)
                     .then(interactiveHighlight.gestureModifier)
                     .padding(horizontal = 14.dp, vertical = 12.dp)
             ) {

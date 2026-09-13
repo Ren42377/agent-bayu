@@ -358,7 +358,6 @@ private fun SessionRow(
             .fillMaxWidth()
             .clip(GlassTileShape)
             .clickable(interactionSource = null, indication = null, onClick = onOpen)
-            .then(highlight.modifier)
             .then(highlight.gestureModifier)
             .padding(start = 10.dp, end = if (showDelete) 2.dp else 10.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically

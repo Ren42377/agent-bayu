@@ -84,7 +84,6 @@ fun ColumnScope.GlassDropdownMenuItem(
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.small)
             .clickable(interactionSource = null, indication = null, onClick = onClick)
-            .then(interactiveHighlight.modifier)
             .then(interactiveHighlight.gestureModifier)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically

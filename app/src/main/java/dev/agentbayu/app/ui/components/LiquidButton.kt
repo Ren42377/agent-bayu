@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.components
 
-import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -125,7 +124,7 @@ fun GlassButton(
             )
             .clickable(
                 interactionSource = null,
-                indication = if (enabled) null else LocalIndication.current,
+                indication = null,
                 enabled = enabled,
                 role = Role.Button,
                 onClick = onClick
@@ -133,7 +132,6 @@ fun GlassButton(
             .then(
                 if (enabled) {
                     Modifier
-                        .then(interactiveHighlight.modifier)
                         .then(interactiveHighlight.gestureModifier)
                 } else {
                     Modifier

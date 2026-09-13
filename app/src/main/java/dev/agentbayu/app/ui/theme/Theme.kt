@@ -1,7 +1,9 @@
 package dev.agentbayu.app.ui.theme
 
 import android.os.Build
+import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
@@ -13,6 +15,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 
@@ -97,7 +100,7 @@ fun AgentBayuTheme(
     }
     val glassStyle = currentGlassStyle(darkTheme)
     CompositionLocalProvider(
-        LocalIndication provides LiquidIndication(darkTheme),
+        LocalIndication provides NoIndication,
         LocalDarkTheme provides darkTheme,
         LocalGlassStyle provides glassStyle,
         LocalContentColor provides colorScheme.onSurface
@@ -110,3 +113,14 @@ fun AgentBayuTheme(
         )
     }
 }
+
+private val NoIndication: IndicationNodeFactory = object : IndicationNodeFactory {
+
+    override fun create(interactionSource: InteractionSource): Modifier.Node = EmptyIndicationNode()
+
+    override fun equals(other: Any?): Boolean = other === this
+
+    override fun hashCode(): Int = javaClass.hashCode()
+}
+
+private class EmptyIndicationNode : Modifier.Node()

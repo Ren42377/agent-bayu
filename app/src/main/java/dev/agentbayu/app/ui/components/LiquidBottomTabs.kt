@@ -36,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
@@ -192,16 +191,7 @@ fun GlassBottomTabs(
         }
 
         val interactiveHighlight = remember(animationScope) {
-            InteractiveHighlight(
-                animationScope = animationScope,
-                position = { size, _ ->
-                    val center = (dampedDragAnimation.value + 0.5f) * tabWidth
-                    Offset(
-                        if (isLtr) center + panelOffset else size.width - center + panelOffset,
-                        size.height / 2f
-                    )
-                }
-            )
+            InteractiveHighlight(animationScope = animationScope)
         }
         LaunchedEffect(dampedDragAnimation) {
             withFrameNanos { }
@@ -222,7 +212,6 @@ fun GlassBottomTabs(
                         scaleY = scale
                     }
                 )
-                .then(interactiveHighlight.modifier)
                 .height(64.dp)
                 .fillMaxWidth()
                 .padding(4.dp),
@@ -255,7 +244,6 @@ fun GlassBottomTabs(
                         },
                         onDrawSurface = { drawRect(style.fill) }
                     )
-                    .then(interactiveHighlight.modifier)
                     .height(56.dp)
                     .fillMaxWidth()
                     .padding(horizontal = 4.dp)
