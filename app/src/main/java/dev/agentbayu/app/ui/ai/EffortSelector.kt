@@ -32,7 +32,9 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -120,6 +122,7 @@ private fun EffortSlider(
     )
     val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
     val animationScope = rememberCoroutineScope()
+    val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val touchSlop = LocalViewConfiguration.current.touchSlop
@@ -146,6 +149,7 @@ private fun EffortSlider(
             var downIndex = safeSelectedIndex
             var dragAnchor = 0f
             var dragDistance = 0f
+            var lastTickIndex = safeSelectedIndex
             DampedDragAnimation(
                 animationScope = animationScope,
                 initialValue = safeSelectedIndex.toFloat(),
@@ -157,6 +161,7 @@ private fun EffortSlider(
                     travel = 0f
                     dragAnchor = value
                     dragDistance = 0f
+                    lastTickIndex = value.fastRoundToInt().fastCoerceIn(0, lastIndex)
                     downIndex = ((position.x - thumbRadiusPx) / (travelPx / lastIndex))
                         .fastRoundToInt()
                         .fastCoerceIn(0, lastIndex)
@@ -174,8 +179,14 @@ private fun EffortSlider(
                 onDrag = { _, dragAmount ->
                     travel += abs(dragAmount.x)
                     dragDistance += dragAmount.x
-                    val target = (dragAnchor + dragDistance / (travelPx / lastIndex))
+                    val rawTarget = dragAnchor + dragDistance / (travelPx / lastIndex)
+                    val target = applyEndResistance(rawTarget, lastIndex)
                         .fastCoerceIn(0f, lastIndex.toFloat())
+                    val tickIndex = target.fastRoundToInt()
+                    if (tickIndex != lastTickIndex) {
+                        lastTickIndex = tickIndex
+                        hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    }
                     updateValue(target)
                 },
                 onDragCanceled = {
@@ -183,10 +194,12 @@ private fun EffortSlider(
                 }
             )
         }
-        LaunchedEffect(selectedIndex) {
+        LaunchedEffect(dragAnimation, selectedIndex) {
             val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
             currentIndex = safeIndex
-            dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+            if (!dragAnimation.isGestureActive) {
+                dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+            }
         }
         LaunchedEffect(dragAnimation) {
             snapshotFlow { dragAnimation.value }.collect { value ->
@@ -268,6 +281,12 @@ private fun EffortSlider(
     }
 }
 
+private fun applyEndResistance(rawTarget: Float, lastIndex: Int): Float {
+    val edge = lastIndex - 0.5f
+    if (rawTarget <= edge) return rawTarget
+    return edge + (rawTarget - edge) * SLIDER_END_RESISTANCE
+}
+
 private data class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
 
 private fun paceAt(options: List<ReasoningEffort>, value: Float): StarPace {
@@ -307,7 +326,7 @@ private fun paceOf(effort: ReasoningEffort?): StarPace {
     return StarPace(driftSpeed = drift, twinkleSpeed = twinkle)
 }
 
-private fun effortColor(effort: ReasoningEffort): Color = when (effort) {
+internal fun effortColor(effort: ReasoningEffort): Color = when (effort) {
     ReasoningEffort.LOW -> AppleGreenLight
     ReasoningEffort.MEDIUM -> AppleYellowLight
     ReasoningEffort.HIGH -> AppleOrangeLight
@@ -376,6 +395,7 @@ private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
+private const val SLIDER_END_RESISTANCE = 0.4f
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
 private val SLIDER_DOT_DIAMETER = 4.dp

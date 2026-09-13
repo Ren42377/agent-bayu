@@ -284,11 +284,24 @@ private fun EffortRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) 
             .padding(start = 12.dp, bottom = 6.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        Text(
-            text = stringResource(R.string.picker_effort_title),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary
-        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.picker_effort_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.weight(1f)
+            )
+            option.effort?.let { effort ->
+                Text(
+                    text = effort.label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = effortColor(effort)
+                )
+            }
+        }
         EffortSelector(
             options = option.efforts,
             selected = option.effort,
