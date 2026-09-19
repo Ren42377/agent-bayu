@@ -248,7 +248,9 @@ fun HistoryDrawer(
         anchor = menuAnchorTrimmed,
         onDismiss = { menuSessionId = null }
     ) {
-        Column {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+        ) {
             if (menu != null) {
                 GlassDropdownMenuItem(
                     label = stringResource(if (menu.pinned) R.string.history_unpin else R.string.history_pin),
@@ -320,7 +322,7 @@ private const val PINNED_HEADER_KEY = "pinned-header"
 private const val RECENT_HEADER_KEY = "recent-header"
 private const val HISTORY_SECTION_TYPE = "section-header"
 private val EDGE_WIDTH = 88.dp
-private val SESSION_MENU_WIDTH = 240.dp
+private val SESSION_MENU_WIDTH = 180.dp
 
 @Composable
 private fun ColumnScope.HistoryDrawerContent(
