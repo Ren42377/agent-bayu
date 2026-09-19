@@ -109,6 +109,8 @@ fun testConnection(
     discoveredModels: List<String> = emptyList(),
     projectId: String? = null,
     effort: ReasoningEffort? = null,
+    contextLengthOverride: Int? = null,
+    customModels: List<String> = emptyList(),
     health: ConnectionHealth = ConnectionHealth.READY,
     createdAtMillis: Long = 0L
 ): Connection = Connection(
@@ -120,6 +122,8 @@ fun testConnection(
     discoveredModels = discoveredModels,
     projectId = projectId,
     effort = effort,
+    contextLengthOverride = contextLengthOverride,
+    customModels = customModels,
     health = health,
     createdAtMillis = createdAtMillis
 )
