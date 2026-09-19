@@ -1,0 +1,131 @@
+package dev.agentbayu.app.ai
+
+import dev.agentbayu.app.ai.oauth.OAuthConfig
+import dev.agentbayu.app.ai.oauth.OAuthFlow
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class ModelPickerTest {
+
+    @Test
+    fun `discovered ids lead the picker when the provider can list models`() {
+        val provider = testProvider(
+            id = "agy",
+            modelsPath = "/models",
+            models = listOf(
+                ModelEntry(id = "gemini-3.8-flash"),
+                ModelEntry(id = "gemini-3.7-flash")
+            )
+        )
+        val connection = testConnection(
+            providerId = "agy",
+            model = "gemini-3.7-flash",
+            discoveredModels = listOf("gemini-3.8-flash", "gemini-3.6-flash")
+        )
+
+        assertEquals(
+            listOf("gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.7-flash"),
+            pickerModelIds(provider, connection)
+        )
+    }
+
+    @Test
+    fun `catalog models stay the fallback when discovery is empty`() {
+        val provider = testProvider(
+            id = "agy",
+            modelsPath = "/models",
+            models = listOf(
+                ModelEntry(id = "live"),
+                ModelEntry(id = "retired", deprecated = true)
+            )
+        )
+        val connection = testConnection(providerId = "agy", model = "live")
+
+        assertEquals(listOf("live"), pickerModelIds(provider, connection))
+    }
+
+    @Test
+    fun `providers without discovery merge catalog and custom ids`() {
+        val provider = testProvider(
+            id = "codex",
+            models = listOf(ModelEntry(id = "gpt-5.6-terra"))
+        )
+        val connection = testConnection(
+            providerId = "codex",
+            model = "gpt-5.6-terra",
+            customModels = listOf("my-model", "gpt-5.6-terra")
+        )
+
+        assertEquals(
+            listOf("gpt-5.6-terra", "my-model"),
+            pickerModelIds(provider, connection)
+        )
+    }
+
+    @Test
+    fun `plan gated models hide behind an unmatched plan`() {
+        val sol = ModelEntry(id = "gpt-5.6-sol", plans = listOf("plus", "pro"))
+        val terra = ModelEntry(id = "gpt-5.6-terra")
+
+        assertTrue(isModelAccessible(terra, "free"))
+        assertTrue(isModelAccessible(sol, "pro"))
+        assertFalse(isModelAccessible(sol, "free"))
+        assertTrue(isModelAccessible(sol, null))
+        assertTrue(isModelAccessible(sol, ""))
+    }
+
+    @Test
+    fun `the picker drops models the plan cannot reach`() {
+        val provider = testProvider(
+            id = "codex",
+            models = listOf(
+                ModelEntry(id = "gpt-5.6-sol", plans = listOf("plus", "pro")),
+                ModelEntry(id = "gpt-5.6-terra"),
+                ModelEntry(id = "gpt-5.6-luna")
+            )
+        )
+        val connection = testConnection(providerId = "codex", model = "gpt-5.6-terra")
+
+        assertEquals(
+            listOf("gpt-5.6-terra", "gpt-5.6-luna"),
+            pickerModelIds(provider, connection, "free")
+        )
+        assertEquals(
+            listOf("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"),
+            pickerModelIds(provider, connection, "plus")
+        )
+        assertEquals(
+            listOf("gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"),
+            pickerModelIds(provider, connection, null)
+        )
+    }
+
+    @Test
+    fun `the plan type comes from the oauth extras named by the provider`() {
+        val provider = testProvider(
+            id = "codex",
+            oauth = OAuthConfig(
+                flow = OAuthFlow.DEVICE_CODE,
+                clientId = "app",
+                tokenUrl = "https://auth.test/token",
+                accountClaim = "https://api.openai.com/auth",
+                planField = "chatgpt_plan_type"
+            )
+        )
+        val tokens = Credential.OAuthTokens(
+            accessToken = "a",
+            extras = mapOf(
+                "chatgpt_plan_type" to "Free",
+                "chatgpt_account_id" to "acc-1"
+            )
+        )
+        val keyOnly = Credential.ApiKey("k")
+
+        assertEquals("free", planTypeOf(tokens, provider))
+        assertNull(planTypeOf(keyOnly, provider))
+        assertNull(planTypeOf(tokens, provider.copy(oauth = null)))
+    }
+}

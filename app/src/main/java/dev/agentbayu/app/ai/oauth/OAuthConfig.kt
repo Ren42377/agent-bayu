@@ -29,7 +29,8 @@ data class OAuthConfig(
     val scopes: List<String> = emptyList(),
     val accountClaim: String? = null,
     val accountField: String? = null,
-    val accountHeader: String? = null
+    val accountHeader: String? = null,
+    val planField: String? = null
 ) {
     val isDeviceCode: Boolean
         get() = flow == OAuthFlow.DEVICE_CODE

@@ -167,6 +167,10 @@
     <string name="providers_meta">%1$s, %2$s</string>
     <string name="providers_subtitle">%1$s, model %2$s</string>
     <string name="providers_detail">Notes: %1$s</string>
+    <string name="providers_update_catalog">Update catalog</string>
+    <string name="providers_catalog_refreshed">Provider catalog updated.</string>
+    <string name="providers_catalog_failed">Catalog update failed.</string>
+    <string name="providers_catalog_updated_at">Catalog updated %1$s</string>
 
     <string name="picker_title">Active provider</string>
     <string name="picker_empty">No connections yet. Add one in the AI providers screen first.</string>
@@ -194,12 +198,9 @@
     <string name="connection_auth_kind">Sign in: %1$s</string>
     <string name="connection_base_url_hint">Base URL</string>
     <string name="connection_custom_model_hint">Model name</string>
+    <string name="connection_model_add">Add</string>
+    <string name="connection_context_hint">Custom context window in tokens (optional)</string>
     <string name="connection_refresh_models">Refresh models</string>
-    <string name="connection_probe_models">Check models</string>
-    <string name="connection_probe_result_title">Model check results</string>
-    <string name="connection_probe_result_line">%1$s: %2$s</string>
-    <string name="connection_probe_alive">up, %1$d ms</string>
-    <string name="connection_probe_dead">down, %1$s</string>
     <string name="connection_models_refreshed">%1$d models read from the provider.</string>
     <string name="connection_models_failed">Failed to read the model list: %1$s</string>
     <string name="connection_test">Test connection</string>

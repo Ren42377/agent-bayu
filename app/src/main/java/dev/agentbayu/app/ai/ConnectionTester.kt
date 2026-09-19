@@ -127,18 +127,6 @@ class ConnectionTester(
         }
     }
 
-    suspend fun probeModels(
-        connection: Connection,
-        apiKey: String? = null,
-        modelIds: List<String>
-    ): Map<String, ConnectionTestResult> {
-        val results = LinkedHashMap<String, ConnectionTestResult>(modelIds.size)
-        modelIds.forEach { modelId ->
-            results[modelId] = test(connection.copy(model = modelId), apiKey)
-        }
-        return results
-    }
-
     private fun discoveryBody(candidate: Candidate): String {
         val projectId = candidate.connection.projectId?.takeIf { it.isNotBlank() }
             ?: return EMPTY_JSON_BODY

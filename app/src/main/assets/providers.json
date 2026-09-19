@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "updateUrl": "https://raw.githubusercontent.com/Ren42377/agent-bayu/main/app/src/main/assets/providers.json",
   "providers": [
     {
       "id": "opencode",
@@ -66,10 +67,11 @@
         "redirectUri": "https://auth.openai.com/deviceauth/callback",
         "accountClaim": "https://api.openai.com/auth",
         "accountField": "chatgpt_account_id",
-        "accountHeader": "chatgpt-account-id"
+        "accountHeader": "chatgpt-account-id",
+        "planField": "chatgpt_plan_type"
       },
       "models": [
-        { "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"], "vision": true },
+        { "id": "gpt-5.6-sol", "label": "GPT-5.6 Sol", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"], "vision": true, "plans": ["plus", "pro", "team", "business", "enterprise", "edu"] },
         { "id": "gpt-5.6-terra", "label": "GPT-5.6 Terra", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"], "vision": true },
         { "id": "gpt-5.6-luna", "label": "GPT-5.6 Luna", "contextLength": 1050000, "maxOutputTokens": 128000, "efforts": ["low", "medium", "high", "xhigh", "max"], "vision": true }
       ]
@@ -87,7 +89,7 @@
       "supportsStreamUsage": true,
       "allowCustomModel": true,
       "tools": true,
-      "effortMode": "none",
+      "effortMode": "request_field",
       "timeoutMillis": 120000,
       "modelsPath": "/v1internal:fetchAvailableModels",
       "modelsMethod": "POST",
@@ -112,23 +114,28 @@
         ]
       },
       "models": [
-        { "id": "gemini-3.8-flash-high", "label": "Gemini 3.8 Flash (High)", "upstreamId": "gemini-3.8-flash-high(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.8-flash-medium", "label": "Gemini 3.8 Flash (Medium)", "upstreamId": "gemini-3.8-flash-medium(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.8-flash-low", "label": "Gemini 3.8 Flash (Low)", "upstreamId": "gemini-3.8-flash-low(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.7-flash-high", "label": "Gemini 3.7 Flash (High)", "upstreamId": "gemini-3.7-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "upstreamId": "gemini-3.7-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "upstreamId": "gemini-3.7-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.6-flash-high", "label": "Gemini 3.6 Flash (High)", "upstreamId": "gemini-3.6-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.6-flash-medium", "label": "Gemini 3.6 Flash (Medium)", "upstreamId": "gemini-3.6-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.6-flash-low", "label": "Gemini 3.6 Flash (Low)", "upstreamId": "gemini-3.6-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.5-flash-low", "label": "Gemini 3.5 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.5-flash-extra-low", "label": "Gemini 3.5 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
-        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true },
+        { "id": "gemini-3.8-flash", "label": "Gemini 3.8 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "efforts": ["low", "medium", "high"], "upstreamByEffort": { "low": "gemini-3.8-flash-low(low)", "medium": "gemini-3.8-flash-medium(medium)", "high": "gemini-3.8-flash-high(high)" } },
+        { "id": "gemini-3.7-flash", "label": "Gemini 3.7 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "efforts": ["low", "medium", "high"], "upstreamByEffort": { "low": "gemini-3.7-flash-tiered(low)", "medium": "gemini-3.7-flash-tiered(medium)", "high": "gemini-3.7-flash-tiered(high)" } },
+        { "id": "gemini-3.6-flash", "label": "Gemini 3.6 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "efforts": ["low", "medium", "high"], "upstreamByEffort": { "low": "gemini-3.6-flash-tiered(low)", "medium": "gemini-3.6-flash-tiered(medium)", "high": "gemini-3.6-flash-tiered(high)" } },
+        { "id": "gemini-3.5-flash", "label": "Gemini 3.5 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "efforts": ["low", "medium", "high"], "upstreamByEffort": { "low": "gemini-3.5-flash-extra-low", "medium": "gemini-3.5-flash-low", "high": "gemini-3.5-flash-high" } },
+        { "id": "gemini-3.1-pro", "label": "Gemini 3.1 Pro", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "efforts": ["low", "high"], "upstreamByEffort": { "low": "gemini-3.1-pro-low", "high": "gemini-pro-agent" } },
         { "id": "claude-opus-4-6-thinking", "label": "Claude Opus 4.6 (Thinking)", "contextLength": 200000, "maxOutputTokens": 64000, "vision": true },
         { "id": "claude-sonnet-4-6", "label": "Claude Sonnet 4.6 (Thinking)", "contextLength": 200000, "maxOutputTokens": 64000, "vision": true },
         { "id": "gpt-oss-120b-medium", "label": "GPT-OSS 120B (Medium)", "contextLength": 131072, "maxOutputTokens": 32768 },
+        { "id": "gemini-3.8-flash-high", "label": "Gemini 3.8 Flash (High)", "upstreamId": "gemini-3.8-flash-high(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.8-flash-medium", "label": "Gemini 3.8 Flash (Medium)", "upstreamId": "gemini-3.8-flash-medium(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.8-flash-low", "label": "Gemini 3.8 Flash (Low)", "upstreamId": "gemini-3.8-flash-low(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.7-flash-high", "label": "Gemini 3.7 Flash (High)", "upstreamId": "gemini-3.7-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.7-flash-medium", "label": "Gemini 3.7 Flash (Medium)", "upstreamId": "gemini-3.7-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.7-flash-low", "label": "Gemini 3.7 Flash (Low)", "upstreamId": "gemini-3.7-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.6-flash-high", "label": "Gemini 3.6 Flash (High)", "upstreamId": "gemini-3.6-flash-tiered(high)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.6-flash-medium", "label": "Gemini 3.6 Flash (Medium)", "upstreamId": "gemini-3.6-flash-tiered(medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.6-flash-low", "label": "Gemini 3.6 Flash (Low)", "upstreamId": "gemini-3.6-flash-tiered(low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.5-flash-low", "label": "Gemini 3.5 Flash (Medium)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.5-flash-extra-low", "label": "Gemini 3.5 Flash (Low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
         { "id": "gemini-3.5-flash-high", "label": "Gemini 3.5 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-pro-agent", "label": "Gemini 3.1 Pro (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
+        { "id": "gemini-3.1-pro-low", "label": "Gemini 3.1 Pro (Low)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
         { "id": "gemini-3-flash-agent", "label": "Gemini 3.5 Flash (High)", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true },
         { "id": "gemini-3-flash", "label": "Gemini 3 Flash", "contextLength": 1048576, "maxOutputTokens": 64000, "vision": true, "deprecated": true }
       ]

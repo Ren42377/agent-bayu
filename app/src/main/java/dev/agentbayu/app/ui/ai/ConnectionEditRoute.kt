@@ -4,6 +4,8 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +24,9 @@ import dev.agentbayu.app.ai.ConnectionTestResult
 import dev.agentbayu.app.ai.Credential
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderEntry
+import dev.agentbayu.app.ai.isModelAccessible
+import dev.agentbayu.app.ai.planTypeOf
+import dev.agentbayu.app.ai.pickerModelIds
 import dev.agentbayu.app.ui.components.GlassDialog
 import kotlinx.coroutines.launch
 
@@ -36,7 +41,8 @@ fun AiConnectionEditRoute(
 ) {
     val context = LocalContext.current
     val store = remember(context) { AppGraph.connections(context) }
-    val catalog = remember(context) { AppGraph.catalog(context) }
+    val catalogRepository = remember(context) { AppGraph.catalogRepository(context) }
+    val catalog by catalogRepository.catalog.collectAsState()
     val credentials = remember(context) { AppGraph.credentials(context) }
     val tester = remember(context) { AppGraph.connectionTester(context) }
     val scope = rememberCoroutineScope()
@@ -48,17 +54,30 @@ fun AiConnectionEditRoute(
     var provider by remember {
         mutableStateOf(existing?.let { catalog.find(it.providerId) } ?: providers.firstOrNull())
     }
+    LaunchedEffect(catalog) {
+        val currentId = provider?.id
+        if (currentId != null) {
+            catalog.find(currentId)?.let { provider = it }
+        }
+    }
     var label by remember { mutableStateOf(existing?.label ?: provider?.label.orEmpty()) }
     var apiKey by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf(existing?.model ?: defaultModel(provider)) }
+    var model by remember {
+        mutableStateOf(
+            existing?.model
+                ?: defaultModel(provider, planTypeOf(credentials.credential(id), provider))
+        )
+    }
     var baseUrl by remember {
         mutableStateOf(existing?.baseUrlOverride ?: provider?.baseUrl.orEmpty())
     }
     var discovered by remember { mutableStateOf(existing?.discoveredModels ?: emptyList()) }
-    var modelProbes by remember { mutableStateOf(emptyMap<String, String>()) }
+    var customModels by remember { mutableStateOf(existing?.customModels ?: emptyList()) }
+    var contextLength by remember {
+        mutableStateOf(existing?.contextLengthOverride?.toString().orEmpty())
+    }
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
-    var probing by remember { mutableStateOf(false) }
     var blockedLink by remember { mutableStateOf<String?>(null) }
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
@@ -71,8 +90,6 @@ fun AiConnectionEditRoute(
     val testSuccessTemplate = stringResource(R.string.connection_test_success)
     val modelsFailedTemplate = stringResource(R.string.connection_models_failed)
     val modelsRefreshedTemplate = stringResource(R.string.connection_models_refreshed)
-    val probeAliveTemplate = stringResource(R.string.connection_probe_alive)
-    val probeDeadTemplate = stringResource(R.string.connection_probe_dead)
     val linkCopiedMessage = stringResource(R.string.dialog_link_copied)
 
     fun draft(): Connection = Connection(
@@ -85,6 +102,8 @@ fun AiConnectionEditRoute(
         discoveredModels = discovered,
         projectId = existing?.projectId,
         effort = existing?.effort,
+        contextLengthOverride = contextLength.trim().toIntOrNull()?.takeIf { it > 0 },
+        customModels = customModels,
         createdAtMillis = existing?.createdAtMillis ?: 0L
     )
 
@@ -104,6 +123,43 @@ fun AiConnectionEditRoute(
         )
     }
 
+    fun refreshModels() {
+        if (refreshing) return
+        refreshing = true
+        scope.launch {
+            when (val result = tester.fetchModels(draft(), apiKey)) {
+                is ModelFetchResult.Success -> {
+                    discovered = result.models
+                    existing?.let { store.setDiscoveredModels(it.id, result.models) }
+                    onMessage(modelsRefreshedTemplate.format(result.models.size))
+                }
+
+                is ModelFetchResult.Failure ->
+                    onMessage(modelsFailedTemplate.format(result.failure.message))
+            }
+            refreshing = false
+        }
+    }
+
+    LaunchedEffect(provider?.id, loggedIn) {
+        val entry = provider ?: return@LaunchedEffect
+        if (entry.modelsPath == null) return@LaunchedEffect
+        if (existing == null) return@LaunchedEffect
+        if (discovered.isNotEmpty()) return@LaunchedEffect
+        refreshing = true
+        when (val result = tester.fetchModels(draft(), apiKey)) {
+            is ModelFetchResult.Success -> {
+                discovered = result.models
+                store.setDiscoveredModels(existing.id, result.models)
+            }
+
+            is ModelFetchResult.Failure -> Unit
+        }
+        refreshing = false
+    }
+
+    val planType = planTypeOf(credentials.credential(id), provider)
+
     val state = ConnectionEditState(
         providers = providers,
         provider = provider,
@@ -111,14 +167,13 @@ fun AiConnectionEditRoute(
         apiKey = apiKey,
         keyHint = keyHint,
         model = model,
-        modelOptions = modelOptions(provider, discovered, model),
-        modelProbes = modelProbes,
+        modelOptions = pickerModelIds(provider, draft(), planType),
+        contextLength = contextLength,
         baseUrl = baseUrl,
         isNew = existing == null,
         loggedIn = loggedIn,
         testing = testing,
-        refreshing = refreshing,
-        probing = probing
+        refreshing = refreshing
     )
 
     val actions = ConnectionEditActions(
@@ -127,53 +182,22 @@ fun AiConnectionEditRoute(
                 val previous = provider
                 if (label.isBlank() || label == previous?.label) label = selected.label
                 if (baseUrl.isBlank() || baseUrl == previous?.baseUrl) baseUrl = selected.baseUrl
-                model = defaultModel(selected)
+                model = defaultModel(selected, planTypeOf(credentials.credential(id), selected))
                 discovered = emptyList()
-                modelProbes = emptyMap()
+                customModels = emptyList()
                 provider = selected
             }
         },
         onLabelChange = { value -> label = value },
         onKeyChange = { value -> apiKey = value },
         onModelChange = { value -> model = value },
+        onAddCustomModel = {
+            val value = model.trim()
+            if (value.isNotEmpty() && value !in customModels) customModels = customModels + value
+        },
+        onContextLengthChange = { value -> contextLength = value.filter { it.isDigit() } },
         onBaseUrlChange = { value -> baseUrl = value },
-        onRefreshModels = {
-            refreshing = true
-            scope.launch {
-                when (val result = tester.fetchModels(draft(), apiKey)) {
-                    is ModelFetchResult.Success -> {
-                        discovered = result.models
-                        modelProbes = emptyMap()
-                        onMessage(modelsRefreshedTemplate.format(result.models.size))
-                    }
-
-                    is ModelFetchResult.Failure ->
-                        onMessage(modelsFailedTemplate.format(result.failure.message))
-                }
-                refreshing = false
-            }
-        },
-        onProbeModels = {
-            probing = true
-            modelProbes = emptyMap()
-            scope.launch {
-                val results = tester.probeModels(
-                    connection = draft(),
-                    apiKey = apiKey,
-                    modelIds = modelOptions(provider, discovered, model)
-                )
-                modelProbes = results.mapValues { (_, result) ->
-                    when (result) {
-                        is ConnectionTestResult.Success ->
-                            probeAliveTemplate.format(result.latencyMillis)
-
-                        is ConnectionTestResult.Failure ->
-                            probeDeadTemplate.format(result.failure.message)
-                    }
-                }
-                probing = false
-            }
-        },
+        onRefreshModels = { refreshModels() },
         onTest = {
             testing = true
             scope.launch {
@@ -244,11 +268,8 @@ fun AiConnectionEditRoute(
     )
 }
 
-private fun defaultModel(provider: ProviderEntry?): String =
-    provider?.selectableModels?.firstOrNull()?.id.orEmpty()
-
-private fun modelOptions(
-    provider: ProviderEntry?,
-    discovered: List<String>,
-    current: String
-): List<String> = provider?.pickerModelIds(discovered, current).orEmpty()
+private fun defaultModel(provider: ProviderEntry?, planType: String? = null): String =
+    provider?.selectableModels
+        ?.firstOrNull { isModelAccessible(it, planType) }
+        ?.id
+        .orEmpty()

@@ -58,13 +58,12 @@ data class ConnectionEditState(
     val keyHint: String?,
     val model: String,
     val modelOptions: List<String>,
-    val modelProbes: Map<String, String>,
+    val contextLength: String,
     val baseUrl: String,
     val isNew: Boolean,
     val loggedIn: Boolean = false,
     val testing: Boolean = false,
-    val refreshing: Boolean = false,
-    val probing: Boolean = false
+    val refreshing: Boolean = false
 ) {
     val modelEntry: ModelEntry?
         get() = provider?.model(model)
@@ -75,9 +74,10 @@ data class ConnectionEditActions(
     val onLabelChange: (String) -> Unit,
     val onKeyChange: (String) -> Unit,
     val onModelChange: (String) -> Unit,
+    val onAddCustomModel: () -> Unit,
+    val onContextLengthChange: (String) -> Unit,
     val onBaseUrlChange: (String) -> Unit,
     val onRefreshModels: () -> Unit,
-    val onProbeModels: () -> Unit,
     val onTest: () -> Unit,
     val onSave: () -> Unit,
     val onLogin: () -> Unit,
@@ -326,23 +326,38 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 selectedId = state.model
             )
         }
-        if (provider.allowCustomModel || state.modelOptions.isEmpty()) {
-            OutlinedTextField(
-                value = state.model,
-                onValueChange = actions.onModelChange,
-                label = { Text(text = stringResource(R.string.connection_custom_model_hint)) },
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
-        }
+        OutlinedTextField(
+            value = state.model,
+            onValueChange = actions.onModelChange,
+            label = { Text(text = stringResource(R.string.connection_custom_model_hint)) },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+            ),
+            trailingIcon = {
+                if (state.model.isNotBlank() && state.model !in state.modelOptions) {
+                    GlassButton(
+                        onClick = actions.onAddCustomModel,
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.connection_model_add),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth()
+        )
         state.modelEntry?.let { entry ->
+            val contextText = state.contextLength.toIntOrNull()
+                ?.takeIf { it > 0 }
+                ?: entry.contextLength
             Text(
-                text = stringResource(R.string.connection_model_context, formatTokens(entry.contextLength)),
+                text = stringResource(R.string.connection_model_context, formatTokens(contextText)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -365,61 +380,40 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 )
             }
         }
+        OutlinedTextField(
+            value = state.contextLength,
+            onValueChange = actions.onContextLengthChange,
+            label = { Text(text = stringResource(R.string.connection_context_hint)) },
+            singleLine = true,
+            shape = MaterialTheme.shapes.medium,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+            ),
+            modifier = Modifier.fillMaxWidth()
+        )
         if (provider.modelsPath != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                GlassButton(
-                    onClick = actions.onRefreshModels,
-                    enabled = !state.refreshing,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    if (state.refreshing) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_refresh),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
-                    Text(
-                        text = stringResource(R.string.connection_refresh_models),
-                        style = MaterialTheme.typography.labelMedium
+            GlassButton(
+                onClick = actions.onRefreshModels,
+                enabled = !state.refreshing,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                if (state.refreshing) {
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_refresh),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
                     )
                 }
-                GlassButton(
-                    onClick = actions.onProbeModels,
-                    enabled = !state.probing && state.modelOptions.isNotEmpty(),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    if (state.probing) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    }
-                    Text(
-                        text = stringResource(R.string.connection_probe_models),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
+                Text(
+                    text = stringResource(R.string.connection_refresh_models),
+                    style = MaterialTheme.typography.labelMedium
+                )
             }
         }
-        ModelProbeList(state = state)
-    }
-}
-
-@Composable
-private fun ModelProbeList(state: ConnectionEditState) {
-    if (state.modelProbes.isEmpty()) return
-    Text(
-        text = stringResource(R.string.connection_probe_result_title),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    state.modelOptions.forEach { modelId ->
-        val status = state.modelProbes[modelId] ?: return@forEach
-        Text(
-            text = stringResource(R.string.connection_probe_result_line, modelId, status),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
     }
 }
 

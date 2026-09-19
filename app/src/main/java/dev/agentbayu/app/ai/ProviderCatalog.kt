@@ -6,18 +6,25 @@ import kotlinx.serialization.json.Json
 @Serializable
 data class ProviderCatalogFile(
     val version: Int = 1,
+    val updateUrl: String? = null,
     val providers: List<ProviderEntry> = emptyList()
 )
 
-class ProviderCatalog(val providers: List<ProviderEntry>) {
+open class ProviderCatalog(
+    open val providers: List<ProviderEntry>,
+    open val updateUrl: String? = null
+) {
 
-    private val byId: Map<String, ProviderEntry> = providers.associateBy { it.id }
+    private val byId: Map<String, ProviderEntry> by lazy {
+        providers.associateBy { it.id }
+    }
 
-    fun find(providerId: String): ProviderEntry? = byId[providerId]
+    open fun find(providerId: String): ProviderEntry? = byId[providerId]
 
-    fun model(providerId: String, modelId: String): ModelEntry? = find(providerId)?.model(modelId)
+    open fun model(providerId: String, modelId: String): ModelEntry? =
+        find(providerId)?.model(modelId)
 
-    fun sortedByTier(): List<ProviderEntry> = providers.sortedWith(
+    open fun sortedByTier(): List<ProviderEntry> = providers.sortedWith(
         compareBy({ it.tier.order }, { it.label })
     )
 
@@ -33,7 +40,7 @@ class ProviderCatalog(val providers: List<ProviderEntry>) {
             val file = json.decodeFromString(ProviderCatalogFile.serializer(), raw)
             val unique = LinkedHashMap<String, ProviderEntry>()
             file.providers.forEach { unique[it.id] = it }
-            return ProviderCatalog(unique.values.toList())
+            return ProviderCatalog(unique.values.toList(), file.updateUrl)
         }
 
         fun empty(): ProviderCatalog = ProviderCatalog(emptyList())

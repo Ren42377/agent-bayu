@@ -70,6 +70,34 @@ class ConnectionStore(
         upsert(target.copy(projectId = trimmed))
     }
 
+    fun setDiscoveredModels(connectionId: String, models: List<String>) {
+        val target = find(connectionId) ?: return
+        val cleaned = models.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        if (target.discoveredModels == cleaned) return
+        upsert(target.copy(discoveredModels = cleaned))
+    }
+
+    fun addCustomModel(connectionId: String, modelId: String) {
+        val target = find(connectionId) ?: return
+        val trimmed = modelId.trim()
+        if (trimmed.isEmpty()) return
+        if (trimmed in target.customModels) return
+        upsert(target.copy(customModels = target.customModels + trimmed))
+    }
+
+    fun removeCustomModel(connectionId: String, modelId: String) {
+        val target = find(connectionId) ?: return
+        if (modelId !in target.customModels) return
+        upsert(target.copy(customModels = target.customModels - modelId))
+    }
+
+    fun setContextLength(connectionId: String, contextLength: Int?) {
+        val target = find(connectionId) ?: return
+        val normalized = contextLength?.takeIf { it > 0 }
+        if (target.contextLengthOverride == normalized) return
+        upsert(target.copy(contextLengthOverride = normalized))
+    }
+
     fun setActive(connectionId: String) {
         if (activeState.value == connectionId) return
         if (find(connectionId) == null) return

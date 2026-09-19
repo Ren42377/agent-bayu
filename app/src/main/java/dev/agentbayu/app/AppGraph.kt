@@ -5,6 +5,9 @@ import android.util.Log
 import dev.agentbayu.app.ai.ActiveProvider
 import dev.agentbayu.app.ai.AiClient
 import dev.agentbayu.app.ai.AntigravityProjectResolver
+import dev.agentbayu.app.ai.CatalogRepository
+import dev.agentbayu.app.ai.CatalogUpdateResult
+import dev.agentbayu.app.ai.CatalogUpdater
 import dev.agentbayu.app.ai.Clock
 import dev.agentbayu.app.ai.CrashLog
 import dev.agentbayu.app.ai.Connection
@@ -13,6 +16,7 @@ import dev.agentbayu.app.ai.ConnectionStore
 import dev.agentbayu.app.ai.ConnectionTester
 import dev.agentbayu.app.ai.CredentialStore
 import dev.agentbayu.app.ai.LogStore
+import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderCatalog
 import dev.agentbayu.app.ai.RealClock
 import dev.agentbayu.app.ai.StoredCredentials
@@ -148,6 +152,7 @@ object AppGraph {
                             readinessState.value = true
                             fullWarmUpRequested = false
                         }
+                        refreshRemoteData(context)
                     }
                     synchronized(warmUpLock) { warmUpFailures = 0 }
                     restartAllowed = true
@@ -190,7 +195,8 @@ object AppGraph {
         val sessionManager: ConversationSessionManager,
         val connectionStore: ConnectionStore,
         val credentialStore: CredentialStore,
-        val catalog: ProviderCatalog,
+        val catalogRepository: CatalogRepository,
+        val catalogUpdater: CatalogUpdater,
         val activeProvider: ActiveProvider,
         val tester: ConnectionTester,
         val deviceFlow: CodexDeviceFlow,
@@ -222,7 +228,10 @@ object AppGraph {
 
     fun credentials(context: Context): CredentialStore = container(context).credentialStore
 
-    fun catalog(context: Context): ProviderCatalog = container(context).catalog
+    fun catalog(context: Context): ProviderCatalog = container(context).catalogRepository
+
+    fun catalogRepository(context: Context): CatalogRepository =
+        container(context).catalogRepository
 
     fun activeProvider(context: Context): ActiveProvider = container(context).activeProvider
 
@@ -238,6 +247,29 @@ object AppGraph {
     fun usage(context: Context): UsageTracker = container(context).usageTracker
 
     fun logs(context: Context): LogStore = container(context).logStore
+
+    fun refreshCatalog(context: Context, onResult: (Boolean) -> Unit = {}) {
+        val graph = container(context)
+        val url = graph.catalogRepository.updateUrl ?: CatalogUpdater.DEFAULT_UPDATE_URL
+        scope.launch {
+            when (val result = graph.catalogUpdater.fetch(url)) {
+                is CatalogUpdateResult.Success -> {
+                    graph.catalogRepository.publish(result.catalog, result.fetchedAtMillis)
+                    graph.logStore.info(
+                        CATALOG_SOURCE,
+                        "Catalog updated",
+                        result.catalog.providers.size.toString() + " providers"
+                    )
+                    onResult(true)
+                }
+
+                is CatalogUpdateResult.Failure -> {
+                    graph.logStore.warning(CATALOG_SOURCE, "Catalog update failed", result.message)
+                    onResult(false)
+                }
+            }
+        }
+    }
 
     fun attachments(context: Context): Attachments = container(context).attachments
 
@@ -283,7 +315,18 @@ object AppGraph {
 
     private fun build(context: Context): Container {
         val secureStore = SecureStore(context)
-        val catalog = loadCatalog(context)
+        val client = OkHttpClient.Builder()
+            .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
+            .build()
+        val catalogUpdater = CatalogUpdater(client, secureStore, clock)
+        val catalogRepository = CatalogRepository(loadCatalog(context))
+        catalogUpdater.restore()?.let { cached ->
+            if (cached is CatalogUpdateResult.Success) {
+                catalogRepository.publish(cached.catalog, cached.fetchedAtMillis)
+            }
+        }
+        val catalog = catalogRepository
         val credentialStore = CredentialStore(secureStore)
         val connectionStore = ConnectionStore(secureStore, clock)
         val usageTracker = UsageTracker(clock)
@@ -292,10 +335,6 @@ object AppGraph {
             logStore.error("Crash", crash.type, crash.detail)
         }
         seedDefaultConnection(context, catalog, connectionStore)
-        val client = OkHttpClient.Builder()
-            .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .retryOnConnectionFailure(true)
-            .build()
         val adapters: Map<WireFormat, ChatAdapter> = mapOf(
             WireFormat.OPENAI to OpenAiCompatibleAdapter(client),
             WireFormat.OPENAI_RESPONSES to OpenAiResponsesAdapter(client),
@@ -433,7 +472,8 @@ object AppGraph {
             sessionManager = sessionManager,
             connectionStore = connectionStore,
             credentialStore = credentialStore,
-            catalog = catalog,
+            catalogRepository = catalogRepository,
+            catalogUpdater = catalogUpdater,
             activeProvider = activeProvider,
             tester = ConnectionTester(client, catalog, credentials, adapters, clock, projects),
             deviceFlow = CodexDeviceFlow(client, clock),
@@ -445,6 +485,40 @@ object AppGraph {
             approvals = approvals,
             permissions = permissions
         )
+    }
+
+    private fun refreshRemoteData(context: Context) {
+        val graph = container(context)
+        scope.launch {
+            val url = graph.catalogRepository.updateUrl ?: CatalogUpdater.DEFAULT_UPDATE_URL
+            when (val result = graph.catalogUpdater.fetch(url)) {
+                is CatalogUpdateResult.Success -> {
+                    graph.catalogRepository.publish(result.catalog, result.fetchedAtMillis)
+                    graph.logStore.info(
+                        CATALOG_SOURCE,
+                        "Catalog updated",
+                        result.catalog.providers.size.toString() + " providers"
+                    )
+                }
+
+                is CatalogUpdateResult.Failure -> Unit
+            }
+        }
+        scope.launch {
+            val store = graph.connectionStore
+            val tester = graph.tester
+            val catalog = graph.catalogRepository
+            store.connections.value.forEach { connection ->
+                val provider = catalog.find(connection.providerId) ?: return@forEach
+                if (provider.modelsPath == null) return@forEach
+                when (val result = tester.fetchModels(connection)) {
+                    is ModelFetchResult.Success ->
+                        store.setDiscoveredModels(connection.id, result.models)
+
+                    is ModelFetchResult.Failure -> Unit
+                }
+            }
+        }
     }
 
     private fun providerCopy(context: Context): ProviderCopy = ProviderCopy(
@@ -496,6 +570,7 @@ object AppGraph {
     }
 
     private const val CATALOG_ASSET = "providers.json"
+    private const val CATALOG_SOURCE = "Catalog"
     private const val ATTACHMENT_DIRECTORY = "attachments"
     private const val CONNECT_TIMEOUT_SECONDS = 15L
     private const val MAX_WARM_UP_RETRIES = 1

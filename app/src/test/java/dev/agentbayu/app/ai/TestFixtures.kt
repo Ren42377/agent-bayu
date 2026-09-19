@@ -156,6 +156,8 @@ fun testCandidate(
     providerVision: Boolean = false,
     tools: Boolean = false,
     providerTools: Boolean = false,
+    upstreamByEffort: Map<String, String> = emptyMap(),
+    plans: List<String> = emptyList(),
     oauth: OAuthConfig? = null
 ): Candidate {
     val model = ModelEntry(
@@ -167,6 +169,8 @@ fun testCandidate(
         inputPricePerMillion = inputPrice,
         outputPricePerMillion = outputPrice,
         unsupportedParams = modelUnsupportedParams,
+        upstreamByEffort = upstreamByEffort,
+        plans = plans,
         free = free,
         vision = vision,
         tools = tools

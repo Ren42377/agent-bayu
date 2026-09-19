@@ -14,6 +14,12 @@ data class Candidate(
     val wireFormat: WireFormat
         get() = model.wireFormat ?: provider.wireFormat
 
+    val effectiveModel: ModelEntry
+        get() = connection.contextLengthOverride
+            ?.takeIf { it > 0 && it != model.contextLength }
+            ?.let { model.copy(contextLength = it) }
+            ?: model
+
     val baseUrl: String
         get() = connection.baseUrlOverride?.takeIf { it.isNotBlank() } ?: provider.baseUrl
 

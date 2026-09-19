@@ -124,4 +124,34 @@ class CandidateEffortTest {
         assertEquals(emptyList<ReasoningEffort>(), candidate.efforts)
         assertNull(candidate.effort)
     }
+
+    @Test
+    fun `a context override resizes the effective model only`() {
+        val candidate = testCandidate(contextLength = 100_000)
+
+        assertEquals(100_000, candidate.effectiveModel.contextLength)
+        assertEquals(100_000, candidate.model.contextLength)
+
+        val overridden = candidate.copy(
+            connection = candidate.connection.copy(contextLengthOverride = 32_768)
+        )
+
+        assertEquals(32_768, overridden.effectiveModel.contextLength)
+        assertEquals(100_000, overridden.model.contextLength)
+        assertEquals(overridden.model.id, overridden.effectiveModel.id)
+    }
+
+    @Test
+    fun `a zero or matching override keeps the declared context`() {
+        val candidate = testCandidate(contextLength = 100_000)
+        val zero = candidate.copy(
+            connection = candidate.connection.copy(contextLengthOverride = 0)
+        )
+        val matching = candidate.copy(
+            connection = candidate.connection.copy(contextLengthOverride = 100_000)
+        )
+
+        assertSame(candidate.model, zero.effectiveModel)
+        assertSame(candidate.model, matching.effectiveModel)
+    }
 }

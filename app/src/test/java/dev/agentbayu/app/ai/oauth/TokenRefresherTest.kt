@@ -47,11 +47,17 @@ class TokenRefresherTest {
         .setHeader("Content-Type", "application/json")
         .setBody(body)
 
-    private fun idToken(accountId: String): String {
-        val payload = "{\"https://api.openai.com/auth\":{\"chatgpt_account_id\":\"" +
-            accountId + "\"}}"
+    private fun idToken(accountId: String, plan: String? = null): String {
+        val claim = StringBuilder()
+            .append("{\"https://api.openai.com/auth\":{\"chatgpt_account_id\":\"")
+            .append(accountId)
+            .append("\"")
+        if (plan != null) {
+            claim.append(",\"chatgpt_plan_type\":\"").append(plan).append("\"")
+        }
+        claim.append("}}")
         val encoded = Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(payload.toByteArray(Charsets.UTF_8))
+            .encodeToString(claim.toString().toByteArray(Charsets.UTF_8))
         return "e30." + encoded + ".signature"
     }
 
@@ -169,6 +175,38 @@ class TokenRefresherTest {
         )
 
         assertTrue(parsed!!.extras.isEmpty())
+    }
+
+    @Test
+    fun `read tokens stores the plan type next to the account id`() {
+        val parsed = readTokens(
+            body = "{\"access_token\":\"new-access\",\"id_token\":\"" +
+                idToken("acc-42", "free") + "\"}",
+            config = config().copy(planField = "chatgpt_plan_type"),
+            previous = null,
+            nowMillis = 0L
+        )
+
+        assertEquals(
+            mapOf(
+                "chatgpt_account_id" to "acc-42",
+                "chatgpt_plan_type" to "free"
+            ),
+            parsed!!.extras
+        )
+    }
+
+    @Test
+    fun `read tokens skips the plan when the config names no plan field`() {
+        val parsed = readTokens(
+            body = "{\"access_token\":\"new-access\",\"id_token\":\"" +
+                idToken("acc-42", "free") + "\"}",
+            config = config(),
+            previous = null,
+            nowMillis = 0L
+        )
+
+        assertEquals(mapOf("chatgpt_account_id" to "acc-42"), parsed!!.extras)
     }
 
     @Test
