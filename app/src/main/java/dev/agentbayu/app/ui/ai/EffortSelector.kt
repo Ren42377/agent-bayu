@@ -1,5 +1,7 @@
 package dev.agentbayu.app.ui.ai
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -159,6 +161,10 @@ private fun EffortSlider(
         val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
         fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
 
+        val thumbOffsetAnimation = remember(travelPx, lastIndex) {
+            Animatable(safeSelectedIndex / lastIndex.toFloat() * travelPx)
+        }
+
         val dragAnimation = remember(animationScope, lastIndex) {
             var travel = 0f
             var downIndex = safeSelectedIndex
@@ -197,9 +203,8 @@ private fun EffortSlider(
                     travel += abs(dragAmount.x)
                     dragDistance += dragAmount.x
                     val rawTarget = dragAnchor + dragDistance / (travelPx / lastIndex)
-                    val target = applyEndResistance(rawTarget, lastIndex)
-                        .fastCoerceIn(0f, lastIndex.toFloat())
-                    val atMax = target >= lastIndex - 0.001f && rawTarget > lastIndex
+                    val target = rawTarget.fastCoerceIn(0f, lastIndex.toFloat())
+                    val atMax = rawTarget > lastIndex
                     shaking = atMax
                     if (atMax && !maxAnnounced) {
                         maxAnnounced = true
@@ -229,6 +234,14 @@ private fun EffortSlider(
         LaunchedEffect(dragAnimation) {
             snapshotFlow { dragAnimation.value }.collect { value ->
                 currentOnValueChange?.invoke(value)
+            }
+        }
+        LaunchedEffect(thumbOffsetAnimation, dragAnimation) {
+            snapshotFlow { dragAnimation.value }.collect { value ->
+                thumbOffsetAnimation.animateTo(
+                    value / lastIndex * travelPx,
+                    spring(dampingRatio = 0.55f, stiffness = 550f)
+                )
             }
         }
         LaunchedEffect(dragAnimation) {
@@ -322,16 +335,33 @@ private fun EffortSlider(
                 .align(Alignment.CenterStart)
                 .size(SLIDER_THUMB_DIAMETER)
                 .graphicsLayer {
-                    translationX = (dragAnimation.value / lastIndex) * travelPx + shakeOffset
+                    translationX = thumbOffsetAnimation.value + shakeOffset
                     scaleX = dragAnimation.scaleX
                     scaleY = dragAnimation.scaleY
+                    val velocity = dragAnimation.velocity / SLIDER_VELOCITY_SCALE
+                    scaleX /= 1f - (velocity * 0.6f).fastCoerceIn(-SLIDER_SQUISH, SLIDER_SQUISH)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-SLIDER_SQUISH, SLIDER_SQUISH)
+                    alpha = dragAnimation.pressProgress
+                }
+                .then(thumbGlassModifier)
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .size(SLIDER_THUMB_DIAMETER)
+                .graphicsLayer {
+                    translationX = thumbOffsetAnimation.value + shakeOffset
+                    scaleX = dragAnimation.scaleX
+                    scaleY = dragAnimation.scaleY
+                    val velocity = dragAnimation.velocity / SLIDER_VELOCITY_SCALE
+                    scaleX /= 1f - (velocity * 0.6f).fastCoerceIn(-SLIDER_SQUISH, SLIDER_SQUISH)
+                    scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-SLIDER_SQUISH, SLIDER_SQUISH)
                 }
                 .shadow(
                     elevation = SLIDER_THUMB_SHADOW,
                     shape = CircleShape,
                     clip = false
                 )
-                .then(thumbGlassModifier)
                 .drawBehind {
                     drawCircle(
                         color = Color.White.copy(alpha = 1f - dragAnimation.pressProgress),
@@ -345,12 +375,6 @@ private fun EffortSlider(
                 .then(dragAnimation.modifier)
         )
     }
-}
-
-private fun applyEndResistance(rawTarget: Float, lastIndex: Int): Float {
-    val edge = lastIndex - 0.5f
-    if (rawTarget <= edge) return rawTarget
-    return edge + (rawTarget - edge) * SLIDER_END_RESISTANCE
 }
 
 private data class StarPace(val driftSpeed: Float, val twinkleSpeed: Float)
@@ -461,8 +485,9 @@ private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
-private const val SLIDER_END_RESISTANCE = 0.4f
 private const val SLIDER_SHAKE_RATE = 0.07f
+private const val SLIDER_VELOCITY_SCALE = 10f
+private const val SLIDER_SQUISH = 0.18f
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
 private val SLIDER_SHAKE_AMPLITUDE = 2.dp
