@@ -6,6 +6,8 @@ import dev.agentbayu.app.ai.ModelEntry
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.testConnection
+import dev.agentbayu.app.ai.testProvider
 import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer

@@ -1,8 +1,8 @@
 package dev.agentbayu.app.ai
 
-fun planTypeOf(credential: Credential?, provider: ProviderEntry): String? {
+fun planTypeOf(credential: Credential?, provider: ProviderEntry?): String? {
     val tokens = credential as? Credential.OAuthTokens ?: return null
-    val field = provider.oauth?.planField?.takeIf { it.isNotBlank() } ?: return null
+    val field = provider?.oauth?.planField?.takeIf { it.isNotBlank() } ?: return null
     return tokens.extras[field]
         ?.trim()
         ?.lowercase()
@@ -16,10 +16,11 @@ fun isModelAccessible(model: ModelEntry, planType: String?): Boolean {
 }
 
 fun pickerModelIds(
-    provider: ProviderEntry,
+    provider: ProviderEntry?,
     connection: Connection,
     planType: String? = null
 ): List<String> {
+    if (provider == null) return emptyList()
     val discoveryFirst = provider.modelsPath != null && connection.discoveredModels.isNotEmpty()
     val base = if (discoveryFirst) {
         connection.discoveredModels +
