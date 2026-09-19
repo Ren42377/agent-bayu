@@ -252,6 +252,7 @@ fun HistoryDrawer(
             if (menu != null) {
                 GlassDropdownMenuItem(
                     label = stringResource(if (menu.pinned) R.string.history_unpin else R.string.history_pin),
+                    icon = R.drawable.ic_pin,
                     onClick = {
                         menuSessionId = null
                         manager.setSessionPinned(menu.id, !menu.pinned)
@@ -259,6 +260,7 @@ fun HistoryDrawer(
                 )
                 GlassDropdownMenuItem(
                     label = stringResource(R.string.history_rename),
+                    icon = R.drawable.ic_edit,
                     onClick = {
                         menuSessionId = null
                         renameSessionId = menu.id
@@ -267,6 +269,7 @@ fun HistoryDrawer(
                 GlassDropdownMenuItem(
                     label = stringResource(R.string.history_menu_delete),
                     destructive = true,
+                    icon = R.drawable.ic_delete,
                     onClick = {
                         menuSessionId = null
                         pendingDelete = menu

@@ -55,6 +55,8 @@ import dev.agentbayu.app.ui.theme.GlassOverlayDimDark
 import dev.agentbayu.app.ui.theme.GlassOverlayDimLight
 import dev.agentbayu.app.ui.theme.GlassOverlayFillDark
 import dev.agentbayu.app.ui.theme.GlassOverlayFillLight
+import dev.agentbayu.app.ui.theme.GlassOverlayMenuFillDark
+import dev.agentbayu.app.ui.theme.GlassOverlayMenuFillLight
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -169,7 +171,12 @@ private fun GlassOverlayPanel(
         else -> OVERLAY_SHAPE
     }
     val dimColor = if (darkTheme) GlassOverlayDimDark else GlassOverlayDimLight
-    val fillColor = if (darkTheme) GlassOverlayFillDark else GlassOverlayFillLight
+    val fillColor = when {
+        isMenu && darkTheme -> GlassOverlayMenuFillDark
+        isMenu -> GlassOverlayMenuFillLight
+        darkTheme -> GlassOverlayFillDark
+        else -> GlassOverlayFillLight
+    }
     val panelBrightness = if (darkTheme) 0f else 0.2f
     val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val panelInsets = if (isSheet) {

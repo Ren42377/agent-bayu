@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.animation.core.Animatable
@@ -74,11 +76,17 @@ fun ColumnScope.GlassDropdownMenuItem(
     label: String,
     onClick: () -> Unit,
     selected: Boolean = false,
-    destructive: Boolean = false
+    destructive: Boolean = false,
+    icon: Int? = null
 ) {
     val animationScope = rememberCoroutineScope()
     val interactiveHighlight = remember(animationScope) {
         InteractiveHighlight(animationScope = animationScope, claimDrag = false)
+    }
+    val labelColor = if (destructive) {
+        MaterialTheme.colorScheme.error
+    } else {
+        MaterialTheme.colorScheme.onSurface
     }
     Row(
         modifier = Modifier
@@ -89,14 +97,19 @@ fun ColumnScope.GlassDropdownMenuItem(
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        if (icon != null) {
+            Icon(
+                painter = painterResource(icon),
+                contentDescription = null,
+                tint = labelColor,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (destructive) {
-                MaterialTheme.colorScheme.error
-            } else {
-                MaterialTheme.colorScheme.onSurface
-            },
+            color = labelColor,
             modifier = Modifier.weight(1f)
         )
         if (selected) {
