@@ -58,7 +58,14 @@
     <string name="history_untitled">New conversation</string>
     <string name="history_open">Chat history</string>
     <string name="history_delete">Delete session</string>
-    <string name="history_delete_mode">Delete mode</string>
+    <string name="history_pinned">Pinned</string>
+    <string name="history_recent">Recent</string>
+    <string name="history_pin">Pin</string>
+    <string name="history_unpin">Unpin</string>
+    <string name="history_rename">Rename</string>
+    <string name="history_rename_session">Rename session</string>
+    <string name="history_name_hint">Session name</string>
+    <string name="history_menu_delete">Delete</string>
     <string name="history_delete_confirm_body">This conversation will be removed from the device and cannot be recovered.</string>
     <string name="history_deleted">Session deleted.</string>
 

@@ -1,7 +1,5 @@
 package dev.agentbayu.app.ui.ai
 
-import android.os.SystemClock
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -25,7 +22,6 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
@@ -47,6 +43,16 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.effects.colorControls
+import com.kyant.backdrop.effects.lens
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ui.components.DampedDragAnimation
 import dev.agentbayu.app.ui.theme.AppleGreenLight
@@ -55,6 +61,7 @@ import dev.agentbayu.app.ui.theme.AppleOrangeLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.AppleYellowLight
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -101,7 +108,6 @@ internal fun EffortSelector(
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
         onValueChange = { value -> previewValue = value },
-        phaseProvider = { phase.floatValue },
         decoration = { value, _ ->
             drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
@@ -117,7 +123,6 @@ private fun EffortSlider(
     tint: Color,
     tintProvider: ((Float) -> Color)?,
     onValueChange: ((Float) -> Unit)?,
-    phaseProvider: () -> Float,
     decoration: (DrawScope.(Float, Float) -> Unit)? = null
 ) {
     if (stopCount < 2) return
@@ -136,7 +141,6 @@ private fun EffortSlider(
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
     var shaking by remember { mutableStateOf(false) }
     var shakeOffset by remember { mutableFloatStateOf(0f) }
-    var lightningUntilMillis by remember { mutableLongStateOf(0L) }
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -153,6 +157,12 @@ private fun EffortSlider(
         val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
         val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
         fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
+
+        val trackLayerBackdrop = rememberLayerBackdrop()
+        val thumbBackdrop = rememberCombinedBackdrop(
+            LocalGlassBackdrop.current,
+            rememberBackdrop(trackLayerBackdrop) { drawBackdrop -> drawBackdrop() }
+        )
 
         val dragAnimation = remember(animationScope, lastIndex) {
             var travel = 0f
@@ -185,9 +195,6 @@ private fun EffortSlider(
                     }
                     currentIndex = selected
                     shaking = false
-                    if (selected == lastIndex) {
-                        lightningUntilMillis = SystemClock.uptimeMillis() + SLIDER_LIGHTNING_DURATION
-                    }
                     animateToValue(selected.toFloat(), pressed = false)
                     currentOnSelect(selected)
                 },
@@ -195,13 +202,11 @@ private fun EffortSlider(
                     travel += abs(dragAmount.x)
                     dragDistance += dragAmount.x
                     val rawTarget = dragAnchor + dragDistance / (travelPx / lastIndex)
-                    val target = applyEndResistance(rawTarget, lastIndex)
-                        .fastCoerceIn(0f, lastIndex.toFloat())
-                    val atMax = target >= lastIndex - 0.001f && rawTarget > lastIndex
+                    val target = rawTarget.fastCoerceIn(0f, lastIndex.toFloat())
+                    val atMax = rawTarget > lastIndex
                     shaking = atMax
                     if (atMax && !maxAnnounced) {
                         maxAnnounced = true
-                        lightningUntilMillis = SystemClock.uptimeMillis() + SLIDER_LIGHTNING_DURATION
                         hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
                     }
                     if (!atMax) maxAnnounced = false
@@ -252,14 +257,13 @@ private fun EffortSlider(
         Box(
             modifier = Modifier
                 .matchParentSize()
+                .layerBackdrop(trackLayerBackdrop)
                 .graphicsLayer { translationX = shakeOffset }
                 .drawBehind {
                     val trackRadius = size.height / 2f
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
                     val fillRight = thumbRadiusPx + fillFraction * travelPx
                     val maxBlend = ((dragAnimation.value - (lastIndex - 1)).fastCoerceIn(0f, 1f))
-                    val now = SystemClock.uptimeMillis()
-                    val lightningActive = now < lightningUntilMillis
                     drawRoundRect(
                         color = trackColor,
                         cornerRadius = CornerRadius(trackRadius)
@@ -280,28 +284,26 @@ private fun EffortSlider(
                         val fillColor = tintProvider?.invoke(dragAnimation.value) ?: tint
                         drawPath(fill, fillColor)
                         if (maxBlend > 0f) {
-                            drawRect(
-                                brush = Brush.horizontalGradient(
-                                    colors = listOf(
-                                        SLIDER_GALAXY_START,
-                                        SLIDER_GALAXY_MID,
-                                        AppleMagentaLight
+                            clipPath(fill) {
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        colors = listOf(
+                                            SLIDER_GALAXY_START,
+                                            SLIDER_GALAXY_MID,
+                                            AppleMagentaLight
+                                        ),
+                                        startX = 0f,
+                                        endX = fillRight
                                     ),
-                                    startX = 0f,
-                                    endX = fillRight
-                                ),
-                                topLeft = Offset.Zero,
-                                size = Size(fillRight, size.height),
-                                alpha = maxBlend
-                            )
+                                    topLeft = Offset.Zero,
+                                    size = Size(fillRight, size.height),
+                                    alpha = maxBlend
+                                )
+                            }
                         }
-                        if (lightningActive) {
-                            drawLightning(phaseProvider(), fillRight)
-                        } else {
-                            decoration?.let {
-                                clipPath(fill) {
-                                    it(dragAnimation.value, dragAnimation.velocity)
-                                }
+                        decoration?.let {
+                            clipPath(fill) {
+                                it(dragAnimation.value, dragAnimation.velocity)
                             }
                         }
                     }
@@ -326,61 +328,58 @@ private fun EffortSlider(
                 .size(SLIDER_THUMB_DIAMETER)
                 .graphicsLayer {
                     translationX = (dragAnimation.value / lastIndex) * travelPx + shakeOffset
-                    scaleX = dragAnimation.scaleX
-                    scaleY = dragAnimation.scaleY
                 }
-                .shadow(
-                    elevation = SLIDER_THUMB_SHADOW,
-                    shape = CircleShape,
-                    clip = false
+                .drawBackdrop(
+                    backdrop = thumbBackdrop,
+                    shape = { CircleShape },
+                    effects = {
+                        val progress = dragAnimation.pressProgress
+                        lens(
+                            SLIDER_THUMB_LENS_HEIGHT.toPx() * progress,
+                            SLIDER_THUMB_LENS_AMOUNT.toPx() * progress,
+                            chromaticAberration = true
+                        )
+                        colorControls(
+                            brightness = SLIDER_THUMB_PRESS_BRIGHTNESS * progress,
+                            saturation = 1f - SLIDER_THUMB_PRESS_DESATURATION * progress
+                        )
+                    },
+                    highlight = {
+                        Highlight.Ambient.copy(
+                            width = Highlight.Ambient.width / 1.5f,
+                            blurRadius = Highlight.Ambient.blurRadius / 1.5f,
+                            alpha = dragAnimation.pressProgress
+                        )
+                    },
+                    shadow = {
+                        Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.05f))
+                    },
+                    innerShadow = {
+                        val progress = dragAnimation.pressProgress
+                        InnerShadow(radius = 4.dp * progress, alpha = progress)
+                    },
+                    layerBlock = {
+                        scaleX = dragAnimation.scaleX
+                        scaleY = dragAnimation.scaleY
+                        val velocity = dragAnimation.velocity / 50f
+                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                    },
+                    onDrawSurface = {
+                        drawRect(
+                            Color.White.copy(
+                                alpha = 1f - dragAnimation.pressProgress *
+                                    SLIDER_THUMB_PRESS_WHITE_FADE
+                            )
+                        )
+                    }
                 )
-                .background(Color.White, CircleShape)
         )
         Box(
             modifier = Modifier
                 .matchParentSize()
                 .then(dragAnimation.modifier)
         )
-    }
-}
-
-private fun applyEndResistance(rawTarget: Float, lastIndex: Int): Float {
-    val edge = lastIndex - 0.5f
-    if (rawTarget <= edge) return rawTarget
-    return edge + (rawTarget - edge) * SLIDER_END_RESISTANCE
-}
-
-private fun DrawScope.drawLightning(phase: Float, fillWidth: Float) {
-    for (bolt in 0 until LIGHTNING_BOLT_COUNT) {
-        val flicker = (sin(phase * SLIDER_LIGHTNING_FLICKER + bolt * 2.4f) * 0.5f + 0.5f)
-            .fastCoerceIn(0.15f, 1f)
-        val baseX = (bolt + 0.5f) / LIGHTNING_BOLT_COUNT * fillWidth +
-            sin(phase * SLIDER_LIGHTNING_DRIFT + bolt * 2.1f) * size.width * SLIDER_LIGHTNING_WOBBLE
-        var x = baseX
-        var y = size.height * 0.18f
-        val stepY = size.height * 0.64f / LIGHTNING_SEGMENTS
-        for (segment in 0 until LIGHTNING_SEGMENTS) {
-            val nextX = x + if (segment % 2 == 0) {
-                size.width * SLIDER_LIGHTNING_BEND
-            } else {
-                -size.width * SLIDER_LIGHTNING_BEND
-            }
-            val nextY = y + stepY
-            drawLine(
-                color = Color.White.copy(alpha = 0.35f * flicker),
-                start = Offset(x, y),
-                end = Offset(nextX, nextY),
-                strokeWidth = SLIDER_LIGHTNING_GLOW.toPx()
-            )
-            drawLine(
-                color = Color.White.copy(alpha = flicker),
-                start = Offset(x, y),
-                end = Offset(nextX, nextY),
-                strokeWidth = SLIDER_LIGHTNING_STROKE.toPx()
-            )
-            x = nextX
-            y = nextY
-        }
     }
 }
 
@@ -492,21 +491,15 @@ private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
-private const val SLIDER_END_RESISTANCE = 0.4f
 private const val SLIDER_SHAKE_RATE = 0.07f
-private const val SLIDER_LIGHTNING_FLICKER = 4f
-private const val SLIDER_LIGHTNING_DRIFT = 1.7f
-private const val SLIDER_LIGHTNING_WOBBLE = 0.04f
-private const val SLIDER_LIGHTNING_BEND = 0.035f
-private const val LIGHTNING_BOLT_COUNT = 3
-private const val LIGHTNING_SEGMENTS = 4
-private const val SLIDER_LIGHTNING_DURATION = 900L
+private const val SLIDER_THUMB_PRESS_WHITE_FADE = 0.7f
+private const val SLIDER_THUMB_PRESS_BRIGHTNESS = 0.25f
+private const val SLIDER_THUMB_PRESS_DESATURATION = 0.5f
+private val SLIDER_THUMB_LENS_HEIGHT = 4.dp
+private val SLIDER_THUMB_LENS_AMOUNT = 8.dp
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
 private val SLIDER_SHAKE_AMPLITUDE = 2.dp
-private val SLIDER_LIGHTNING_STROKE = 1.5.dp
-private val SLIDER_LIGHTNING_GLOW = 3.5.dp
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
-private val SLIDER_THUMB_SHADOW = 3.dp

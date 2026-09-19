@@ -260,6 +260,34 @@ class ConversationSessionManager internal constructor(
         }
     }
 
+    fun setSessionPinned(sessionId: String, pinned: Boolean) {
+        mutateSessionMeta(sessionId) { meta -> meta.copy(pinned = pinned) }
+    }
+
+    fun renameSession(sessionId: String, title: String) {
+        val cleaned = title.sanitize().take(TITLE_MAX)
+        if (cleaned.isEmpty()) return
+        mutateSessionMeta(sessionId) { meta -> meta.copy(title = cleaned) }
+    }
+
+    private fun mutateSessionMeta(sessionId: String, transform: (ChatSessionMeta) -> ChatSessionMeta) {
+        val launchScope = scope ?: return
+        if (sessionsState.value.none { it.id == sessionId }) return
+        launchScope.launch {
+            mutex.withLock {
+                withContext(ioDispatcher) {
+                    val current = sessionsState.value.firstOrNull { it.id == sessionId }
+                        ?: return@withContext
+                    val updated = transform(current)
+                    if (updated != current) {
+                        replaceMeta(updated)
+                        saveIndexLocked()
+                    }
+                }
+            }
+        }
+    }
+
     private fun switchSession(block: suspend () -> Unit) {
         val launchScope = scope ?: return
         if (!switchPending.compareAndSet(false, true)) return
@@ -284,7 +312,7 @@ class ConversationSessionManager internal constructor(
         if (index.sessions.isEmpty()) {
             index = migrateLegacyLocked()
         }
-        val sessions = index.sessions.sortedByDescending { it.updatedAtMillis }
+        val sessions = index.sessions.sortedWith(HISTORY_ORDER)
         sessionsState.value = sessions
         val activeId = index.activeSessionId?.takeIf { id -> sessions.any { it.id == id } }
         activeState.value = activeId
@@ -387,7 +415,7 @@ class ConversationSessionManager internal constructor(
     private fun replaceMeta(meta: ChatSessionMeta) {
         sessionsState.value =
             (sessionsState.value.filterNot { it.id == meta.id } + meta)
-                .sortedByDescending { it.updatedAtMillis }
+                .sortedWith(HISTORY_ORDER)
     }
 
     private fun saveIndexLocked() {
@@ -415,5 +443,7 @@ class ConversationSessionManager internal constructor(
         const val PREVIEW_MAX = 96
         private const val ID_PREFIX = "session-"
         private const val RADIX = 36
+        private val HISTORY_ORDER = compareByDescending<ChatSessionMeta> { it.pinned }
+            .thenByDescending { it.updatedAtMillis }
     }
 }
