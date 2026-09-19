@@ -98,10 +98,12 @@ private fun catalogLastUpdatedText(): String? {
     val context = LocalContext.current
     val repository = remember(context) { AppGraph.catalogRepository(context) }
     val lastUpdated by repository.lastUpdatedMillis.collectAsState()
+    val formatter = remember {
+        DateTimeFormatter.ofPattern(CATALOG_TIME_PATTERN, Locale.getDefault())
+    }
     val zone = remember { ZoneId.systemDefault() }
     return lastUpdated?.takeIf { it > 0L }?.let { millis ->
-        DateTimeFormatter.ofPattern(CATALOG_TIME_PATTERN, Locale.getDefault())
-            .format(Instant.ofEpochMilli(millis).atZone(zone))
+        formatter.format(Instant.ofEpochMilli(millis).atZone(zone))
     }
 }
 
