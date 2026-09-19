@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -465,7 +466,6 @@ private const val SLIDER_SHAKE_RATE = 0.07f
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
 private val SLIDER_SHAKE_AMPLITUDE = 2.dp
-private val SLIDER_THUMB_SHADOW = 3.dp
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
