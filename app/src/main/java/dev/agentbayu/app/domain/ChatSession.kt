@@ -8,7 +8,8 @@ data class ChatSessionMeta(
     val title: String = "",
     val preview: String = "",
     val createdAtMillis: Long = 0L,
-    val updatedAtMillis: Long = 0L
+    val updatedAtMillis: Long = 0L,
+    val pinned: Boolean = false
 )
 
 @Serializable

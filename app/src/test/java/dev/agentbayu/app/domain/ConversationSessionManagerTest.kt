@@ -187,6 +187,64 @@ class ConversationSessionManagerTest {
     }
 
     @Test
+    fun pinningASessionFloatsItAboveNewerSessionsAndPersists() = runTest {
+        val fixture = fixture(this)
+        val older = ChatSessionMeta(id = "older-session", title = "Older", updatedAtMillis = 1_000L)
+        val newer = ChatSessionMeta(id = "newer-session", title = "Newer", updatedAtMillis = 2_000L)
+        fixture.store.saveSession(
+            older.id,
+            listOf(ChatMessage(id = 1L, author = MessageAuthor.USER, text = "old"))
+        )
+        fixture.store.saveSession(
+            newer.id,
+            listOf(ChatMessage(id = 2L, author = MessageAuthor.USER, text = "new"))
+        )
+        fixture.store.saveIndex(
+            SessionIndexFile(activeSessionId = newer.id, sessions = listOf(older, newer))
+        )
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+
+        fixture.manager.setSessionPinned(older.id, true)
+        runCurrent()
+
+        assertEquals(listOf(older.id, newer.id), fixture.manager.sessions.value.map { it.id })
+        assertTrue(fixture.manager.sessions.value.first().pinned)
+        assertTrue(fixture.store.loadIndex().sessions.first { it.id == older.id }.pinned)
+
+        fixture.manager.setSessionPinned(older.id, false)
+        runCurrent()
+
+        assertEquals(listOf(newer.id, older.id), fixture.manager.sessions.value.map { it.id })
+        assertFalse(fixture.manager.sessions.value.first().pinned)
+    }
+
+    @Test
+    fun renamingASessionUpdatesTheTitleWithoutTouchingTheTimestamp() = runTest {
+        val fixture = fixture(this)
+        val meta = ChatSessionMeta(id = "named-session", title = "Before", updatedAtMillis = 5_000L)
+        fixture.store.saveSession(
+            meta.id,
+            listOf(ChatMessage(id = 1L, author = MessageAuthor.USER, text = "hi"))
+        )
+        fixture.store.saveIndex(SessionIndexFile(activeSessionId = meta.id, sessions = listOf(meta)))
+        fixture.manager.attach(backgroundScope)
+        runCurrent()
+
+        fixture.manager.renameSession(meta.id, "  After\n")
+        runCurrent()
+
+        assertEquals("After", fixture.manager.sessions.value.single().title)
+        assertEquals(5_000L, fixture.manager.sessions.value.single().updatedAtMillis)
+        assertEquals("After", fixture.store.loadIndex().sessions.single().title)
+
+        fixture.manager.renameSession(meta.id, "   ")
+        runCurrent()
+
+        assertEquals("After", fixture.manager.sessions.value.single().title)
+    }
+
+    @Test
     fun switchingGateChangesSynchronouslyAroundSessionWork() = runTest {
         val fixture = fixture(this)
         val states = mutableListOf<Boolean>()

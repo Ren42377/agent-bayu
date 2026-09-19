@@ -73,7 +73,8 @@ fun GlassDropdownMenuHost(
 fun ColumnScope.GlassDropdownMenuItem(
     label: String,
     onClick: () -> Unit,
-    selected: Boolean = false
+    selected: Boolean = false,
+    destructive: Boolean = false
 ) {
     val animationScope = rememberCoroutineScope()
     val interactiveHighlight = remember(animationScope) {
@@ -91,7 +92,11 @@ fun ColumnScope.GlassDropdownMenuItem(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (destructive) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
             modifier = Modifier.weight(1f)
         )
         if (selected) {

@@ -4,7 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,7 +35,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,21 +42,30 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatSessionMeta
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassDialog
-import dev.agentbayu.app.ui.components.GlassIconButton
+import dev.agentbayu.app.ui.components.GlassDropdownMenuItem
+import dev.agentbayu.app.ui.components.GlassOverlay
+import dev.agentbayu.app.ui.components.GlassOverlayPresentation
 import dev.agentbayu.app.ui.components.InteractiveHighlight
 import dev.agentbayu.app.ui.components.inspectDragGestures
+import dev.agentbayu.app.ui.tasks.TaskTextDialog
 import dev.agentbayu.app.ui.theme.GlassOverlayDimDark
 import dev.agentbayu.app.ui.theme.GlassOverlayDimLight
 import dev.agentbayu.app.ui.theme.GlassTileShape
@@ -171,9 +179,19 @@ fun HistoryDrawer(
     val deletedMessage = stringResource(R.string.history_deleted)
     val darkTheme = LocalDarkTheme.current
     val scrim = if (darkTheme) GlassOverlayDimDark else GlassOverlayDimLight
-    var deleteMode by rememberSaveable { mutableStateOf(false) }
+    var menuSessionId by remember { mutableStateOf<String?>(null) }
+    var menuAnchor by remember { mutableStateOf<IntRect?>(null) }
+    var renameSessionId by remember { mutableStateOf<String?>(null) }
     var pendingDelete by remember { mutableStateOf<ChatSessionMeta?>(null) }
     val systemInsets = WindowInsets.systemBars.asPaddingValues()
+    val density = LocalDensity.current
+    val menuAnchorTrimmed = menuAnchor?.let { bounds ->
+        val maxWidth = with(density) { SESSION_MENU_WIDTH.toPx() }.toInt()
+        val left = (bounds.right - minOf(bounds.width, maxWidth)).coerceAtLeast(0)
+        IntRect(left, bounds.top, bounds.right, bounds.bottom)
+    }
+    val menuSession = menuSessionId?.let { id -> sessions.firstOrNull { it.id == id } }
+    val renameTarget = renameSessionId?.let { id -> sessions.firstOrNull { it.id == id } }
 
     BackHandler(enabled = state.isOpen, onBack = state::close)
 
@@ -206,8 +224,6 @@ fun HistoryDrawer(
             HistoryDrawerContent(
                 sessions = sessions,
                 activeSessionId = activeId,
-                deleteMode = deleteMode,
-                onToggleDeleteMode = { deleteMode = !deleteMode },
                 onOpen = { sessionId ->
                     manager.openSession(sessionId)
                     state.close()
@@ -216,10 +232,63 @@ fun HistoryDrawer(
                     manager.newSession()
                     state.close()
                 },
-                onDelete = { session -> pendingDelete = session }
+                onMenu = { session, anchor ->
+                    menuSessionId = session.id
+                    menuAnchor = anchor
+                }
             )
         }
     }
+
+    val menu = menuSession
+    GlassOverlay(
+        visible = menu != null && menuAnchorTrimmed != null,
+        presentation = GlassOverlayPresentation.MENU,
+        anchor = menuAnchorTrimmed,
+        onDismiss = { menuSessionId = null }
+    ) {
+        Column {
+            if (menu != null) {
+                GlassDropdownMenuItem(
+                    label = stringResource(if (menu.pinned) R.string.history_unpin else R.string.history_pin),
+                    onClick = {
+                        menuSessionId = null
+                        manager.setSessionPinned(menu.id, !menu.pinned)
+                    }
+                )
+                GlassDropdownMenuItem(
+                    label = stringResource(R.string.history_rename),
+                    onClick = {
+                        menuSessionId = null
+                        renameSessionId = menu.id
+                    }
+                )
+                GlassDropdownMenuItem(
+                    label = stringResource(R.string.history_menu_delete),
+                    destructive = true,
+                    onClick = {
+                        menuSessionId = null
+                        pendingDelete = menu
+                    }
+                )
+            }
+        }
+    }
+
+    val rename = renameTarget
+    TaskTextDialog(
+        visible = rename != null,
+        title = stringResource(R.string.history_rename_session),
+        hint = stringResource(R.string.history_name_hint),
+        initialValue = rename?.title.orEmpty(),
+        confirmLabel = stringResource(R.string.history_rename),
+        dismissLabel = stringResource(R.string.dialog_cancel),
+        onConfirm = { value ->
+            renameSessionId = null
+            rename?.let { session -> manager.renameSession(session.id, value) }
+        },
+        onDismiss = { renameSessionId = null }
+    )
 
     val pending = pendingDelete
     GlassDialog(
@@ -243,43 +312,30 @@ private const val PANEL_FRACTION = 0.84f
 private const val EMPTY_HISTORY_KEY = "empty"
 private const val EMPTY_HISTORY_TYPE = "empty"
 private const val HISTORY_SESSION_TYPE = "session"
+private const val PINNED_HEADER_KEY = "pinned-header"
+private const val RECENT_HEADER_KEY = "recent-header"
+private const val HISTORY_SECTION_TYPE = "section-header"
 private val EDGE_WIDTH = 88.dp
+private val SESSION_MENU_WIDTH = 240.dp
 
 @Composable
 private fun ColumnScope.HistoryDrawerContent(
     sessions: List<ChatSessionMeta>,
     activeSessionId: String?,
-    deleteMode: Boolean,
-    onToggleDeleteMode: () -> Unit,
     onOpen: (String) -> Unit,
     onNew: () -> Unit,
-    onDelete: (ChatSessionMeta) -> Unit
+    onMenu: (ChatSessionMeta, IntRect) -> Unit
 ) {
-    Row(
+    Text(
+        text = stringResource(R.string.history_title),
+        style = MaterialTheme.typography.titleLarge,
+        color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 8.dp, top = 14.dp, bottom = 4.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = stringResource(R.string.history_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.weight(1f)
-        )
-        GlassIconButton(onClick = onToggleDeleteMode) {
-            Icon(
-                painter = painterResource(R.drawable.ic_delete),
-                contentDescription = stringResource(R.string.history_delete_mode),
-                tint = if (deleteMode) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                },
-                modifier = Modifier.size(20.dp)
-            )
-        }
-    }
+            .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 4.dp)
+    )
+    val pinnedSessions = sessions.filter { it.pinned }
+    val recentSessions = sessions.filterNot { it.pinned }
     LazyColumn(
         modifier = Modifier
             .weight(1f)
@@ -300,17 +356,36 @@ private fun ColumnScope.HistoryDrawerContent(
                 )
             }
         }
+        if (pinnedSessions.isNotEmpty()) {
+            item(key = PINNED_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
+                HistorySectionLabel(text = stringResource(R.string.history_pinned))
+            }
+            items(
+                items = pinnedSessions,
+                key = { session -> session.id },
+                contentType = { HISTORY_SESSION_TYPE }
+            ) { session ->
+                SessionRow(
+                    session = session,
+                    isActive = session.id == activeSessionId,
+                    onOpen = { onOpen(session.id) },
+                    onMenu = onMenu
+                )
+            }
+            item(key = RECENT_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
+                HistorySectionLabel(text = stringResource(R.string.history_recent))
+            }
+        }
         items(
-            items = sessions,
+            items = recentSessions,
             key = { session -> session.id },
             contentType = { HISTORY_SESSION_TYPE }
         ) { session ->
             SessionRow(
                 session = session,
                 isActive = session.id == activeSessionId,
-                showDelete = deleteMode,
                 onOpen = { onOpen(session.id) },
-                onDelete = { onDelete(session) }
+                onMenu = onMenu
             )
         }
     }
@@ -347,32 +422,49 @@ private fun ColumnScope.HistoryDrawerContent(
 private fun SessionRow(
     session: ChatSessionMeta,
     isActive: Boolean,
-    showDelete: Boolean,
     onOpen: () -> Unit,
-    onDelete: () -> Unit
+    onMenu: (ChatSessionMeta, IntRect) -> Unit
 ) {
     val scope = rememberCoroutineScope()
+    val haptics = LocalHapticFeedback.current
     val highlight = remember(scope) { InteractiveHighlight(animationScope = scope, claimDrag = false) }
+    var bounds by remember { mutableStateOf<IntRect?>(null) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(GlassTileShape)
-            .clickable(interactionSource = null, indication = null, onClick = onOpen)
+            .onGloballyPositioned { coordinates ->
+                bounds = IntRect(coordinates.positionInWindow().round(), coordinates.size)
+            }
+            .combinedClickable(
+                interactionSource = null,
+                indication = null,
+                onClick = onOpen,
+                onLongClick = {
+                    val rect = bounds
+                    if (rect != null) {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onMenu(session, rect)
+                    }
+                }
+            )
             .then(highlight.gestureModifier)
-            .padding(start = 10.dp, end = if (showDelete) 2.dp else 10.dp, top = 9.dp, bottom = 9.dp),
+            .padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_chat),
-            contentDescription = null,
-            tint = if (isActive) {
-                MaterialTheme.colorScheme.primary
-            } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
-            },
-            modifier = Modifier.size(16.dp)
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+        if (session.pinned) {
+            Icon(
+                painter = painterResource(R.drawable.ic_chat),
+                contentDescription = null,
+                tint = if (isActive) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
         Text(
             text = session.title.ifBlank { stringResource(R.string.history_untitled) },
             style = MaterialTheme.typography.bodyMedium,
@@ -385,15 +477,15 @@ private fun SessionRow(
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
-        if (showDelete) {
-            GlassIconButton(onClick = onDelete, size = 32.dp) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_delete),
-                    contentDescription = stringResource(R.string.history_delete),
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
     }
+}
+
+@Composable
+private fun HistorySectionLabel(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(start = 10.dp, top = 8.dp, bottom = 2.dp)
+    )
 }
