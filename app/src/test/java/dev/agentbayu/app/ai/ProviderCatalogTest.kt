@@ -315,9 +315,9 @@ class ProviderCatalogTest {
                 "agy/gemini-3.6-flash-low",
                 "agy/gemini-3.5-flash-low",
                 "agy/gemini-3.5-flash-extra-low",
+                "agy/gemini-3.5-flash-high",
                 "agy/gemini-pro-agent",
                 "agy/gemini-3.1-pro-low",
-                "agy/gemini-3.5-flash-high",
                 "agy/gemini-3-flash-agent",
                 "agy/gemini-3-flash"
             ),
