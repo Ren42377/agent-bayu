@@ -111,7 +111,7 @@ fun SettingsScreen(
 
         SectionGroup(title = stringResource(R.string.settings_ai)) {
             NavigationSettingRow(
-                icon = painterResource(R.drawable.ic_spark),
+                icon = painterResource(R.drawable.ic_package),
                 iconColor = AppleBlueLight,
                 title = stringResource(R.string.settings_providers_title),
                 subtitle = stringResource(R.string.settings_providers_body),

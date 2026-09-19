@@ -330,7 +330,7 @@ private fun ColumnScope.HistoryDrawerContent(
             tint = MaterialTheme.colorScheme.primary
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_add),
+                painter = painterResource(R.drawable.ic_chat_add),
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
             )
