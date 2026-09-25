@@ -45,9 +45,6 @@ import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.rememberBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.colorControls
-import com.kyant.backdrop.effects.lens
-import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
@@ -177,7 +174,6 @@ private fun GlassOverlayPanel(
         darkTheme -> GlassOverlayFillDark
         else -> GlassOverlayFillLight
     }
-    val panelBrightness = if (darkTheme) 0f else 0.2f
     val navigationBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val panelInsets = if (isSheet) {
         PaddingValues(bottom = navigationBottom)
@@ -224,17 +220,7 @@ private fun GlassOverlayPanel(
                 .drawBackdrop(
                     backdrop = dimmedBackdrop,
                     shape = { panelShape },
-                    effects = {
-                        colorControls(brightness = panelBrightness, saturation = 1.5f)
-                        vibrancy()
-                        if (size.isSpecified) {
-                            lens(
-                                OVERLAY_REFRACTION_HEIGHT.toPx(),
-                                OVERLAY_REFRACTION_AMOUNT.toPx(),
-                                depthEffect = true
-                            )
-                        }
-                    },
+                    effects = { },
                     highlight = { Highlight.Plain },
                     shadow = {
                         Shadow(radius = 28.dp, color = ScrimBlack.copy(alpha = 0.3f))
@@ -262,7 +248,7 @@ private fun GlassOverlayPanel(
                         }
                     },
                     exportedBackdrop = panelBackdrop,
-                    onDrawSurface = { drawRect(color = fillColor) }
+                    onDrawSurface = { drawRect(color = fillColor.copy(alpha = 1f)) }
                 )
                 .pointerInput(Unit) { detectTapGestures { } }
                 .then(
@@ -322,7 +308,5 @@ private val MENU_MIN_WIDTH = 160.dp
 private val MENU_MAX_WIDTH = 420.dp
 private val MENU_MAX_HEIGHT = 320.dp
 private val MAX_OVERLAY_WIDTH = 480.dp
-private val OVERLAY_REFRACTION_HEIGHT = 18.dp
-private val OVERLAY_REFRACTION_AMOUNT = 36.dp
 private const val OVERLAY_MIN_SCALE = 0.9f
 private const val SHEET_HEIGHT_RATIO = 0.94f
