@@ -54,24 +54,28 @@ internal class DampedDragAnimation(
     val velocity: Float get() = velocityAnimation.value
 
     val modifier: Modifier = Modifier.pointerInput(this) {
-        inspectDragGestures(
-            onDragStart = { down ->
-                isGestureActive = true
-                onDragStarted(down.position)
-                press()
-            },
-            onDragEnd = {
-                onDragStopped()
-                release()
-                isGestureActive = false
-            },
-            onDragCancel = {
-                onDragCanceled()
-                release()
-                isGestureActive = false
+        try {
+            inspectDragGestures(
+                onDragStart = { down ->
+                    isGestureActive = true
+                    onDragStarted(down.position)
+                    press()
+                },
+                onDragEnd = {
+                    onDragStopped()
+                    release()
+                    isGestureActive = false
+                },
+                onDragCancel = {
+                    onDragCanceled()
+                    release()
+                    isGestureActive = false
+                }
+            ) { _, dragAmount ->
+                onDrag(size, dragAmount)
             }
-        ) { _, dragAmount ->
-            onDrag(size, dragAmount)
+        } finally {
+            isGestureActive = false
         }
     }
 

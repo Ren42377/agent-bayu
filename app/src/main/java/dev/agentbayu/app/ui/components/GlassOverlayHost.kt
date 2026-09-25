@@ -226,7 +226,9 @@ private fun GlassOverlayPanel(
                     shape = { panelShape },
                     effects = {
                         colorControls(brightness = panelBrightness, saturation = 1.5f)
-                        vibrancy()
+                        if (size.isSpecified && size.height <= OVERLAY_VIBRANCY_MAX_HEIGHT.toPx()) {
+                            vibrancy()
+                        }
                         if (size.isSpecified) {
                             lens(
                                 OVERLAY_REFRACTION_HEIGHT.toPx(),
@@ -324,5 +326,6 @@ private val MENU_MAX_HEIGHT = 320.dp
 private val MAX_OVERLAY_WIDTH = 480.dp
 private val OVERLAY_REFRACTION_HEIGHT = 18.dp
 private val OVERLAY_REFRACTION_AMOUNT = 36.dp
+private val OVERLAY_VIBRANCY_MAX_HEIGHT = 420.dp
 private const val OVERLAY_MIN_SCALE = 0.9f
 private const val SHEET_HEIGHT_RATIO = 0.94f
