@@ -3,9 +3,11 @@ package dev.agentbayu.app.ai
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
+private const val CATALOG_DEFAULT_VERSION = 1
+
 @Serializable
 data class ProviderCatalogFile(
-    val version: Int = DEFAULT_VERSION,
+    val version: Int = CATALOG_DEFAULT_VERSION,
     val updateUrl: String? = null,
     val providers: List<ProviderEntry> = emptyList()
 )
@@ -13,7 +15,7 @@ data class ProviderCatalogFile(
 open class ProviderCatalog(
     open val providers: List<ProviderEntry>,
     open val updateUrl: String? = null,
-    open val version: Int = DEFAULT_VERSION
+    open val version: Int = CATALOG_DEFAULT_VERSION
 ) {
 
     private val byId: Map<String, ProviderEntry> by lazy {
@@ -31,7 +33,7 @@ open class ProviderCatalog(
 
     companion object {
         const val DEFAULT_PROVIDER_ID = "opencode"
-        const val DEFAULT_VERSION = 1
+        const val DEFAULT_VERSION = CATALOG_DEFAULT_VERSION
 
         private val json = Json {
             ignoreUnknownKeys = true
