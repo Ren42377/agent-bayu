@@ -319,6 +319,7 @@ private fun EffortSlider(
                 .drawBackdrop(
                     backdrop = LocalGlassBackdrop.current,
                     shape = { CircleShape },
+                    effects = { },
                     highlight = {
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
