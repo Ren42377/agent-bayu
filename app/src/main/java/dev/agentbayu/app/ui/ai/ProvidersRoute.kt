@@ -45,7 +45,9 @@ fun AiProvidersRoute(
     var catalogRefreshing by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        AppGraph.refreshCatalog(context)
+        if (!catalog.updateUrl.isNullOrBlank()) {
+            AppGraph.refreshCatalog(context)
+        }
     }
 
     val rows = remember(connections, activeId, catalog) {
@@ -92,6 +94,7 @@ fun AiProvidersRoute(
                 }
             }
         },
+        catalogUpdateAvailable = !catalog.updateUrl.isNullOrBlank(),
         catalogRefreshing = catalogRefreshing,
         catalogLastUpdated = catalogLastUpdatedText(),
         modifier = modifier

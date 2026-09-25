@@ -8,7 +8,7 @@ private val EFFORT_SUFFIXES: List<Pair<String, ReasoningEffort>> =
     ReasoningEffort.entries.map { "-" + it.wireValue to it }
 
 fun splitEffortSuffix(modelId: String): Pair<String, ReasoningEffort>? {
-    val trimmed = modelId.trim()
+    val trimmed = modelId.trim().substringBefore('(').trim()
     if (trimmed.isEmpty()) return null
     val match = EFFORT_SUFFIXES.firstOrNull { trimmed.endsWith(it.first, ignoreCase = true) }
         ?: return null
@@ -17,7 +17,8 @@ fun splitEffortSuffix(modelId: String): Pair<String, ReasoningEffort>? {
     return base to match.second
 }
 
-fun effortBaseOf(modelId: String): String = splitEffortSuffix(modelId)?.first ?: modelId.trim()
+fun effortBaseOf(modelId: String): String =
+    splitEffortSuffix(modelId)?.first ?: modelId.trim().substringBefore('(').trim()
 
 fun effortFamilies(modelIds: List<String>): Map<String, List<ReasoningEffort>> {
     val grouped = LinkedHashMap<String, MutableSet<ReasoningEffort>>()

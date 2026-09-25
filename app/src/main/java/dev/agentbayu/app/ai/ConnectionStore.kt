@@ -106,6 +106,29 @@ class ConnectionStore(
         return baseLabel + ACCOUNT_LABEL_SEPARATOR + (taken + 1)
     }
 
+    fun migrateModels(catalog: ProviderCatalog) {
+        state.value.forEach { connection ->
+            val provider = catalog.find(connection.providerId) ?: return@forEach
+            val current = connection.model.trim()
+            if (current.isEmpty()) return@forEach
+            val retired = isRetiredModel(provider, current)
+            val deprecated = provider.model(current)?.deprecated == true
+            if (!retired && !deprecated) return@forEach
+            val target = migrationTarget(provider, current) ?: return@forEach
+            val effort = connection.effort ?: splitEffortSuffix(current)?.second
+            upsert(connection.copy(model = target, effort = effort))
+        }
+    }
+
+    private fun migrationTarget(provider: ProviderEntry, current: String): String? {
+        val fallback = provider.selectableModels.firstOrNull()?.id ?: return null
+        val candidate = normalizeDiscoveredModelId(provider, current).trim()
+        if (candidate.isEmpty()) return fallback
+        if (isRetiredModel(provider, candidate)) return fallback
+        if (provider.model(candidate)?.deprecated == true) return fallback
+        return candidate
+    }
+
     fun setContextLength(connectionId: String, contextLength: Int?) {
         val target = find(connectionId) ?: return
         val normalized = contextLength?.takeIf { it > 0 }

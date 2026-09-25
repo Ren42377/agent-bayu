@@ -16,7 +16,8 @@ sealed interface CatalogUpdateResult {
 class CatalogUpdater(
     private val client: OkHttpClient,
     private val storage: EncryptedStorage,
-    private val clock: Clock = RealClock
+    private val clock: Clock = RealClock,
+    private val minimumVersion: Int = ProviderCatalog.DEFAULT_VERSION
 ) {
 
     fun restore(): CatalogUpdateResult? {
@@ -26,12 +27,20 @@ class CatalogUpdater(
             val catalog = ProviderCatalog.parse(raw)
             if (catalog.providers.isEmpty()) {
                 null
+            } else if (catalog.version < minimumVersion) {
+                clear()
+                null
             } else {
                 CatalogUpdateResult.Success(catalog, fetchedAt)
             }
         } catch (error: IllegalArgumentException) {
             null
         }
+    }
+
+    fun clear() {
+        storage.delete(CATALOG_FILE)
+        storage.delete(CATALOG_TIME_FILE)
     }
 
     suspend fun fetch(url: String): CatalogUpdateResult = withContext(Dispatchers.IO) {
@@ -63,6 +72,9 @@ class CatalogUpdater(
         }
         if (catalog.providers.isEmpty()) {
             return@withContext CatalogUpdateResult.Failure("catalog has no providers")
+        }
+        if (catalog.version < minimumVersion) {
+            return@withContext CatalogUpdateResult.Failure("catalog version is older than bundled")
         }
         val fetchedAt = clock.nowMillis()
         storage.write(CATALOG_FILE, body)

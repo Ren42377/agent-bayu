@@ -30,6 +30,43 @@ class CatalogUpdaterTest {
         server.shutdown()
     }
 
+    @Test
+    fun `an older remote catalog is rejected and the cache is dropped`() = runBlocking {
+        val strict = CatalogUpdater(
+            client = OkHttpClient(),
+            storage = storage,
+            clock = clock,
+            minimumVersion = 2
+        )
+        server.enqueue(
+            MockResponse()
+                .setHeader("Content-Type", "application/json")
+                .setBody(catalogBody())
+        )
+
+        val result = strict.fetch(server.url("/p.json").toString())
+
+        assertEquals(
+            "catalog version is older than bundled",
+            (result as CatalogUpdateResult.Failure).message
+        )
+
+        storage.write(CatalogUpdater.CATALOG_FILE, catalogBody())
+        storage.write(CatalogUpdater.CATALOG_TIME_FILE, "1000")
+
+        assertNull(strict.restore())
+        assertNull(storage.read(CatalogUpdater.CATALOG_FILE))
+        assertNull(storage.read(CatalogUpdater.CATALOG_TIME_FILE))
+    }
+
+    @Test
+    fun `the bundled version is parsed from the catalog file`() {
+        val catalog = ProviderCatalog.parse("{\"version\": 2, \"providers\": []}")
+
+        assertEquals(2, catalog.version)
+        assertEquals(1, ProviderCatalog.parse(catalogBody()).version)
+    }
+
     private fun catalogBody(updateUrl: String? = null): String {
         val urlField = updateUrl?.let { "\"updateUrl\": \"$it\"," }.orEmpty()
         return """

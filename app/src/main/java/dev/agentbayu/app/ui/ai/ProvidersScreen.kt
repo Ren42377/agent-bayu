@@ -64,6 +64,7 @@ fun ProvidersScreen(
     onDelete: (String) -> Unit,
     onUsage: () -> Unit = {},
     onUpdateCatalog: () -> Unit = {},
+    catalogUpdateAvailable: Boolean = false,
     catalogRefreshing: Boolean = false,
     catalogLastUpdated: String? = null,
     modifier: Modifier = Modifier
@@ -149,33 +150,38 @@ fun ProvidersScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            catalogLastUpdated?.let { updated ->
-                Text(
-                    text = stringResource(R.string.providers_catalog_updated_at, updated),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-            }
-            GlassButton(
-                onClick = onUpdateCatalog,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !catalogRefreshing,
-                contentPadding = PaddingValues(vertical = 12.dp)
-            ) {
-                if (catalogRefreshing) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_refresh),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
+            if (catalogUpdateAvailable) {
+                catalogLastUpdated?.let { updated ->
+                    Text(
+                        text = stringResource(R.string.providers_catalog_updated_at, updated),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(horizontal = 8.dp)
                     )
                 }
-                Text(
-                    text = stringResource(R.string.providers_update_catalog),
-                    style = MaterialTheme.typography.labelLarge
-                )
+                GlassButton(
+                    onClick = onUpdateCatalog,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !catalogRefreshing,
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    if (catalogRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_refresh),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.providers_update_catalog),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
             }
             GlassButton(
                 onClick = onAdd,

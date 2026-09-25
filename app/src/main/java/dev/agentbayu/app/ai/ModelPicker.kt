@@ -54,14 +54,18 @@ fun pickerModelIds(
         connection.discoveredModels
             .map { normalizeDiscoveredModelId(provider, it) }
             .filter { it.isNotEmpty() }
-            .filter { id -> id == current || !isDeprecatedModel(provider, id) }
+            .filter { id -> id == current || isVisibleModel(provider, id) }
             .plus(connection.customModels)
             .plus(listOfNotNull(current.takeIf { it.isNotBlank() }))
     } else {
-        provider.pickerModelIds(
-            connection.discoveredModels + connection.customModels,
-            connection.model
-        )
+        val discovered = connection.discoveredModels
+            .map { normalizeDiscoveredModelId(provider, it) }
+            .filter { it.isNotEmpty() }
+            .filter { id -> isVisibleModel(provider, id) }
+        provider
+            .pickerModelIds(discovered, current)
+            .plus(connection.customModels)
+            .plus(listOfNotNull(current.takeIf { it.isNotBlank() }))
     }
     return base
         .asSequence()
@@ -79,14 +83,32 @@ fun accountEmailOf(credential: Credential?): String? {
         ?.takeIf { it.isNotEmpty() }
 }
 
+fun isRetiredModel(provider: ProviderEntry, modelId: String): Boolean {
+    val retired = provider.retiredModels
+    if (retired.isEmpty()) return false
+    val trimmed = modelId.trim()
+    if (trimmed.isEmpty()) return false
+    if (trimmed in retired) return true
+    return normalizeDiscoveredModelId(provider, trimmed) in retired
+}
+
+fun isVisibleModel(provider: ProviderEntry, modelId: String): Boolean {
+    val trimmed = modelId.trim()
+    if (trimmed.isEmpty()) return false
+    if (isRetiredModel(provider, trimmed)) return false
+    return !isDeprecatedModel(provider, trimmed)
+}
+
 private fun isDeprecatedModel(provider: ProviderEntry, modelId: String): Boolean =
     provider.model(modelId)?.deprecated == true
 
 private val FAMILY_TOKENS = listOf(
     "-extra-low",
     "-tiered",
+    "-xhigh",
+    "-minimal",
     "-low",
     "-medium",
     "-high",
-    "-minimal"
+    "-max"
 )

@@ -21,6 +21,7 @@ data class ProviderEntry(
     val modelsPath: String? = null,
     val modelsMethod: String = "GET",
     val modelIdFilter: String? = null,
+    val retiredModels: List<String> = emptyList(),
     val supportsStreamUsage: Boolean = false,
     val timeoutMillis: Long = DEFAULT_TIMEOUT_MILLIS,
     val keyUrl: String? = null,

@@ -5,14 +5,15 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 data class ProviderCatalogFile(
-    val version: Int = 1,
+    val version: Int = DEFAULT_VERSION,
     val updateUrl: String? = null,
     val providers: List<ProviderEntry> = emptyList()
 )
 
 open class ProviderCatalog(
     open val providers: List<ProviderEntry>,
-    open val updateUrl: String? = null
+    open val updateUrl: String? = null,
+    open val version: Int = DEFAULT_VERSION
 ) {
 
     private val byId: Map<String, ProviderEntry> by lazy {
@@ -30,6 +31,7 @@ open class ProviderCatalog(
 
     companion object {
         const val DEFAULT_PROVIDER_ID = "opencode"
+        const val DEFAULT_VERSION = 1
 
         private val json = Json {
             ignoreUnknownKeys = true
@@ -40,7 +42,7 @@ open class ProviderCatalog(
             val file = json.decodeFromString(ProviderCatalogFile.serializer(), raw)
             val unique = LinkedHashMap<String, ProviderEntry>()
             file.providers.forEach { unique[it.id] = it }
-            return ProviderCatalog(unique.values.toList(), file.updateUrl)
+            return ProviderCatalog(unique.values.toList(), file.updateUrl, file.version)
         }
 
         fun empty(): ProviderCatalog = ProviderCatalog(emptyList())

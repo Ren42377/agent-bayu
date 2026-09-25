@@ -21,6 +21,9 @@ class CatalogRepository(initial: ProviderCatalog) : ProviderCatalog(emptyList())
     override val updateUrl: String?
         get() = delegate.updateUrl
 
+    override val version: Int
+        get() = delegate.version
+
     override fun find(providerId: String): ProviderEntry? = delegate.find(providerId)
 
     override fun model(providerId: String, modelId: String): ModelEntry? =

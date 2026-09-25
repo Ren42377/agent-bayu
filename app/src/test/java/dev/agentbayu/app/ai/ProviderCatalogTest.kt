@@ -376,8 +376,17 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `bundled catalog carries the remote update url`() {
-        assertTrue(catalog.updateUrl.orEmpty().startsWith("https://raw.githubusercontent.com/"))
+    fun `bundled catalog is self contained and declares its version`() {
+        assertNull(catalog.updateUrl)
+        assertEquals(2, catalog.version)
+    }
+
+    @Test
+    fun `agy blocks retired ids that no longer have a catalog entry`() {
+        val provider = catalog.find("agy")!!
+
+        assertTrue("gemini-2.5-pro" in provider.retiredModels)
+        assertTrue("gemini-1.5-pro" in provider.retiredModels)
     }
 
     @Test

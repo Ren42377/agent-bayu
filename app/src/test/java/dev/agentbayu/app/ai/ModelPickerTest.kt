@@ -224,6 +224,53 @@ class ModelPickerTest {
     }
 
     @Test
+    fun `retired ids disappear while unknown upstream ids stay visible`() {
+        val provider = testProvider(
+            id = "agy",
+            modelsPath = "/models",
+            retiredModels = listOf("gemini-2.5-pro", "gemini-2.5-flash-lite"),
+            models = listOf(
+                ModelEntry(id = "gemini-3.8-flash"),
+                ModelEntry(id = "gemini-3.8-flash-high", deprecated = true)
+            )
+        )
+        val connection = testConnection(
+            providerId = "agy",
+            model = "gemini-3.8-flash",
+            discoveredModels = listOf(
+                "gemini-3.8-flash-high(high)",
+                "gemini-2.5-pro",
+                "gemini-2.5-flash-lite",
+                "gemini-4.0-ultra"
+            )
+        )
+
+        assertEquals(
+            listOf("gemini-3.8-flash", "gemini-4.0-ultra"),
+            pickerModelIds(provider, connection)
+        )
+        assertTrue(isRetiredModel(provider, "gemini-2.5-pro-high"))
+        assertFalse(isRetiredModel(provider, "gemini-4.0-ultra"))
+    }
+
+    @Test
+    fun `xhigh and max variants fold into their family too`() {
+        val provider = testProvider(
+            id = "agy",
+            modelsPath = "/models",
+            models = listOf(
+                ModelEntry(id = "gemini-3.8-flash"),
+                ModelEntry(id = "gemini-3.8-flash-xhigh", deprecated = true)
+            )
+        )
+
+        assertEquals(
+            "gemini-3.8-flash",
+            normalizeDiscoveredModelId(provider, "gemini-3.8-flash-xhigh(high)")
+        )
+    }
+
+    @Test
     fun `the plan type falls back to the access token claim`() {
         val provider = testProvider(
             id = "codex",

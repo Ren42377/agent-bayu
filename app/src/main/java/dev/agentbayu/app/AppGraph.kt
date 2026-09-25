@@ -255,7 +255,11 @@ object AppGraph {
 
     fun refreshCatalog(context: Context, onResult: (Boolean) -> Unit = {}) {
         val graph = container(context)
-        val url = graph.catalogRepository.updateUrl ?: CatalogUpdater.DEFAULT_UPDATE_URL
+        val url = graph.catalogRepository.updateUrl
+        if (url.isNullOrBlank()) {
+            onResult(false)
+            return
+        }
         scope.launch {
             when (val result = graph.catalogUpdater.fetch(url)) {
                 is CatalogUpdateResult.Success -> {
@@ -324,11 +328,21 @@ object AppGraph {
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
-        val catalogUpdater = CatalogUpdater(client, secureStore, clock)
-        val catalogRepository = CatalogRepository(loadCatalog(context))
-        catalogUpdater.restore()?.let { cached ->
-            if (cached is CatalogUpdateResult.Success) {
-                catalogRepository.publish(cached.catalog, cached.fetchedAtMillis)
+        val bundledCatalog = loadCatalog(context)
+        val catalogUpdater = CatalogUpdater(
+            client = client,
+            storage = secureStore,
+            clock = clock,
+            minimumVersion = bundledCatalog.version
+        )
+        val catalogRepository = CatalogRepository(bundledCatalog)
+        if (bundledCatalog.updateUrl.isNullOrBlank()) {
+            catalogUpdater.clear()
+        } else {
+            catalogUpdater.restore()?.let { cached ->
+                if (cached is CatalogUpdateResult.Success) {
+                    catalogRepository.publish(cached.catalog, cached.fetchedAtMillis)
+                }
             }
         }
         val catalog = catalogRepository
@@ -342,6 +356,7 @@ object AppGraph {
             logStore.error("Crash", crash.type, crash.detail)
         }
         seedDefaultConnection(context, catalog, connectionStore)
+        connectionStore.migrateModels(catalog)
         val adapters: Map<WireFormat, ChatAdapter> = mapOf(
             WireFormat.OPENAI to OpenAiCompatibleAdapter(client),
             WireFormat.OPENAI_RESPONSES to OpenAiResponsesAdapter(client),
@@ -497,20 +512,25 @@ object AppGraph {
 
     private fun refreshRemoteData(context: Context) {
         val graph = container(context)
-        scope.launch {
-            val url = graph.catalogRepository.updateUrl ?: CatalogUpdater.DEFAULT_UPDATE_URL
-            when (val result = graph.catalogUpdater.fetch(url)) {
-                is CatalogUpdateResult.Success -> {
-                    graph.catalogRepository.publish(result.catalog, result.fetchedAtMillis)
-                    graph.logStore.info(
-                        CATALOG_SOURCE,
-                        "Catalog updated",
-                        result.catalog.providers.size.toString() + " providers"
-                    )
-                }
+        val url = graph.catalogRepository.updateUrl
+        if (!url.isNullOrBlank()) {
+            scope.launch {
+                when (val result = graph.catalogUpdater.fetch(url)) {
+                    is CatalogUpdateResult.Success -> {
+                        graph.catalogRepository.publish(result.catalog, result.fetchedAtMillis)
+                        graph.logStore.info(
+                            CATALOG_SOURCE,
+                            "Catalog updated",
+                            result.catalog.providers.size.toString() + " providers"
+                        )
+                    }
 
-                is CatalogUpdateResult.Failure -> Unit
+                    is CatalogUpdateResult.Failure -> Unit
+                }
             }
+        }
+        scope.launch {
+            graph.connectionStore.migrateModels(graph.catalogRepository)
         }
         scope.launch {
             val store = graph.connectionStore
