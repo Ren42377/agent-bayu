@@ -43,13 +43,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
-import com.kyant.backdrop.backdrops.layerBackdrop
-import com.kyant.backdrop.backdrops.rememberBackdrop
-import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
-import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 import com.kyant.backdrop.drawBackdrop
-import com.kyant.backdrop.effects.colorControls
-import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
@@ -158,12 +152,6 @@ private fun EffortSlider(
         val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
         fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
 
-        val trackLayerBackdrop = rememberLayerBackdrop()
-        val thumbBackdrop = rememberCombinedBackdrop(
-            LocalGlassBackdrop.current,
-            rememberBackdrop(trackLayerBackdrop) { drawBackdrop -> drawBackdrop() }
-        )
-
         val dragAnimation = remember(animationScope, lastIndex) {
             var travel = 0f
             var downIndex = safeSelectedIndex
@@ -257,7 +245,6 @@ private fun EffortSlider(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .layerBackdrop(trackLayerBackdrop)
                 .graphicsLayer { translationX = shakeOffset }
                 .drawBehind {
                     val trackRadius = size.height / 2f
@@ -330,20 +317,8 @@ private fun EffortSlider(
                     translationX = (dragAnimation.value / lastIndex) * travelPx + shakeOffset
                 }
                 .drawBackdrop(
-                    backdrop = thumbBackdrop,
+                    backdrop = LocalGlassBackdrop.current,
                     shape = { CircleShape },
-                    effects = {
-                        val progress = dragAnimation.pressProgress
-                        lens(
-                            SLIDER_THUMB_LENS_HEIGHT.toPx() * progress,
-                            SLIDER_THUMB_LENS_AMOUNT.toPx() * progress,
-                            chromaticAberration = true
-                        )
-                        colorControls(
-                            brightness = SLIDER_THUMB_PRESS_BRIGHTNESS * progress,
-                            saturation = 1f - progress
-                        )
-                    },
                     highlight = {
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
@@ -365,14 +340,7 @@ private fun EffortSlider(
                         scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
-                    onDrawSurface = {
-                        drawRect(
-                            Color.White.copy(
-                                alpha = 1f - dragAnimation.pressProgress *
-                                    SLIDER_THUMB_PRESS_WHITE_FADE
-                            )
-                        )
-                    }
+                    onDrawSurface = { drawRect(Color.White) }
                 )
         )
         Box(
@@ -492,10 +460,6 @@ private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
 private const val SLIDER_SHAKE_RATE = 0.07f
-private const val SLIDER_THUMB_PRESS_WHITE_FADE = 0.7f
-private const val SLIDER_THUMB_PRESS_BRIGHTNESS = 0.5f
-private val SLIDER_THUMB_LENS_HEIGHT = 4.dp
-private val SLIDER_THUMB_LENS_AMOUNT = 8.dp
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
 private val SLIDER_SHAKE_AMPLITUDE = 2.dp
