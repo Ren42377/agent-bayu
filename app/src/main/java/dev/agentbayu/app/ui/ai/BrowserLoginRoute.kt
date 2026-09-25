@@ -18,6 +18,7 @@ import androidx.compose.ui.text.AnnotatedString
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ConnectionHealth
+import dev.agentbayu.app.ai.accountEmailOf
 import dev.agentbayu.app.ai.oauth.BrowserCallbackResult
 import dev.agentbayu.app.ai.oauth.BrowserLoginResult
 import dev.agentbayu.app.ai.oauth.BrowserLoginStartResult
@@ -101,6 +102,11 @@ fun AiBrowserLoginRoute(
             }
             val tokens = (exchanged as BrowserLoginResult.Success).tokens
             credentials.put(connectionId, tokens)
+            store.applyAccountLabel(
+                connectionId = connectionId,
+                email = accountEmailOf(tokens),
+                providerLabel = provider.label
+            )
             if (provider.needsProjectBootstrap) {
                 val bootstrapped = projectBootstrap.resolve(
                     baseUrl = connection?.baseUrlOverride?.takeIf { it.isNotBlank() }

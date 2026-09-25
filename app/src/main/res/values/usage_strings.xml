@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="usage_title">Data usage</string>
+    <string name="usage_subtitle">%1$s, model %2$s</string>
+    <string name="usage_plan">Plan %1$s</string>
+    <string name="usage_empty">No accounts yet. Add a provider account first.</string>
+    <string name="usage_refresh">Refresh</string>
+    <string name="usage_refreshing">Refreshing</string>
+    <string name="usage_updated">Updated %1$s</string>
+    <string name="usage_never">No quota data yet</string>
+    <string name="usage_window_5h">5 hours</string>
+    <string name="usage_window_7d">7 days</string>
+    <string name="usage_window_unknown">Unknown quota</string>
+    <string name="usage_percent">%1$d%% used</string>
+    <string name="usage_reset">Resets in %1$s</string>
+    <string name="usage_reset_now">Resetting now</string>
+    <string name="usage_local_title">Local activity</string>
+    <string name="usage_local_requests">%1$d requests, %2$d failed</string>
+    <string name="usage_local_tokens">%1$s tokens in, %2$s tokens out</string>
+    <string name="usage_local_cost">Estimated cost $%1$s</string>
+    <string name="usage_refreshed">Quota refreshed.</string>
+    <string name="usage_refresh_failed">Quota refresh failed: %1$s</string>
+    <string name="usage_probe_note">Refresh sends one small request to each signed-in account.</string>
+    <string name="usage_minutes">%1$dm</string>
+    <string name="usage_hours">%1$dh</string>
+    <string name="usage_days">%1$dd</string>
+</resources>

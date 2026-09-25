@@ -18,6 +18,8 @@ import dev.agentbayu.app.ai.CredentialStore
 import dev.agentbayu.app.ai.LogStore
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderCatalog
+import dev.agentbayu.app.ai.QuotaRecorder
+import dev.agentbayu.app.ai.QuotaStore
 import dev.agentbayu.app.ai.RealClock
 import dev.agentbayu.app.ai.StoredCredentials
 import dev.agentbayu.app.ai.UsageTracker
@@ -203,6 +205,7 @@ object AppGraph {
         val codeFlow: GoogleCodeFlow,
         val projectBootstrap: AntigravityProjectBootstrap,
         val usageTracker: UsageTracker,
+        val quotaStore: QuotaStore,
         val logStore: LogStore,
         val attachments: Attachments,
         val approvals: UiToolApprovalGate,
@@ -245,6 +248,8 @@ object AppGraph {
         container(context).projectBootstrap
 
     fun usage(context: Context): UsageTracker = container(context).usageTracker
+
+    fun quota(context: Context): QuotaStore = container(context).quotaStore
 
     fun logs(context: Context): LogStore = container(context).logStore
 
@@ -330,6 +335,8 @@ object AppGraph {
         val credentialStore = CredentialStore(secureStore)
         val connectionStore = ConnectionStore(secureStore, clock)
         val usageTracker = UsageTracker(clock)
+        val quotaStore = QuotaStore(secureStore, clock)
+        QuotaRecorder.bind { connectionId, headers -> quotaStore.record(connectionId, headers) }
         val logStore = LogStore(clock)
         CrashLog.take(context)?.let { crash ->
             logStore.error("Crash", crash.type, crash.detail)
@@ -480,6 +487,7 @@ object AppGraph {
             codeFlow = GoogleCodeFlow(client, clock),
             projectBootstrap = projectBootstrap,
             usageTracker = usageTracker,
+            quotaStore = quotaStore,
             logStore = logStore,
             attachments = attachments,
             approvals = approvals,

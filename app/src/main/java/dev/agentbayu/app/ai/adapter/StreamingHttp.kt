@@ -2,6 +2,7 @@ package dev.agentbayu.app.ai.adapter
 
 import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
+import dev.agentbayu.app.ai.QuotaRecorder
 import dev.agentbayu.app.ai.RouteFailure
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -27,6 +28,7 @@ internal object StreamingHttp {
         client: OkHttpClient,
         request: Request,
         idleTimeoutMillis: Long,
+        connectionId: String? = null,
         parse: (String) -> List<WireEvent>
     ): Flow<WireEvent> = flow {
         val scoped = client.newBuilder()
@@ -38,6 +40,7 @@ internal object StreamingHttp {
         val cancelHandle = currentCoroutineContext().job.invokeOnCompletion { call.cancel() }
         try {
             call.execute().use { response ->
+                QuotaRecorder.record(connectionId, headersOf(response))
                 if (!response.isSuccessful) {
                     val body = response.body?.string()?.take(ERROR_SNIPPET_LENGTH).orEmpty()
                     emit(
@@ -105,4 +108,13 @@ internal object StreamingHttp {
             cancelHandle.dispose()
         }
     }.flowOn(Dispatchers.IO)
+
+    private fun headersOf(response: okhttp3.Response): Map<String, String> {
+        val headers = response.headers
+        val map = HashMap<String, String>(headers.size * 2)
+        for (index in 0 until headers.size) {
+            map[headers.name(index)] = headers.value(index)
+        }
+        return map
+    }
 }

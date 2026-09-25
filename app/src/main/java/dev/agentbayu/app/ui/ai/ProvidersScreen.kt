@@ -50,6 +50,7 @@ data class ProviderRowState(
     val keyHint: String?,
     val acceptsKey: Boolean,
     val hasCredential: Boolean,
+    val accountEmail: String? = null,
     val isActive: Boolean
 )
 
@@ -61,6 +62,7 @@ fun ProvidersScreen(
     onEdit: (String) -> Unit,
     onActivate: (String) -> Unit,
     onDelete: (String) -> Unit,
+    onUsage: () -> Unit = {},
     onUpdateCatalog: () -> Unit = {},
     catalogRefreshing: Boolean = false,
     catalogLastUpdated: String? = null,
@@ -72,7 +74,15 @@ fun ProvidersScreen(
             .fillMaxSize()
             .padding(top = insets.calculateTopPadding())
     ) {
-        AiScreenHeader(title = stringResource(R.string.providers_title), onBack = onBack)
+        AiScreenHeader(title = stringResource(R.string.providers_title), onBack = onBack) {
+            GlassIconButton(onClick = onUsage) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_data_usage),
+                    contentDescription = stringResource(R.string.usage_title),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -235,6 +245,13 @@ private fun ConnectionCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            row.accountEmail?.let { email ->
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
             Text(
                 text = stringResource(
                     R.string.providers_meta,

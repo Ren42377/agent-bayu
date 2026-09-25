@@ -15,6 +15,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.ProviderTier
 import dev.agentbayu.app.ai.RiskLevel
+import dev.agentbayu.app.ai.accountEmailOf
 import dev.agentbayu.app.ai.resolveActiveConnection
 import java.time.Instant
 import java.time.ZoneId
@@ -25,6 +26,7 @@ import java.util.Locale
 fun AiProvidersRoute(
     onBack: () -> Unit,
     onEdit: (String?) -> Unit,
+    onUsage: () -> Unit = {},
     onMessage: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -61,6 +63,7 @@ fun AiProvidersRoute(
                 keyHint = if (isOAuth) null else credentials.hint(connection.id),
                 acceptsKey = provider?.acceptsKey ?: true,
                 hasCredential = credentials.hasKey(connection.id),
+                accountEmail = accountEmailOf(credentials.credential(connection.id)),
                 isActive = connection.id == active?.id
             )
         }
@@ -71,11 +74,13 @@ fun AiProvidersRoute(
         onBack = onBack,
         onAdd = { onEdit(null) },
         onEdit = { id -> onEdit(id) },
+        onUsage = onUsage,
         onActivate = { id -> store.setActive(id) },
         onDelete = { id ->
             store.remove(id)
             credentials.remove(id)
             usage.forget(id)
+            AppGraph.quota(context).forget(id)
             onMessage(deletedMessage)
         },
         onUpdateCatalog = {

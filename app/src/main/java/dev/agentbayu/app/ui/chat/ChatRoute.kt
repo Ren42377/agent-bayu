@@ -31,6 +31,7 @@ import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.Candidate
+import dev.agentbayu.app.ai.accountEmailOf
 import dev.agentbayu.app.ai.availableEfforts
 import dev.agentbayu.app.ai.planTypeOf
 import dev.agentbayu.app.ai.pickerModelIds
@@ -173,6 +174,8 @@ fun ChatRoute(
                 efforts = efforts,
                 effort = resolveEffort(efforts, connection.effort, connection.model),
                 authKind = provider?.authKind ?: AuthKind.API_KEY,
+                accountEmail = provider
+                    ?.let { accountEmailOf(credentials.credential(connection.id)) },
                 isActive = connection.id == active?.id,
                 ready = provider != null && hasCredential
             )

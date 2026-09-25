@@ -58,7 +58,7 @@ data class ConnectionEditState(
     val keyHint: String?,
     val model: String,
     val modelOptions: List<String>,
-    val contextLength: String,
+    val contextStop: Int,
     val baseUrl: String,
     val isNew: Boolean,
     val loggedIn: Boolean = false,
@@ -74,16 +74,20 @@ data class ConnectionEditActions(
     val onLabelChange: (String) -> Unit,
     val onKeyChange: (String) -> Unit,
     val onModelChange: (String) -> Unit,
-    val onAddCustomModel: () -> Unit,
-    val onContextLengthChange: (String) -> Unit,
+    val onRequestAddCustomModel: () -> Unit,
+    val onContextStopSelected: (Int) -> Unit,
+    val onContextDefault: () -> Unit,
     val onBaseUrlChange: (String) -> Unit,
     val onRefreshModels: () -> Unit,
     val onTest: () -> Unit,
     val onSave: () -> Unit,
     val onLogin: () -> Unit,
+    val onAddAccount: () -> Unit = {},
     val onOpenKeyUrl: (String) -> Unit,
     val onBack: () -> Unit
 )
+
+private const val ADD_CUSTOM_MODEL_OPTION = "__add_custom_model__"
 
 @Composable
 fun ConnectionEditScreen(
@@ -233,6 +237,18 @@ private fun LoginFields(
             color = MaterialTheme.colorScheme.onPrimary
         )
     }
+    if (state.loggedIn) {
+        GlassButton(
+            onClick = actions.onAddAccount,
+            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.connection_add_account),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
 }
 
 @Composable
@@ -317,45 +333,42 @@ private fun ProviderNotes(provider: ProviderEntry) {
 @Composable
 private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActions) {
     val provider = state.provider ?: return
+    val addCustomLabel = stringResource(R.string.connection_model_add)
     FormSection(title = stringResource(R.string.connection_model_section)) {
         if (state.modelOptions.isNotEmpty()) {
+            val options = state.modelOptions.map { it to it } +
+                listOf(ADD_CUSTOM_MODEL_OPTION to addCustomLabel)
             AiDropdown(
                 selectedLabel = state.model,
-                options = state.modelOptions.map { it to it },
-                onSelect = actions.onModelChange,
+                options = options,
+                onSelect = { id ->
+                    if (id == ADD_CUSTOM_MODEL_OPTION) {
+                        actions.onRequestAddCustomModel()
+                    } else {
+                        actions.onModelChange(id)
+                    }
+                },
                 selectedId = state.model
             )
+        } else {
+            GlassButton(
+                onClick = actions.onRequestAddCustomModel,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) {
+                Text(
+                    text = addCustomLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
-        OutlinedTextField(
-            value = state.model,
-            onValueChange = actions.onModelChange,
-            label = { Text(text = stringResource(R.string.connection_custom_model_hint)) },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium,
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-            ),
-            trailingIcon = {
-                if (state.model.isNotBlank() && state.model !in state.modelOptions) {
-                    GlassButton(
-                        onClick = actions.onAddCustomModel,
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                    ) {
-                        Text(
-                            text = stringResource(R.string.connection_model_add),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            },
-            modifier = Modifier.fillMaxWidth()
-        )
         state.modelEntry?.let { entry ->
-            val contextText = state.contextLength.toIntOrNull()
-                ?.takeIf { it > 0 }
-                ?: entry.contextLength
+            val contextText = if (state.contextStop >= 0) {
+                CONTEXT_WINDOW_STOPS[state.contextStop]
+            } else {
+                entry.contextLength
+            }
             Text(
                 text = stringResource(R.string.connection_model_context, formatTokens(contextText)),
                 style = MaterialTheme.typography.bodySmall,
@@ -380,18 +393,34 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 )
             }
         }
-        OutlinedTextField(
-            value = state.contextLength,
-            onValueChange = actions.onContextLengthChange,
-            label = { Text(text = stringResource(R.string.connection_context_hint)) },
-            singleLine = true,
-            shape = MaterialTheme.shapes.medium,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-            ),
-            modifier = Modifier.fillMaxWidth()
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.connection_context_title).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.weight(1f)
+            )
+            if (state.contextStop >= 0) {
+                GlassButton(
+                    onClick = actions.onContextDefault,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.connection_context_default),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+        ContextWindowSlider(
+            stopCount = CONTEXT_WINDOW_STOPS.size,
+            selectedIndex = state.contextStop,
+            labelOf = { index -> contextWindowLabel(CONTEXT_WINDOW_STOPS[index]) },
+            onSelect = actions.onContextStopSelected
         )
         if (provider.modelsPath != null) {
             GlassButton(

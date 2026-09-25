@@ -205,8 +205,10 @@
     <string name="connection_auth_kind">Sign in: %1$s</string>
     <string name="connection_base_url_hint">Base URL</string>
     <string name="connection_custom_model_hint">Model name</string>
-    <string name="connection_model_add">Add</string>
-    <string name="connection_context_hint">Custom context window in tokens (optional)</string>
+    <string name="connection_model_add">Add custom model</string>
+    <string name="connection_model_add_title">Add custom model</string>
+    <string name="connection_context_title">Context window</string>
+    <string name="connection_context_default">Model default</string>
     <string name="connection_refresh_models">Refresh models</string>
     <string name="connection_models_refreshed">%1$d models read from the provider.</string>
     <string name="connection_models_failed">Failed to read the model list: %1$s</string>
@@ -225,6 +227,7 @@
     <string name="connection_login">Device login</string>
     <string name="connection_login_again">Sign in again</string>
     <string name="connection_login_saved">Signed in. The token is stored on this device.</string>
+    <string name="connection_add_account">Add another account</string>
     <string name="connection_login_needed">Not signed in. Tap Device login; this connection is saved first.</string>
     <string name="connection_login_browser">Browser login</string>
     <string name="connection_login_browser_needed">Not signed in. Tap Browser login; this connection is saved first.</string>

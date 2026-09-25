@@ -1,0 +1,255 @@
+package dev.agentbayu.app.ui.ai
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Path
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalViewConfiguration
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.fastCoerceIn
+import androidx.compose.ui.util.fastRoundToInt
+import dev.agentbayu.app.ui.components.DampedDragAnimation
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import kotlin.math.abs
+
+val CONTEXT_WINDOW_STOPS = listOf(131_072, 262_144, 524_288, 1_048_576)
+
+fun contextWindowStopOf(override: Int?): Int =
+    override?.let { value -> CONTEXT_WINDOW_STOPS.indexOfFirst { it == value } } ?: -1
+
+fun contextWindowLabel(tokens: Int): String = when {
+    tokens >= 1_048_576 && tokens % 1_048_576 == 0 -> (tokens / 1_048_576).toString() + "M"
+    tokens >= 1_024 && tokens % 1_024 == 0 -> (tokens / 1_024).toString() + "K"
+    else -> tokens.toString()
+}
+
+@Composable
+internal fun ContextWindowSlider(
+    stopCount: Int,
+    selectedIndex: Int,
+    labelOf: (Int) -> String,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    if (stopCount < 2) return
+    val lastIndex = stopCount - 1
+    val safeSelectedIndex = selectedIndex.fastCoerceIn(0, lastIndex)
+    val darkTheme = LocalDarkTheme.current
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(
+        alpha = if (darkTheme) SLIDER_TRACK_ALPHA_DARK else SLIDER_TRACK_ALPHA_LIGHT
+    )
+    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = SLIDER_FILL_ALPHA)
+    val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
+    val animationScope = rememberCoroutineScope()
+    val hapticFeedback = LocalHapticFeedback.current
+    val currentOnSelect by rememberUpdatedState(onSelect)
+    val touchSlop = LocalViewConfiguration.current.touchSlop
+    var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
+    var hasSelection by remember { mutableIntStateOf(selectedIndex) }
+
+    LaunchedEffect(selectedIndex) {
+        currentIndex = selectedIndex.fastCoerceIn(0, lastIndex)
+        hasSelection = selectedIndex
+    }
+
+    Column(modifier = modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(SLIDER_TRACK_HEIGHT)
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(
+                        safeSelectedIndex / lastIndex.toFloat(),
+                        0f..1f,
+                        lastIndex
+                    )
+                }
+        ) {
+            val density = LocalDensity.current
+            val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
+            val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
+            fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
+
+            val dragAnimation = remember(animationScope, lastIndex) {
+                var travel = 0f
+                var downIndex = safeSelectedIndex
+                var dragAnchor = 0f
+                var dragDistance = 0f
+                var lastTickIndex = safeSelectedIndex
+                DampedDragAnimation(
+                    animationScope = animationScope,
+                    initialValue = safeSelectedIndex.toFloat(),
+                    valueRange = 0f..lastIndex.toFloat(),
+                    visibilityThreshold = 0.001f,
+                    initialScale = 1f,
+                    pressedScale = SLIDER_THUMB_PRESSED_SCALE,
+                    onDragStarted = { position ->
+                        travel = 0f
+                        dragAnchor = value
+                        dragDistance = 0f
+                        lastTickIndex = value.fastRoundToInt().fastCoerceIn(0, lastIndex)
+                        downIndex = ((position.x - thumbRadiusPx) / (travelPx / lastIndex))
+                            .fastRoundToInt()
+                            .fastCoerceIn(0, lastIndex)
+                    },
+                    onDragStopped = {
+                        val selected = if (travel < touchSlop) {
+                            downIndex
+                        } else {
+                            targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
+                        }
+                        currentIndex = selected
+                        hasSelection = selected
+                        animateToValue(selected.toFloat(), pressed = false)
+                        currentOnSelect(selected)
+                    },
+                    onDrag = { _, dragAmount ->
+                        travel += abs(dragAmount.x)
+                        dragDistance += dragAmount.x
+                        val target = (dragAnchor + dragDistance / (travelPx / lastIndex))
+                            .fastCoerceIn(0f, lastIndex.toFloat())
+                        val tickIndex = target.fastRoundToInt()
+                        if (tickIndex != lastTickIndex) {
+                            lastTickIndex = tickIndex
+                            hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        }
+                        updateValue(target)
+                    },
+                    onDragCanceled = {
+                        animateToValue(currentIndex.toFloat(), pressed = false)
+                    }
+                )
+            }
+            LaunchedEffect(dragAnimation, selectedIndex) {
+                val safeIndex = selectedIndex.fastCoerceIn(0, lastIndex)
+                currentIndex = safeIndex
+                if (!dragAnimation.isGestureActive) {
+                    dragAnimation.animateToValue(safeIndex.toFloat(), pressed = false)
+                }
+            }
+            LaunchedEffect(dragAnimation) {
+                withFrameNanos { }
+                dragAnimation.prewarm()
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .drawBehind {
+                        val trackRadius = size.height / 2f
+                        val fillRight = if (hasSelection >= 0) {
+                            thumbRadiusPx + (dragAnimation.value / lastIndex) * travelPx
+                        } else {
+                            0f
+                        }
+                        drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
+                        if (fillRight > 0f) {
+                            val fill = Path().apply {
+                                addRoundRect(
+                                    RoundRect(
+                                        left = 0f,
+                                        top = 0f,
+                                        right = fillRight,
+                                        bottom = size.height,
+                                        topLeftCornerRadius = CornerRadius(trackRadius),
+                                        bottomLeftCornerRadius = CornerRadius(trackRadius)
+                                    )
+                                )
+                            }
+                            drawPath(fill, fillColor)
+                        }
+                        val dotRadius = SLIDER_DOT_DIAMETER.toPx() / 2
+                        for (index in 0..lastIndex) {
+                            val center = stopCenterPx(index)
+                            drawCircle(
+                                color = if (center <= fillRight) {
+                                    Color.White.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+                                } else {
+                                    dotColor
+                                },
+                                radius = dotRadius,
+                                center = Offset(center, size.height / 2f)
+                            )
+                        }
+                    }
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .size(SLIDER_THUMB_DIAMETER)
+                    .graphicsLayer {
+                        translationX = (dragAnimation.value / lastIndex) * travelPx
+                        scaleX = dragAnimation.scaleX
+                        scaleY = dragAnimation.scaleX
+                    }
+                    .shadow(
+                        elevation = SLIDER_THUMB_SHADOW,
+                        shape = CircleShape,
+                        clip = false
+                    )
+                    .background(Color.White, CircleShape)
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .then(dragAnimation.modifier)
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth()) {
+            (0..lastIndex).forEach { index ->
+                Text(
+                    text = labelOf(index),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (index == hasSelection) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                    },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+private const val SLIDER_TRACK_ALPHA_DARK = 0.10f
+private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
+private const val SLIDER_FILL_ALPHA = 0.45f
+private const val SLIDER_DOT_REST_ALPHA = 0.30f
+private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
+private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
+private const val SLIDER_TRACK_HEIGHT = 26.dp
+private const val SLIDER_THUMB_DIAMETER = 32.dp
+private const val SLIDER_DOT_DIAMETER = 4.dp
+private const val SLIDER_THUMB_SHADOW = 3.dp

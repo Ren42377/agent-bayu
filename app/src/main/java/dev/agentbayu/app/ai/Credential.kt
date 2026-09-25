@@ -39,6 +39,7 @@ sealed interface Credential {
     companion object {
         const val HINT_LENGTH = 4
         const val HINT_MASK = "****"
+        const val EMAIL_EXTRA = "account_email"
 
         fun hintOf(value: String): String {
             if (value.length <= HINT_LENGTH) return HINT_MASK

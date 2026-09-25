@@ -3,6 +3,15 @@ package dev.agentbayu.app.ui.ai
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -16,6 +25,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.Connection
@@ -27,7 +37,9 @@ import dev.agentbayu.app.ai.ProviderEntry
 import dev.agentbayu.app.ai.isModelAccessible
 import dev.agentbayu.app.ai.planTypeOf
 import dev.agentbayu.app.ai.pickerModelIds
+import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassDialog
+import dev.agentbayu.app.ui.components.GlassOverlay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -73,12 +85,12 @@ fun AiConnectionEditRoute(
     }
     var discovered by remember { mutableStateOf(existing?.discoveredModels ?: emptyList()) }
     var customModels by remember { mutableStateOf(existing?.customModels ?: emptyList()) }
-    var contextLength by remember {
-        mutableStateOf(existing?.contextLengthOverride?.toString().orEmpty())
-    }
+    var contextStop by remember { mutableStateOf(contextWindowStopOf(existing?.contextLengthOverride)) }
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var blockedLink by remember { mutableStateOf<String?>(null) }
+    var showAddModelDialog by remember { mutableStateOf(false) }
+    var newModelName by remember { mutableStateOf("") }
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
     val loggedIn = remember(id) { credentials.credential(id) is Credential.OAuthTokens }
@@ -102,7 +114,7 @@ fun AiConnectionEditRoute(
         discoveredModels = discovered,
         projectId = existing?.projectId,
         effort = existing?.effort,
-        contextLengthOverride = contextLength.trim().toIntOrNull()?.takeIf { it > 0 },
+        contextLengthOverride = contextStop.takeIf { it >= 0 }?.let { CONTEXT_WINDOW_STOPS[it] },
         customModels = customModels,
         createdAtMillis = existing?.createdAtMillis ?: 0L
     )
@@ -168,7 +180,7 @@ fun AiConnectionEditRoute(
         keyHint = keyHint,
         model = model,
         modelOptions = pickerModelIds(provider, draft(), planType),
-        contextLength = contextLength,
+        contextStop = contextStop,
         baseUrl = baseUrl,
         isNew = existing == null,
         loggedIn = loggedIn,
@@ -191,11 +203,9 @@ fun AiConnectionEditRoute(
         onLabelChange = { value -> label = value },
         onKeyChange = { value -> apiKey = value },
         onModelChange = { value -> model = value },
-        onAddCustomModel = {
-            val value = model.trim()
-            if (value.isNotEmpty() && value !in customModels) customModels = customModels + value
-        },
-        onContextLengthChange = { value -> contextLength = value.filter { it.isDigit() } },
+        onRequestAddCustomModel = { showAddModelDialog = true },
+        onContextStopSelected = { index -> contextStop = index },
+        onContextDefault = { contextStop = -1 },
         onBaseUrlChange = { value -> baseUrl = value },
         onRefreshModels = { refreshModels() },
         onTest = {
@@ -240,6 +250,29 @@ fun AiConnectionEditRoute(
                 }
             }
         },
+        onAddAccount = {
+            val selected = provider ?: return@ConnectionEditActions
+            persist(selected)
+            val accountId = store.newId()
+            store.upsert(
+                draft().copy(
+                    id = accountId,
+                    label = store.nextLabelFor(selected.id, selected.label),
+                    discoveredModels = emptyList(),
+                    customModels = emptyList(),
+                    projectId = null,
+                    keyHint = null,
+                    health = ConnectionHealth.NEEDS_KEY,
+                    healthDetail = null,
+                    createdAtMillis = 0L
+                )
+            )
+            if (selected.browserLogin != null) {
+                onStartBrowserLogin(accountId)
+            } else {
+                onStartLogin(accountId)
+            }
+        },
         onOpenKeyUrl = { url ->
             try {
                 context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
@@ -251,6 +284,71 @@ fun AiConnectionEditRoute(
     )
 
     ConnectionEditScreen(state = state, actions = actions, modifier = modifier)
+
+    GlassOverlay(
+        visible = showAddModelDialog,
+        onDismiss = {
+            showAddModelDialog = false
+            newModelName = ""
+        }
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                text = stringResource(R.string.connection_model_add_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            OutlinedTextField(
+                value = newModelName,
+                onValueChange = { value -> newModelName = value },
+                label = { Text(text = stringResource(R.string.connection_custom_model_hint)) },
+                singleLine = true,
+                shape = MaterialTheme.shapes.medium,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                GlassButton(
+                    onClick = {
+                        showAddModelDialog = false
+                        newModelName = ""
+                    },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.dialog_close),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                GlassButton(
+                    onClick = {
+                        val name = newModelName.trim()
+                        if (name.isNotEmpty()) {
+                            if (name !in customModels) customModels = customModels + name
+                            model = name
+                            showAddModelDialog = false
+                            newModelName = ""
+                        }
+                    },
+                    modifier = Modifier.weight(1f),
+                    tint = MaterialTheme.colorScheme.primary,
+                    enabled = newModelName.isNotBlank(),
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    Text(
+                        text = stringResource(R.string.connection_model_add),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                }
+            }
+        }
+    }
 
     val pendingLink = blockedLink
     GlassDialog(

@@ -44,7 +44,20 @@ fun availableEfforts(
     EffortMode.NONE -> emptyList()
     EffortMode.MODEL_SUFFIX ->
         effortsFor(modelId, provider.pickerModelIds(discoveredModels, modelId))
-    EffortMode.REQUEST_FIELD -> provider.model(modelId)?.efforts.orEmpty()
+    EffortMode.REQUEST_FIELD -> mergeEfforts(
+        provider.model(modelId)?.efforts.orEmpty(),
+        effortsFor(modelId, discoveredModels)
+    )
+    else -> emptyList()
+}
+
+private fun mergeEfforts(
+    catalog: List<ReasoningEffort>,
+    discovered: List<ReasoningEffort>
+): List<ReasoningEffort> = when {
+    discovered.isEmpty() -> catalog
+    catalog.isEmpty() -> discovered
+    else -> (catalog + discovered).distinct().sortedBy { it.ordinal }
 }
 
 fun nearestEffort(target: ReasoningEffort, supported: List<ReasoningEffort>): ReasoningEffort? =
@@ -65,11 +78,29 @@ fun resolveEffort(
 }
 
 fun Candidate.withEffortModel(): Candidate {
-    if (provider.effortMode != EffortMode.MODEL_SUFFIX) return this
     val level = effort ?: return this
+    return when (provider.effortMode) {
+        EffortMode.MODEL_SUFFIX -> withSuffixModel(level)
+        EffortMode.REQUEST_FIELD -> withDiscoveredVariantModel(level)
+        EffortMode.NONE -> this
+    }
+}
+
+private fun Candidate.withSuffixModel(level: ReasoningEffort): Candidate {
     val base = effortBaseOf(model.id)
     if (base.isEmpty()) return this
     val target = base + "-" + level.wireValue
     if (target == model.id) return this
     return copy(model = provider.modelOrFallback(target))
+}
+
+private fun Candidate.withDiscoveredVariantModel(level: ReasoningEffort): Candidate {
+    if (!model.upstreamByEffort[level.wireValue].isNullOrBlank()) return this
+    val variant = model.id + "-" + level.wireValue
+    if (variant == model.id) return this
+    val raw = connection.discoveredModels
+        .firstOrNull { it.trim().substringBefore('(').trim() == variant }
+        ?.trim()
+        ?: return this
+    return copy(model = model.copy(id = raw))
 }

@@ -114,6 +114,15 @@ internal fun readTokens(
             JwtClaims.claim(idToken, claim, planField)?.let { value -> extras[planField] = value }
         }
     }
+    if (!config.emailClaim.isNullOrBlank()) {
+        val email = idToken?.let { JwtClaims.claim(it, config.emailClaim, null) }
+            ?: root.stringField("access_token")?.let { token ->
+                JwtClaims.claim(token, config.emailClaim, null)
+            }
+        if (!email.isNullOrBlank()) {
+            extras[Credential.EMAIL_EXTRA] = email
+        }
+    }
     return Credential.OAuthTokens(
         accessToken = accessToken,
         refreshToken = refreshToken,

@@ -32,7 +32,12 @@ class OpenAiResponsesAdapter(private val client: OkHttpClient) : ChatAdapter {
             .build()
 
         val tools = ToolCallBuffer()
-        return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
+        return StreamingHttp.stream(
+            client,
+            httpRequest,
+            candidate.provider.timeoutMillis,
+            candidate.connection.id
+        ) { chunk ->
             parseChunk(chunk, tools)
         }.releasingToolCalls(tools)
     }

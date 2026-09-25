@@ -91,6 +91,21 @@ class ConnectionStore(
         upsert(target.copy(customModels = target.customModels - modelId))
     }
 
+    fun applyAccountLabel(connectionId: String, email: String?, providerLabel: String?) {
+        val target = find(connectionId) ?: return
+        val trimmed = email?.trim().orEmpty()
+        if (trimmed.isEmpty()) return
+        if (target.label.contains(trimmed, ignoreCase = true)) return
+        val base = providerLabel?.trim()?.takeIf { it.isNotEmpty() } ?: target.label
+        upsert(target.copy(label = base + ACCOUNT_LABEL_SEPARATOR + trimmed))
+    }
+
+    fun nextLabelFor(providerId: String, baseLabel: String): String {
+        val taken = state.value.count { it.providerId == providerId }
+        if (taken == 0) return baseLabel
+        return baseLabel + ACCOUNT_LABEL_SEPARATOR + (taken + 1)
+    }
+
     fun setContextLength(connectionId: String, contextLength: Int?) {
         val target = find(connectionId) ?: return
         val normalized = contextLength?.takeIf { it > 0 }
@@ -140,6 +155,7 @@ class ConnectionStore(
 
     companion object {
         const val FILE_NAME = "connections.bin"
+        const val ACCOUNT_LABEL_SEPARATOR = " - "
         private const val ID_PREFIX = "conn-"
         private const val RADIX = 36
     }
