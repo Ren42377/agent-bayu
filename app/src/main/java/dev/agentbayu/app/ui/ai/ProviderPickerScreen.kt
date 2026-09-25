@@ -12,14 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -84,54 +85,43 @@ private fun PickerContent(
         modifier = Modifier.heightIn(max = MAX_PICKER_HEIGHT),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .weight(1f, fill = false)
-                .verticalScroll(rememberScrollState()),
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(vertical = 4.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            item(key = "picker_title") {
                 Text(
                     text = stringResource(R.string.picker_title),
                     style = MaterialTheme.typography.titleLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    modifier = Modifier.weight(1f)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
 
             if (options.isEmpty()) {
-                Text(
-                    text = stringResource(R.string.picker_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            options.forEach { option ->
-                OptionRow(
-                    option = option,
-                    onSelect = { onSelect(option.connectionId) }
-                )
-                if (option.isActive) {
-                    ModelList(
-                        option = option,
-                        onSelectModel = { modelId -> onSelectModel(option.connectionId, modelId) }
-                    )
-                    EffortRow(
-                        option = option,
-                        onSelectEffort = { effort -> onSelectEffort(option.connectionId, effort) }
+                item(key = "picker_empty") {
+                    Text(
+                        text = stringResource(R.string.picker_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                HorizontalDivider(
-                    thickness = 0.5.dp,
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+            }
+
+            items(items = options, key = { it.connectionId }) { option ->
+                PickerOptionBlock(
+                    option = option,
+                    onSelect = { onSelect(option.connectionId) },
+                    onSelectModel = { modelId -> onSelectModel(option.connectionId, modelId) },
+                    onSelectEffort = { effort -> onSelectEffort(option.connectionId, effort) }
                 )
             }
 
-            Spacer(modifier = Modifier.height(4.dp))
+            item(key = "picker_bottom_spacer") {
+                Spacer(modifier = Modifier.height(4.dp))
+            }
         }
 
         Row(
@@ -231,6 +221,35 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
 }
 
 @Composable
+private fun PickerOptionBlock(
+    option: ProviderOption,
+    onSelect: () -> Unit,
+    onSelectModel: (String) -> Unit,
+    onSelectEffort: (ReasoningEffort) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        OptionRow(option = option, onSelect = onSelect)
+        if (option.isActive) {
+            ModelList(
+                option = option,
+                onSelectModel = onSelectModel
+            )
+            EffortRow(
+                option = option,
+                onSelectEffort = onSelectEffort
+            )
+        }
+        HorizontalDivider(
+            thickness = 0.5.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
+        )
+    }
+}
+
+@Composable
 private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
     if (option.models.isEmpty()) return
     Column(
@@ -245,30 +264,36 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
             color = MaterialTheme.colorScheme.primary
         )
         option.models.forEach { modelId ->
-            val selected = modelId == option.model
-            GlassButton(
-                onClick = { onSelectModel(modelId) },
-                modifier = Modifier.fillMaxWidth(),
-                tint = if (selected) MaterialTheme.colorScheme.primary else Color.Unspecified,
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-            ) {
-                Text(
-                    text = modelId,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (selected) {
-                        Color.White
+            key(modelId) {
+                val selected = modelId == option.model
+                GlassButton(
+                    onClick = { onSelectModel(modelId) },
+                    modifier = Modifier.fillMaxWidth(),
+                    tint = if (selected) {
+                        MaterialTheme.colorScheme.primary
                     } else {
-                        MaterialTheme.colorScheme.onSurface
+                        Color.Unspecified
                     },
-                    modifier = Modifier.weight(1f)
-                )
-                if (selected) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_check),
-                        contentDescription = stringResource(R.string.picker_model_selected),
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp)
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = modelId,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (selected) {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
+                        modifier = Modifier.weight(1f)
                     )
+                    if (selected) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_check),
+                            contentDescription = stringResource(R.string.picker_model_selected),
+                            tint = Color.White,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
         }

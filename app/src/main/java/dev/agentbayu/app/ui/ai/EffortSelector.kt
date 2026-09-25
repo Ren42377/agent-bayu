@@ -12,7 +12,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -133,8 +132,6 @@ private fun EffortSlider(
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val touchSlop = LocalViewConfiguration.current.touchSlop
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
-    var shaking by remember { mutableStateOf(false) }
-    var shakeOffset by remember { mutableFloatStateOf(0f) }
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -158,7 +155,6 @@ private fun EffortSlider(
             var dragAnchor = 0f
             var dragDistance = 0f
             var lastTickIndex = safeSelectedIndex
-            var maxAnnounced = false
             DampedDragAnimation(
                 animationScope = animationScope,
                 initialValue = safeSelectedIndex.toFloat(),
@@ -182,7 +178,6 @@ private fun EffortSlider(
                         targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
                     }
                     currentIndex = selected
-                    shaking = false
                     animateToValue(selected.toFloat(), pressed = false)
                     currentOnSelect(selected)
                 },
@@ -191,13 +186,6 @@ private fun EffortSlider(
                     dragDistance += dragAmount.x
                     val rawTarget = dragAnchor + dragDistance / (travelPx / lastIndex)
                     val target = rawTarget.fastCoerceIn(0f, lastIndex.toFloat())
-                    val atMax = rawTarget > lastIndex
-                    shaking = atMax
-                    if (atMax && !maxAnnounced) {
-                        maxAnnounced = true
-                        hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }
-                    if (!atMax) maxAnnounced = false
                     val tickIndex = target.fastRoundToInt()
                     if (tickIndex != lastTickIndex) {
                         lastTickIndex = tickIndex
@@ -206,7 +194,6 @@ private fun EffortSlider(
                     updateValue(target)
                 },
                 onDragCanceled = {
-                    shaking = false
                     animateToValue(currentIndex.toFloat(), pressed = false)
                 }
             )
@@ -227,25 +214,9 @@ private fun EffortSlider(
             withFrameNanos { }
             dragAnimation.prewarm()
         }
-        val shakeAmplitudePx = with(density) { SLIDER_SHAKE_AMPLITUDE.toPx() }
-        LaunchedEffect(shaking) {
-            if (!shaking) {
-                shakeOffset = 0f
-                return@LaunchedEffect
-            }
-            var start = 0L
-            while (true) {
-                withFrameNanos { frame ->
-                    if (start == 0L) start = frame
-                    val elapsedMs = (frame - start) / 1_000_000f
-                    shakeOffset = shakeAmplitudePx * sin(elapsedMs * SLIDER_SHAKE_RATE).toFloat()
-                }
-            }
-        }
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .graphicsLayer { translationX = shakeOffset }
                 .drawBehind {
                     val trackRadius = size.height / 2f
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
@@ -314,7 +285,7 @@ private fun EffortSlider(
                 .align(Alignment.CenterStart)
                 .size(SLIDER_THUMB_DIAMETER)
                 .graphicsLayer {
-                    translationX = (dragAnimation.value / lastIndex) * travelPx + shakeOffset
+                    translationX = (dragAnimation.value / lastIndex) * travelPx
                 }
                 .drawBackdrop(
                     backdrop = LocalGlassBackdrop.current,
@@ -460,10 +431,8 @@ private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
-private const val SLIDER_SHAKE_RATE = 0.07f
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
-private val SLIDER_SHAKE_AMPLITUDE = 2.dp
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
