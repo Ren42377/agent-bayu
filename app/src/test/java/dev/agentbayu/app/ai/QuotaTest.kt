@@ -26,7 +26,7 @@ class QuotaTest {
         assertEquals(42.5, short.used!!, 0.001)
         assertEquals(100.0, short.limit!!, 0.001)
         assertEquals(42.5, short.percentUsed!!, 0.001)
-        assertEquals(1_800_000_000L, short.resetAtMillis!!)
+        assertEquals(1_800_000_000_000L, short.resetAtMillis!!)
         assertEquals(20.0, snapshot.windows.first { it.id == QuotaParser.WINDOW_7D }.percentUsed!!, 0.001)
     }
 

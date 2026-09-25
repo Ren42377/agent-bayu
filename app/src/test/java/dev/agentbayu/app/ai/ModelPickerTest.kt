@@ -198,7 +198,7 @@ class ModelPickerTest {
         )
 
         assertEquals(
-            listOf("gemini-3.8-flash-high", "gemini-3.8-flash"),
+            listOf("gemini-3.8-flash", "gemini-3.8-flash-high"),
             pickerModelIds(provider, connection)
         )
     }
