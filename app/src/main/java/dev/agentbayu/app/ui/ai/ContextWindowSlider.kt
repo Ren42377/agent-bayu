@@ -26,8 +26,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Path
-import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -175,19 +174,12 @@ internal fun ContextWindowSlider(
                         }
                         drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
                         if (fillRight > 0f) {
-                            val fill = Path().apply {
-                                addRoundRect(
-                                    RoundRect(
-                                        left = 0f,
-                                        top = 0f,
-                                        right = fillRight,
-                                        bottom = size.height,
-                                        topLeftCornerRadius = CornerRadius(trackRadius),
-                                        bottomLeftCornerRadius = CornerRadius(trackRadius)
-                                    )
-                                )
-                            }
-                            drawPath(fill, fillColor)
+                            drawRoundRect(
+                                color = fillColor,
+                                topLeft = Offset(0f, 0f),
+                                size = Size(fillRight, size.height),
+                                cornerRadius = CornerRadius(trackRadius)
+                            )
                         }
                         val dotRadius = SLIDER_DOT_DIAMETER.toPx() / 2
                         for (index in 0..lastIndex) {
@@ -249,7 +241,7 @@ private const val SLIDER_FILL_ALPHA = 0.45f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
-private const val SLIDER_TRACK_HEIGHT = 26.dp
-private const val SLIDER_THUMB_DIAMETER = 32.dp
-private const val SLIDER_DOT_DIAMETER = 4.dp
-private const val SLIDER_THUMB_SHADOW = 3.dp
+private val SLIDER_TRACK_HEIGHT = 26.dp
+private val SLIDER_THUMB_DIAMETER = 32.dp
+private val SLIDER_DOT_DIAMETER = 4.dp
+private val SLIDER_THUMB_SHADOW = 3.dp

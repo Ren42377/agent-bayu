@@ -227,7 +227,7 @@ private fun QuotaBar(window: QuotaWindow, resetText: (Long) -> String) {
             if (percent != null) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth((percent / 100f).coerceIn(0f, 1f))
+                        .fillMaxWidth(((percent / 100.0).coerceIn(0.0, 1.0)).toFloat())
                         .height(6.dp)
                         .background(MaterialTheme.colorScheme.primary)
                 )
