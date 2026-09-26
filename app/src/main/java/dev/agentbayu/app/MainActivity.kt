@@ -1,6 +1,7 @@
 package dev.agentbayu.app
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +9,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -87,6 +91,7 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        initImageLoader(applicationContext)
         pendingTaskId.value = intent?.getStringExtra(EXTRA_TASK_ID)
         splashScreen.setKeepOnScreenCondition { !AppGraph.readiness.value }
         AppGraph.warmUpApp(applicationContext)
@@ -114,6 +119,14 @@ class MainActivity : ComponentActivity() {
             runCatching { CrashLog.record(context, error) }
             previous?.uncaughtException(thread, error)
         }
+    }
+
+    private fun initImageLoader(context: Context) {
+        SingletonImageLoader.setSafe(
+            ImageLoader.Builder(context)
+                .components { add(OkHttpNetworkFetcherFactory()) }
+                .build()
+        )
     }
 }
 

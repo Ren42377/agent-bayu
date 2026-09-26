@@ -400,6 +400,7 @@
     <string name="notes_editor_preview">Preview</string>
     <string name="notes_editor_empty">The note is empty.</string>
     <string name="notes_untitled">Untitled note</string>
+    <string name="markdown_image_failed">Image failed to load</string>
 
     <string name="settings_tools">Tools and files</string>
     <string name="settings_tool_approval_title">Skip tool approval</string>

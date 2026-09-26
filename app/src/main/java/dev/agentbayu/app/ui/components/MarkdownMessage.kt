@@ -13,7 +13,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import com.mikepenz.markdown.compose.LocalImageTransformer
 import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.compose.components.markdownComponents
@@ -62,7 +61,7 @@ private fun MarkdownBody(
     val markdownState = rememberMarkdownState(source, retainState = true)
     val plainCode = stringResource(R.string.code_plain)
     val markdownLabel = stringResource(R.string.code_markdown)
-    CompositionLocalProvider(LocalImageTransformer provides Coil3ImageTransformerImpl) {
+    CompositionLocalProvider(LocalImageTransformer provides NetworkImageTransformer) {
         Markdown(
             markdownState = markdownState,
             colors = markdownColor(
@@ -73,6 +72,7 @@ private fun MarkdownBody(
             modifier = modifier.fillMaxWidth(),
             dimens = markdownDimens(tableCellWidth = 110.dp, tableCellPadding = 10.dp),
             components = markdownComponents(
+                image = { model -> MarkdownImageContent(model) },
                 paragraph = { model ->
                     val text = model.source()
                     if (hasInlineMath(text)) {
