@@ -127,8 +127,8 @@ private fun transformOutsideFences(source: String, transform: (String) -> String
     var cursor = 0
     ranges.forEach { range ->
         if (range.first > cursor) out.append(transform(source.substring(cursor, range.first)))
-        out.append(source.substring(range.first, range.last + 1))
-        cursor = range.last + 1
+        out.append(source.substring(range.first, range.last))
+        cursor = range.last
     }
     if (cursor < source.length) out.append(transform(source.substring(cursor)))
     return out.toString()
