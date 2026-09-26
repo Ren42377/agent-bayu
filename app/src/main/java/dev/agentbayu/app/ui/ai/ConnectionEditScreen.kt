@@ -82,7 +82,6 @@ data class ConnectionEditActions(
     val onTest: () -> Unit,
     val onSave: () -> Unit,
     val onLogin: () -> Unit,
-    val onAddAccount: () -> Unit = {},
     val onOpenKeyUrl: (String) -> Unit,
     val onBack: () -> Unit
 )
@@ -236,18 +235,6 @@ private fun LoginFields(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onPrimary
         )
-    }
-    if (state.loggedIn) {
-        GlassButton(
-            onClick = actions.onAddAccount,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.connection_add_account),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 

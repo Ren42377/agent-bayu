@@ -227,7 +227,7 @@
     <string name="connection_login">Device login</string>
     <string name="connection_login_again">Sign in again</string>
     <string name="connection_login_saved">Signed in. The token is stored on this device.</string>
-    <string name="connection_add_account">Add another account</string>
+    <string name="connection_account_exists">This provider already has an account. Edit it instead of adding another one.</string>
     <string name="connection_login_needed">Not signed in. Tap Device login; this connection is saved first.</string>
     <string name="connection_login_browser">Browser login</string>
     <string name="connection_login_browser_needed">Not signed in. Tap Browser login; this connection is saved first.</string>

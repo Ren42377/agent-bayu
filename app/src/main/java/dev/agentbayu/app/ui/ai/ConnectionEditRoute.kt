@@ -98,6 +98,7 @@ fun AiConnectionEditRoute(
     val errorKey = stringResource(R.string.connection_error_key)
     val errorModel = stringResource(R.string.connection_error_model)
     val errorBaseUrl = stringResource(R.string.connection_error_base_url)
+    val accountExistsMessage = stringResource(R.string.connection_account_exists)
     val testFailedTemplate = stringResource(R.string.connection_test_failed)
     val testSuccessTemplate = stringResource(R.string.connection_test_success)
     val modelsFailedTemplate = stringResource(R.string.connection_models_failed)
@@ -134,6 +135,9 @@ fun AiConnectionEditRoute(
             )
         )
     }
+
+    fun accountTaken(providerId: String): Boolean =
+        store.connections.value.any { it.providerId == providerId && it.id != id }
 
     fun refreshModels() {
         if (refreshing) return
@@ -228,6 +232,9 @@ fun AiConnectionEditRoute(
                 model.isBlank() -> onMessage(errorModel)
                 selected.editableBaseUrl && baseUrl.isBlank() -> onMessage(errorBaseUrl)
                 selected.requiresKey && apiKey.isBlank() && keyHint == null -> onMessage(errorKey)
+                selected.authKind.isOAuth && accountTaken(selected.id) ->
+                    onMessage(accountExistsMessage)
+
                 else -> {
                     persist(selected)
                     onMessage(savedMessage)
@@ -240,6 +247,9 @@ fun AiConnectionEditRoute(
             when {
                 selected == null -> onMessage(errorModel)
                 model.isBlank() -> onMessage(errorModel)
+                selected.authKind.isOAuth && accountTaken(selected.id) ->
+                    onMessage(accountExistsMessage)
+
                 else -> {
                     persist(selected)
                     if (selected.browserLogin != null) {
@@ -248,29 +258,6 @@ fun AiConnectionEditRoute(
                         onStartLogin(id)
                     }
                 }
-            }
-        },
-        onAddAccount = {
-            val selected = provider ?: return@ConnectionEditActions
-            persist(selected)
-            val accountId = store.newId()
-            store.upsert(
-                draft().copy(
-                    id = accountId,
-                    label = store.nextLabelFor(selected.id, selected.label),
-                    discoveredModels = emptyList(),
-                    customModels = emptyList(),
-                    projectId = null,
-                    keyHint = null,
-                    health = ConnectionHealth.NEEDS_KEY,
-                    healthDetail = null,
-                    createdAtMillis = 0L
-                )
-            )
-            if (selected.browserLogin != null) {
-                onStartBrowserLogin(accountId)
-            } else {
-                onStartLogin(accountId)
             }
         },
         onOpenKeyUrl = { url ->

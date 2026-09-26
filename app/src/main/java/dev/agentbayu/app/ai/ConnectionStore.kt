@@ -100,12 +100,6 @@ class ConnectionStore(
         upsert(target.copy(label = base + ACCOUNT_LABEL_SEPARATOR + trimmed))
     }
 
-    fun nextLabelFor(providerId: String, baseLabel: String): String {
-        val taken = state.value.count { it.providerId == providerId }
-        if (taken == 0) return baseLabel
-        return baseLabel + ACCOUNT_LABEL_SEPARATOR + (taken + 1)
-    }
-
     fun migrateModels(catalog: ProviderCatalog) {
         state.value.forEach { connection ->
             val provider = catalog.find(connection.providerId) ?: return@forEach
