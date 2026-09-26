@@ -14,9 +14,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import dev.agentbayu.app.ui.theme.AppleBlueDark
-import dev.agentbayu.app.ui.theme.AppleIndigoDark
-import dev.agentbayu.app.ui.theme.AppleTealDark
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import kotlinx.coroutines.delay
 import kotlin.math.PI
@@ -31,9 +28,9 @@ fun AmbientBackground(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val baseColor = MaterialTheme.colorScheme.background
-        val auraPrimary = AppleIndigoDark.copy(alpha = 0.08f)
-        val auraSecondary = AppleBlueDark.copy(alpha = 0.07f)
-        val auraTertiary = AppleTealDark.copy(alpha = 0.05f)
+        val auraPrimary = Color.Black.copy(alpha = 0.08f)
+        val auraSecondary = Color.Black.copy(alpha = 0.07f)
+        val auraTertiary = Color.Black.copy(alpha = 0.05f)
 
         val drift = remember { mutableFloatStateOf(0f) }
         LaunchedEffect(darkTheme) {

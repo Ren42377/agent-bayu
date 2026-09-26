@@ -23,7 +23,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import dev.agentbayu.app.ui.theme.GlassTileShape
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -34,12 +33,6 @@ import dev.agentbayu.app.platform.ThemeMode
 import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.GlassToggle
-import dev.agentbayu.app.ui.theme.AppleBlueLight
-import dev.agentbayu.app.ui.theme.AppleGreenLight
-import dev.agentbayu.app.ui.theme.AppleIndigoLight
-import dev.agentbayu.app.ui.theme.AppleOrangeLight
-import dev.agentbayu.app.ui.theme.ApplePurpleLight
-import dev.agentbayu.app.ui.theme.AppleTealLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -90,7 +83,8 @@ fun SettingsScreen(
             ) {
                 GlassBadge(
                     icon = painterResource(R.drawable.ic_theme),
-                    containerColor = ApplePurpleLight
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurface
                 )
                 Spacer(modifier = Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
@@ -112,7 +106,6 @@ fun SettingsScreen(
         SectionGroup(title = stringResource(R.string.settings_ai)) {
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_package),
-                iconColor = AppleBlueLight,
                 title = stringResource(R.string.settings_providers_title),
                 subtitle = stringResource(R.string.settings_providers_body),
                 onClick = onOpenProviders
@@ -120,7 +113,6 @@ fun SettingsScreen(
             SettingDivider()
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_edit),
-                iconColor = ApplePurpleLight,
                 title = stringResource(R.string.settings_custom_prompt_title),
                 subtitle = stringResource(R.string.settings_custom_prompt_body),
                 onClick = onOpenCustomPrompt
@@ -128,7 +120,6 @@ fun SettingsScreen(
             SettingDivider()
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_pending),
-                iconColor = AppleTealLight,
                 title = stringResource(R.string.settings_logs_title),
                 subtitle = stringResource(R.string.settings_logs_body),
                 onClick = onOpenLogs
@@ -138,7 +129,6 @@ fun SettingsScreen(
         SectionGroup(title = stringResource(R.string.settings_tools)) {
             ToggleSettingRow(
                 icon = painterResource(R.drawable.ic_check),
-                iconColor = AppleGreenLight,
                 title = stringResource(R.string.settings_tool_approval_title),
                 subtitle = stringResource(R.string.settings_tool_approval_body),
                 checked = toolApprovalMode == ToolApprovalMode.BYPASS,
@@ -151,7 +141,6 @@ fun SettingsScreen(
             SettingDivider()
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_open_in_app),
-                iconColor = AppleOrangeLight,
                 title = stringResource(R.string.settings_storage_title),
                 subtitle = if (storageGranted) {
                     stringResource(R.string.status_ready)
@@ -165,7 +154,6 @@ fun SettingsScreen(
         SectionGroup(title = stringResource(R.string.settings_privacy)) {
             ToggleSettingRow(
                 icon = painterResource(R.drawable.ic_settings),
-                iconColor = AppleIndigoLight,
                 title = stringResource(R.string.setup_context_title),
                 subtitle = stringResource(R.string.setup_context_body),
                 checked = useScreenContext,
@@ -250,7 +238,6 @@ private fun ThemeModeSelector(
 @Composable
 private fun NavigationSettingRow(
     icon: Painter,
-    iconColor: Color,
     title: String,
     subtitle: String,
     onClick: () -> Unit
@@ -263,7 +250,11 @@ private fun NavigationSettingRow(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        GlassBadge(icon = icon, containerColor = iconColor)
+        GlassBadge(
+            icon = icon,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
@@ -289,7 +280,6 @@ private fun NavigationSettingRow(
 @Composable
 private fun ToggleSettingRow(
     icon: Painter,
-    iconColor: Color,
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -301,7 +291,11 @@ private fun ToggleSettingRow(
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        GlassBadge(icon = icon, containerColor = iconColor)
+        GlassBadge(
+            icon = icon,
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            contentColor = MaterialTheme.colorScheme.onSurface
+        )
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(

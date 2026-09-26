@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
@@ -40,8 +39,6 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.domain.MessageSegment
-import dev.agentbayu.app.ui.theme.AppleBlueDark
-import dev.agentbayu.app.ui.theme.AppleBlueLight
 import dev.agentbayu.app.ui.theme.AppleGreenDark
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
@@ -65,7 +62,6 @@ fun MessageBubble(
         UserMessage(
             message = message,
             modifier = modifier,
-            isDark = isDark,
             onEdit = onEdit,
             onOpenAttachment = onOpenAttachment
         )
@@ -149,12 +145,11 @@ private fun ReplyActions(
 @Composable
 private fun UserMessage(
     message: ChatMessage,
-    isDark: Boolean,
     modifier: Modifier = Modifier,
     onEdit: ((ChatMessage) -> Unit)? = null,
     onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
-    val userTint = if (isDark) AppleBlueDark else AppleBlueLight
+    val userTint = MaterialTheme.colorScheme.primary
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End
@@ -184,7 +179,7 @@ private fun UserMessage(
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }
