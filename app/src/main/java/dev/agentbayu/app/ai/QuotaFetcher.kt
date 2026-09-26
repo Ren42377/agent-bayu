@@ -63,7 +63,7 @@ class QuotaFetcher(
 
     private fun urlsFor(candidate: Candidate, quotaUrl: String): List<String> {
         if (quotaUrl.contains(SCHEME_SEPARATOR)) return listOf(quotaUrl)
-        return listOf(candidate.baseUrl, candidate.controlUrl)
+        return listOf(candidate.baseUrl, candidate.controlBaseUrl)
             .map { joinUrl(it, quotaUrl) }
             .distinct()
     }
