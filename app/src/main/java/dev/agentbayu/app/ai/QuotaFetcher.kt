@@ -100,10 +100,12 @@ class QuotaFetcher(
                 windows.putIfAbsent(windowKey(window), window)
             }
             if (windows.isEmpty()) {
-                if (summary.deadToken) {
+                val summaryDead = summary.failure?.let { isDeadToken(it) } == true
+                val perModelDead = perModel.failure?.let { isDeadToken(it) } == true
+                if (summaryDead) {
                     return@withContext QuotaFetchResult.Failure(summary.failure ?: unexpectedResponse())
                 }
-                if (perModel.deadToken) {
+                if (perModelDead) {
                     return@withContext QuotaFetchResult.Failure(perModel.failure ?: unexpectedResponse())
                 }
                 return@withContext QuotaFetchResult.Failure(
@@ -148,10 +150,7 @@ class QuotaFetcher(
     private class Collected(
         val windows: List<QuotaWindow>?,
         val failure: RouteFailure?
-    ) {
-        val deadToken: Boolean
-            get() = failure?.let { isDeadToken(it) } == true
-    }
+    )
 
     private fun windowKey(window: QuotaWindow): String =
         (window.poolId ?: "") + WINDOW_KEY_SEPARATOR + window.id
