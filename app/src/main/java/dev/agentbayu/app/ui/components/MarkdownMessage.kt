@@ -6,14 +6,12 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.mikepenz.markdown.compose.LocalImageTransformer
 import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.compose.components.markdownComponents
 import com.mikepenz.markdown.compose.elements.MarkdownParagraph
@@ -61,17 +59,17 @@ private fun MarkdownBody(
     val markdownState = rememberMarkdownState(source, retainState = true)
     val plainCode = stringResource(R.string.code_plain)
     val markdownLabel = stringResource(R.string.code_markdown)
-    CompositionLocalProvider(LocalImageTransformer provides NetworkImageTransformer) {
-        Markdown(
-            markdownState = markdownState,
-            colors = markdownColor(
-                codeBackground = Color.Transparent,
-                inlineCodeBackground = Color.Transparent,
-                tableBackground = Color.Transparent
-            ),
-            modifier = modifier.fillMaxWidth(),
-            dimens = markdownDimens(tableCellWidth = 110.dp, tableCellPadding = 10.dp),
-            components = markdownComponents(
+    Markdown(
+        markdownState = markdownState,
+        colors = markdownColor(
+            codeBackground = Color.Transparent,
+            inlineCodeBackground = Color.Transparent,
+            tableBackground = Color.Transparent
+        ),
+        modifier = modifier.fillMaxWidth(),
+        dimens = markdownDimens(tableCellWidth = 110.dp, tableCellPadding = 10.dp),
+        imageTransformer = NetworkImageTransformer,
+        components = markdownComponents(
                 image = { model -> MarkdownImageContent(model) },
                 paragraph = { model ->
                     val text = model.source()
@@ -166,9 +164,8 @@ private fun MarkdownBody(
                         }
                     )
                 }
-            )
         )
-    }
+    )
 }
 
 private fun MarkdownComponentModel.source(): String {

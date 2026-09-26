@@ -49,6 +49,7 @@ import com.mikepenz.markdown.model.ImageTransformer
 import dev.agentbayu.app.R
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.ast.ASTNode
+import java.io.File
 
 internal object NetworkImageTransformer : ImageTransformer {
 
@@ -58,8 +59,9 @@ internal object NetworkImageTransformer : ImageTransformer {
         val glyph = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
         val painter = rememberAsyncImagePainter(
             model = ImageRequest.Builder(LocalPlatformContext.current)
-                .data(link)
+                .data(imageModelFor(link))
                 .size(CoilSize.ORIGINAL)
+                .crossfade(true)
                 .build()
         )
         return ImageData(StatefulImagePainter(painter, placeholder, glyph))
@@ -75,6 +77,11 @@ internal object NetworkImageTransformer : ImageTransformer {
         }
         return size
     }
+}
+
+internal fun imageModelFor(destination: String): Any {
+    val trimmed = destination.trim()
+    return if (trimmed.startsWith("/") && !trimmed.startsWith("//")) File(trimmed) else trimmed
 }
 
 private class StatefulImagePainter(
@@ -128,8 +135,9 @@ internal fun MarkdownImageContent(model: MarkdownComponentModel) {
     val failedLabel = stringResource(R.string.markdown_image_failed)
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(LocalPlatformContext.current)
-            .data(destination)
+            .data(imageModelFor(destination))
             .size(CoilSize.ORIGINAL)
+            .crossfade(true)
             .build(),
         contentDescription = alt,
         modifier = Modifier.fillMaxWidth(),
@@ -199,13 +207,19 @@ private fun MarkdownImageError(label: String, alt: String?) {
 }
 
 private fun ASTNode.imageDestination(content: String): String? =
-    child(MarkdownElementTypes.LINK_DESTINATION)?.textIn(content)
+    findRecursive(MarkdownElementTypes.LINK_DESTINATION)?.textIn(content)
 
 private fun ASTNode.imageAltText(content: String): String? =
-    child(MarkdownElementTypes.LINK_TEXT)?.textIn(content)
+    findRecursive(MarkdownElementTypes.LINK_TEXT)?.textIn(content)?.trim('[', ']')
+        ?: findRecursive(MarkdownElementTypes.LINK_LABEL)?.textIn(content)?.trim('[', ']')
 
-private fun ASTNode.child(type: org.intellij.markdown.IElementType): ASTNode? =
-    children.firstOrNull { it.type == type }
+private fun ASTNode.findRecursive(type: org.intellij.markdown.IElementType): ASTNode? {
+    if (this.type == type) return this
+    children.forEach { child ->
+        child.findRecursive(type)?.let { return it }
+    }
+    return null
+}
 
 private fun ASTNode.textIn(content: String): String? =
     content.substring(startOffset, endOffset).trim().takeIf { it.isNotBlank() }
