@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.ai
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -24,11 +23,11 @@ import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
@@ -41,8 +40,13 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
+import com.kyant.backdrop.drawBackdrop
+import com.kyant.backdrop.highlight.Highlight
+import com.kyant.backdrop.shadow.InnerShadow
+import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.components.DampedDragAnimation
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
 
 val CONTEXT_WINDOW_STOPS = listOf(131_072, 262_144, 524_288, 1_048_576)
@@ -79,8 +83,9 @@ internal fun ContextWindowSlider(
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(
         alpha = if (darkTheme) SLIDER_TRACK_ALPHA_DARK else SLIDER_TRACK_ALPHA_LIGHT
     )
-    val fillColor = MaterialTheme.colorScheme.primary.copy(alpha = SLIDER_FILL_ALPHA)
+    val fillColor = MaterialTheme.colorScheme.onSurface
     val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
+    val dotOnFillColor = MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
     val animationScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
@@ -177,26 +182,28 @@ internal fun ContextWindowSlider(
                     .matchParentSize()
                     .drawBehind {
                         val trackRadius = size.height / 2f
-                        val fillRight = if (hasSelection >= 0 || dragAnimation.isGestureActive) {
-                            thumbRadiusPx + (dragAnimation.value / lastIndex) * travelPx
-                        } else {
-                            0f
-                        }
+                        val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
+                        val fillRight = thumbRadiusPx + fillFraction * travelPx
                         drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
-                        if (fillRight > 0f) {
-                            drawRoundRect(
-                                color = fillColor,
-                                topLeft = Offset(0f, 0f),
-                                size = Size(fillRight, size.height),
-                                cornerRadius = CornerRadius(trackRadius)
+                        val fill = Path().apply {
+                            addRoundRect(
+                                RoundRect(
+                                    left = 0f,
+                                    top = 0f,
+                                    right = fillRight,
+                                    bottom = size.height,
+                                    topLeftCornerRadius = CornerRadius(trackRadius),
+                                    bottomLeftCornerRadius = CornerRadius(trackRadius)
+                                )
                             )
                         }
-                        val dotRadius = SLIDER_DOT_DIAMETER.toPx() / 2
+                        drawPath(fill, fillColor)
+                        val dotRadius = SLIDER_DOT_DIAMETER.toPx() / 2f
                         for (index in 0..lastIndex) {
                             val center = stopCenterPx(index)
                             drawCircle(
                                 color = if (center <= fillRight) {
-                                    Color.White.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+                                    dotOnFillColor
                                 } else {
                                     dotColor
                                 },
@@ -212,15 +219,34 @@ internal fun ContextWindowSlider(
                     .size(SLIDER_THUMB_DIAMETER)
                     .graphicsLayer {
                         translationX = (dragAnimation.value / lastIndex) * travelPx
-                        scaleX = dragAnimation.scaleX
-                        scaleY = dragAnimation.scaleX
                     }
-                    .shadow(
-                        elevation = SLIDER_THUMB_SHADOW,
-                        shape = CircleShape,
-                        clip = false
+                    .drawBackdrop(
+                        backdrop = LocalGlassBackdrop.current,
+                        shape = { CircleShape },
+                        effects = { },
+                        highlight = {
+                            Highlight.Ambient.copy(
+                                width = Highlight.Ambient.width / 1.5f,
+                                blurRadius = Highlight.Ambient.blurRadius / 1.5f,
+                                alpha = dragAnimation.pressProgress
+                            )
+                        },
+                        shadow = {
+                            Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.05f))
+                        },
+                        innerShadow = {
+                            val progress = dragAnimation.pressProgress
+                            InnerShadow(radius = 4.dp * progress, alpha = progress)
+                        },
+                        layerBlock = {
+                            scaleX = dragAnimation.scaleX
+                            scaleY = dragAnimation.scaleY
+                            val velocity = dragAnimation.velocity / 50f
+                            scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                            scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                        },
+                        onDrawSurface = { drawRect(Color.White) }
                     )
-                    .background(Color.White, CircleShape)
             )
             Box(
                 modifier = Modifier
@@ -266,12 +292,10 @@ internal fun ContextWindowSlider(
 
 private const val SLIDER_TRACK_ALPHA_DARK = 0.10f
 private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
-private const val SLIDER_FILL_ALPHA = 0.45f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
-private val SLIDER_THUMB_SHADOW = 3.dp
 private val SLIDER_LABEL_HEIGHT = 18.dp
