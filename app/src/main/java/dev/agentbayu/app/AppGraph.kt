@@ -18,6 +18,8 @@ import dev.agentbayu.app.ai.CredentialStore
 import dev.agentbayu.app.ai.LogStore
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderCatalog
+import dev.agentbayu.app.ai.QuotaFetchResult
+import dev.agentbayu.app.ai.QuotaFetcher
 import dev.agentbayu.app.ai.QuotaRecorder
 import dev.agentbayu.app.ai.QuotaStore
 import dev.agentbayu.app.ai.RealClock
@@ -206,6 +208,7 @@ object AppGraph {
         val projectBootstrap: AntigravityProjectBootstrap,
         val usageTracker: UsageTracker,
         val quotaStore: QuotaStore,
+        val quotaFetcher: QuotaFetcher,
         val logStore: LogStore,
         val attachments: Attachments,
         val approvals: UiToolApprovalGate,
@@ -250,6 +253,8 @@ object AppGraph {
     fun usage(context: Context): UsageTracker = container(context).usageTracker
 
     fun quota(context: Context): QuotaStore = container(context).quotaStore
+
+    fun quotaFetcher(context: Context): QuotaFetcher = container(context).quotaFetcher
 
     fun logs(context: Context): LogStore = container(context).logStore
 
@@ -498,6 +503,7 @@ object AppGraph {
             catalogUpdater = catalogUpdater,
             activeProvider = activeProvider,
             tester = ConnectionTester(client, catalog, credentials, adapters, clock, projects),
+            quotaFetcher = QuotaFetcher(client, catalog, credentials, clock),
             deviceFlow = CodexDeviceFlow(client, clock),
             codeFlow = GoogleCodeFlow(client, clock),
             projectBootstrap = projectBootstrap,
@@ -544,6 +550,18 @@ object AppGraph {
                         store.setDiscoveredModels(connection.id, result.models)
 
                     is ModelFetchResult.Failure -> Unit
+                }
+            }
+        }
+        scope.launch {
+            val fetcher = graph.quotaFetcher
+            val quota = graph.quotaStore
+            graph.connectionStore.connections.value.forEach { connection ->
+                when (val result = fetcher.fetch(connection)) {
+                    is QuotaFetchResult.Success ->
+                        quota.recordSnapshot(connection.id, result.snapshot)
+
+                    else -> Unit
                 }
             }
         }

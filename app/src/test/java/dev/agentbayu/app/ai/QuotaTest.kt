@@ -58,6 +58,82 @@ class QuotaTest {
     }
 
     @Test
+    fun `antigravity usage body becomes pool windows`() {
+        val snapshot = QuotaParser.parseUsage(
+            "{\"groups\":[{\"buckets\":[" +
+                "{\"bucketId\":\"gemini-5h\",\"remainingFraction\":0.75,\"resetTime\":\"1800000000\"}," +
+                "{\"bucketId\":\"gemini-weekly\",\"remainingFraction\":0.9}," +
+                "{\"bucketId\":\"3p-5h\",\"remainingFraction\":0.4}" +
+                "]}]}",
+            1_000L
+        )
+
+        check(snapshot != null)
+        assertEquals(3, snapshot.windows.size)
+        val geminiShort = snapshot.windows.first {
+            it.poolId == QuotaParser.POOL_GEMINI && it.id == QuotaParser.WINDOW_5H
+        }
+        assertEquals(25.0, geminiShort.percentUsed!!, 0.001)
+        assertEquals(1_800_000_000_000L, geminiShort.resetAtMillis!!)
+        val geminiWeekly = snapshot.windows.first {
+            it.poolId == QuotaParser.POOL_GEMINI && it.id == QuotaParser.WINDOW_7D
+        }
+        assertEquals(10.0, geminiWeekly.percentUsed!!, 0.001)
+        assertNull(geminiWeekly.resetAtMillis)
+        val otherShort = snapshot.windows.first {
+            it.poolId == QuotaParser.POOL_THIRD_PARTY && it.id == QuotaParser.WINDOW_5H
+        }
+        assertEquals(60.0, otherShort.percentUsed!!, 0.001)
+    }
+
+    @Test
+    fun `codex usage body becomes two quota windows`() {
+        val snapshot = QuotaParser.parseUsage(
+            "{\"rate_limit\":{" +
+                "\"primary_window\":{\"used_percent\":42.5,\"reset_at\":1800000000}," +
+                "\"secondary_window\":{\"used_percent\":10,\"reset_after_seconds\":3600}" +
+                "}}",
+            1_000L
+        )
+
+        check(snapshot != null)
+        assertEquals(2, snapshot.windows.size)
+        val short = snapshot.windows.first { it.id == QuotaParser.WINDOW_5H }
+        assertEquals(42.5, short.percentUsed!!, 0.001)
+        assertEquals(1_800_000_000_000L, short.resetAtMillis!!)
+        assertNull(short.poolId)
+        assertEquals(
+            1_000L + 3_600_000L,
+            snapshot.windows.first { it.id == QuotaParser.WINDOW_7D }.resetAtMillis!!
+        )
+    }
+
+    @Test
+    fun `camel case usage body parses too`() {
+        val snapshot = QuotaParser.parseUsage(
+            "{\"rateLimit\":{\"primaryWindow\":{\"usedPercent\":7}}}",
+            0L
+        )
+
+        check(snapshot != null)
+        assertEquals(1, snapshot.windows.size)
+        assertEquals(7.0, snapshot.windows.single().percentUsed!!, 0.001)
+        assertNull(snapshot.windows.single().poolId)
+    }
+
+    @Test
+    fun `usage without quota fields produces no snapshot`() {
+        assertNull(QuotaParser.parseUsage("{}", 0L))
+        assertNull(QuotaParser.parseUsage("not json", 0L))
+        assertNull(
+            QuotaParser.parseUsage(
+                "{\"groups\":[{\"buckets\":[{\"bucketId\":\"gemini-5h\"}]}]}",
+                0L
+            )
+        )
+    }
+
+    @Test
     fun `snapshots persist per connection and survive a reload`() {
         val storage = InMemoryStorage()
         val clock = FakeClock()

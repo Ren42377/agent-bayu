@@ -19,6 +19,8 @@ data class OAuthConfig(
     val tokenUrl: String,
     val userCodeUrl: String? = null,
     val pollUrl: String? = null,
+    val quotaUrl: String? = null,
+    val quotaMethod: String? = null,
     val verificationUrl: String? = null,
     val authorizeUrl: String? = null,
     val redirectUri: String? = null,

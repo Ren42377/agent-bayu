@@ -12,8 +12,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
-import dev.agentbayu.app.ai.ConnectionTestResult
-import dev.agentbayu.app.ai.UsageStats
+import dev.agentbayu.app.ai.QuotaFetchResult
 import dev.agentbayu.app.ai.accountEmailOf
 import dev.agentbayu.app.ai.planTypeOf
 import kotlinx.coroutines.launch
@@ -34,18 +33,16 @@ fun AiUsageRoute(
     val catalogRepository = remember(context) { AppGraph.catalogRepository(context) }
     val catalog by catalogRepository.catalog.collectAsState()
     val credentials = remember(context) { AppGraph.credentials(context) }
-    val usage = remember(context) { AppGraph.usage(context) }
     val quota = remember(context) { AppGraph.quota(context) }
-    val tester = remember(context) { AppGraph.connectionTester(context) }
+    val quotaFetcher = remember(context) { AppGraph.quotaFetcher(context) }
     val scope = rememberCoroutineScope()
 
     val connections by connectionsStore.connections.collectAsState()
     val snapshots by quota.snapshots.collectAsState()
-    val stats by usage.stats.collectAsState()
 
     var refreshing by remember { mutableStateOf(false) }
 
-    val rows = remember(connections, snapshots, stats, catalog) {
+    val rows = remember(connections, snapshots, catalog) {
         connections.map { connection ->
             val provider = catalog.find(connection.providerId)
             UsageRowState(
@@ -55,8 +52,7 @@ fun AiUsageRoute(
                 model = connection.model,
                 plan = planTypeOf(credentials.credential(connection.id), provider),
                 email = accountEmailOf(credentials.credential(connection.id)),
-                quota = snapshots[connection.id],
-                stats = stats[connection.id] ?: UsageStats()
+                quota = snapshots[connection.id]
             )
         }
     }
@@ -95,11 +91,12 @@ fun AiUsageRoute(
         scope.launch {
             var failures = 0
             connections.forEach { connection ->
-                val provider = catalog.find(connection.providerId)
-                if (provider?.authKind?.isOAuth != true) return@forEach
-                when (val result = tester.test(connection)) {
-                    is ConnectionTestResult.Success -> Unit
-                    is ConnectionTestResult.Failure -> failures += 1
+                when (val result = quotaFetcher.fetch(connection)) {
+                    is QuotaFetchResult.Success ->
+                        quota.recordSnapshot(connection.id, result.snapshot)
+
+                    is QuotaFetchResult.Failure -> failures += 1
+                    QuotaFetchResult.Unsupported -> Unit
                 }
             }
             refreshing = false

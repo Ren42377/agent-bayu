@@ -29,7 +29,6 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.QuotaParser
 import dev.agentbayu.app.ai.QuotaSnapshot
 import dev.agentbayu.app.ai.QuotaWindow
-import dev.agentbayu.app.ai.UsageStats
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -42,8 +41,7 @@ data class UsageRowState(
     val model: String,
     val plan: String?,
     val email: String?,
-    val quota: QuotaSnapshot?,
-    val stats: UsageStats
+    val quota: QuotaSnapshot?
 )
 
 @Composable
@@ -177,9 +175,7 @@ private fun UsageCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
             )
         } else {
-            quota.windows.forEach { window ->
-                QuotaBar(window = window, resetText = resetText)
-            }
+            QuotaGroups(windows = quota.windows, resetText = resetText)
             if (quota.updatedAtMillis > 0L) {
                 Text(
                     text = stringResource(R.string.usage_updated, updatedText(quota.updatedAtMillis)),
@@ -188,9 +184,37 @@ private fun UsageCard(
                 )
             }
         }
-
-        LocalUsageBlock(stats = row.stats)
     }
+}
+
+@Composable
+private fun QuotaGroups(windows: List<QuotaWindow>, resetText: (Long) -> String) {
+    val pooled = windows.filter { it.poolId != null }
+    if (pooled.isEmpty()) {
+        windows.forEach { window -> QuotaBar(window = window, resetText = resetText) }
+        return
+    }
+    windows.filter { it.poolId == null }
+        .forEach { window -> QuotaBar(window = window, resetText = resetText) }
+    pooled.groupBy { window -> window.poolId }.forEach { (poolId, poolWindows) ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            poolId?.let { pool ->
+                Text(
+                    text = poolLabel(pool),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            poolWindows.forEach { window -> QuotaBar(window = window, resetText = resetText) }
+        }
+    }
+}
+
+@Composable
+private fun poolLabel(poolId: String): String = when (poolId) {
+    QuotaParser.POOL_GEMINI -> stringResource(R.string.usage_pool_gemini)
+    QuotaParser.POOL_THIRD_PARTY -> stringResource(R.string.usage_pool_other)
+    else -> poolId
 }
 
 @Composable
@@ -244,45 +268,10 @@ private fun QuotaBar(window: QuotaWindow, resetText: (Long) -> String) {
 }
 
 @Composable
-private fun LocalUsageBlock(stats: UsageStats) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            text = stringResource(R.string.usage_local_title).uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-        )
-        Text(
-            text = stringResource(
-                R.string.usage_local_requests,
-                stats.requests,
-                stats.failures
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = stringResource(
-                R.string.usage_local_tokens,
-                formatTokens(stats.inputTokens.toInt()),
-                formatTokens(stats.outputTokens.toInt())
-            ),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        formatCost(stats.costUsd)?.let { cost ->
-            Text(
-                text = stringResource(R.string.usage_local_cost, cost),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
 private fun windowLabel(id: String): String = stringResource(
     when (id) {
+        QuotaParser.WINDOW_5H -> R.string.usage_window_5h
         QuotaParser.WINDOW_7D -> R.string.usage_window_7d
-        else -> R.string.usage_window_5h
+        else -> R.string.usage_window_unknown
     }
 )

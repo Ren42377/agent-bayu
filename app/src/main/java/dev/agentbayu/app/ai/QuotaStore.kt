@@ -27,6 +27,13 @@ class QuotaStore(
         persist()
     }
 
+    fun recordSnapshot(connectionId: String, snapshot: QuotaSnapshot) {
+        val trimmed = connectionId.trim()
+        if (trimmed.isEmpty() || snapshot.windows.isEmpty()) return
+        state.value = state.value + (trimmed to snapshot.copy(updatedAtMillis = clock.nowMillis()))
+        persist()
+    }
+
     fun forget(connectionId: String) {
         if (!state.value.containsKey(connectionId)) return
         state.value = state.value - connectionId
