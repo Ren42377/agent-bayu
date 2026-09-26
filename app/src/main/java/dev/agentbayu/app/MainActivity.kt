@@ -122,11 +122,11 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun initImageLoader(context: Context) {
-        SingletonImageLoader.setSafe(
-            ImageLoader.Builder(context)
+        SingletonImageLoader.setSafe { appContext ->
+            ImageLoader.Builder(appContext)
                 .components { add(OkHttpNetworkFetcherFactory()) }
                 .build()
-        )
+        }
     }
 }
 

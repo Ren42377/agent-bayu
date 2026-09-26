@@ -49,7 +49,6 @@ import com.mikepenz.markdown.model.ImageTransformer
 import dev.agentbayu.app.R
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.ast.ASTNode
-import org.intellij.markdown.ast.getTextIn
 
 internal object NetworkImageTransformer : ImageTransformer {
 
@@ -200,14 +199,13 @@ private fun MarkdownImageError(label: String, alt: String?) {
 }
 
 private fun ASTNode.imageDestination(content: String): String? =
-    child(MarkdownElementTypes.LINK_DESTINATION)?.let { node ->
-        node.getTextIn(content).toString().takeIf { it.isNotBlank() }
-    }
+    child(MarkdownElementTypes.LINK_DESTINATION)?.textIn(content)
 
 private fun ASTNode.imageAltText(content: String): String? =
-    child(MarkdownElementTypes.LINK_TEXT)?.let { node ->
-        node.getTextIn(content).toString().takeIf { it.isNotBlank() }
-    }
+    child(MarkdownElementTypes.LINK_TEXT)?.textIn(content)
 
 private fun ASTNode.child(type: org.intellij.markdown.IElementType): ASTNode? =
     children.firstOrNull { it.type == type }
+
+private fun ASTNode.textIn(content: String): String? =
+    content.substring(startOffset, endOffset).trim().takeIf { it.isNotBlank() }
