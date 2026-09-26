@@ -36,6 +36,7 @@ import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassOverlay
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
+import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.glassSurface
 
 data class ProviderOption(
@@ -266,15 +267,22 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
         option.models.forEach { modelId ->
             key(modelId) {
                 val selected = modelId == option.model
-                GlassButton(
-                    onClick = { onSelectModel(modelId) },
-                    modifier = Modifier.fillMaxWidth(),
-                    tint = if (selected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        Color.Unspecified
-                    },
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(CapsuleShape)
+                        .glassSurface(
+                            shape = CapsuleShape,
+                            tint = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                Color.Unspecified
+                            },
+                            elevation = 0.dp
+                        )
+                        .clickable(onClick = { onSelectModel(modelId) })
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
                         text = modelId,

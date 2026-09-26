@@ -12,6 +12,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -75,13 +76,15 @@ internal fun EffortSelector(
     val phase = remember { mutableFloatStateOf(0f) }
     val drift = remember { mutableFloatStateOf(0f) }
     var previewValue by remember(options) { mutableFloatStateOf(selectedIndex.toFloat()) }
+    var starsAnimating by remember { mutableStateOf(false) }
     val pace by rememberUpdatedState(paceAt(options, previewValue))
 
     LaunchedEffect(options, selectedIndex) {
         previewValue = selectedIndex.toFloat()
     }
 
-    LaunchedEffect(Unit) {
+    LaunchedEffect(starsAnimating) {
+        if (!starsAnimating) return@LaunchedEffect
         var lastFrame = withFrameNanos { it }
         while (true) {
             val frame = withFrameNanos { it }
@@ -97,6 +100,7 @@ internal fun EffortSelector(
         stopCount = options.size,
         selectedIndex = selectedIndex,
         onSelect = { index -> options.getOrNull(index)?.let(onSelect) },
+        onInteractionChange = { starsAnimating = it },
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
@@ -116,6 +120,7 @@ private fun EffortSlider(
     tint: Color,
     tintProvider: ((Float) -> Color)?,
     onValueChange: ((Float) -> Unit)?,
+    onInteractionChange: ((Boolean) -> Unit)? = null,
     decoration: (DrawScope.(Float, Float) -> Unit)? = null
 ) {
     if (stopCount < 2) return
@@ -130,6 +135,7 @@ private fun EffortSlider(
     val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
     val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val currentOnInteractionChange by rememberUpdatedState(onInteractionChange)
     val touchSlop = LocalViewConfiguration.current.touchSlop
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
     BoxWithConstraints(
@@ -163,6 +169,7 @@ private fun EffortSlider(
                 initialScale = 1f,
                 pressedScale = SLIDER_THUMB_PRESSED_SCALE,
                 onDragStarted = { position ->
+                    currentOnInteractionChange?.invoke(true)
                     travel = 0f
                     dragAnchor = value
                     dragDistance = 0f
@@ -178,6 +185,7 @@ private fun EffortSlider(
                         targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
                     }
                     currentIndex = selected
+                    currentOnInteractionChange?.invoke(false)
                     animateToValue(selected.toFloat(), pressed = false)
                     currentOnSelect(selected)
                 },
@@ -194,6 +202,7 @@ private fun EffortSlider(
                     updateValue(target)
                 },
                 onDragCanceled = {
+                    currentOnInteractionChange?.invoke(false)
                     animateToValue(currentIndex.toFloat(), pressed = false)
                 }
             )
