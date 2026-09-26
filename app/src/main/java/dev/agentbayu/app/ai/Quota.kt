@@ -1,8 +1,10 @@
 package dev.agentbayu.app.ai
 
 import dev.agentbayu.app.ai.adapter.arrayField
+import dev.agentbayu.app.ai.adapter.booleanField
 import dev.agentbayu.app.ai.adapter.doubleField
 import dev.agentbayu.app.ai.adapter.intField
+import dev.agentbayu.app.ai.adapter.longField
 import dev.agentbayu.app.ai.adapter.objectField
 import dev.agentbayu.app.ai.adapter.parseJsonObject
 import dev.agentbayu.app.ai.adapter.stringField
@@ -10,6 +12,7 @@ import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
@@ -48,7 +51,7 @@ object QuotaParser {
 
     fun parseUsage(body: String, nowMillis: Long): QuotaSnapshot? {
         val root = parseJsonObject(body) ?: return null
-        antigravityWindows(root, nowMillis)?.let { windows ->
+        antigravityWindows(root)?.let { windows ->
             return QuotaSnapshot(windows = windows)
         }
         codexWindows(root, nowMillis)?.let { windows ->
@@ -75,34 +78,127 @@ object QuotaParser {
         }
     }
 
-    private fun antigravityWindows(root: JsonObject, nowMillis: Long): List<QuotaWindow>? {
-        val groups = root.arrayField(GROUPS)
-            ?: root.objectField(RESPONSE_ENVELOPE)?.arrayField(GROUPS)
-            ?: return null
-        val windows = ArrayList<QuotaWindow>()
-        groups.forEach { groupElement ->
-            val group = groupElement as? JsonObject ?: return@forEach
-            group.arrayField(BUCKETS)?.forEach { bucketElement ->
-                val bucket = bucketElement as? JsonObject ?: return@forEach
-                antigravityBucket(bucket, nowMillis)?.let { windows += it }
-            }
-        }
-        return windows.takeIf { it.isNotEmpty() }
+    private fun antigravityWindows(root: JsonObject): List<QuotaWindow>? {
+        val windows = LinkedHashMap<String, QuotaWindow>()
+        envelopeNodes(root).forEach { node -> collectModelBuckets(node, windows) }
+        envelopeNodes(root).forEach { node -> collectFamilyBuckets(node, windows) }
+        return windows.values.toList().takeIf { it.isNotEmpty() }
     }
 
-    private fun antigravityBucket(bucket: JsonObject, nowMillis: Long): QuotaWindow? {
-        val bucketId = bucket.stringField(BUCKET_ID) ?: return null
-        val spec = ANTIGRAVITY_BUCKETS[bucketId] ?: return null
-        val remaining = bucket.doubleField(REMAINING_FRACTION)
-            ?.takeIf { it.isFinite() && it in 0.0..1.0 }
-            ?: return null
-        return QuotaWindow(
-            id = spec.second,
-            poolId = spec.first,
-            used = (1.0 - remaining) * 100.0,
-            limit = FULL_LIMIT,
-            resetAtMillis = resetTimeMillis(bucket.stringField(RESET_TIME))
+    private fun envelopeNodes(root: JsonObject): List<JsonObject> = listOfNotNull(
+        root,
+        root.objectField(QUOTA_SUMMARY),
+        root.objectField(RESPONSE_ENVELOPE)
+    )
+
+    private fun collectModelBuckets(node: JsonObject, windows: LinkedHashMap<String, QuotaWindow>) {
+        when (val buckets = node[BUCKETS]) {
+            is JsonArray -> buckets.forEach { element ->
+                (element as? JsonObject)?.let { collectModelBucket(it, null, windows) }
+            }
+
+            is JsonObject -> buckets.forEach { (key, value) ->
+                (value as? JsonObject)?.let { collectModelBucket(it, key, windows) }
+            }
+
+            else -> Unit
+        }
+    }
+
+    private fun collectModelBucket(
+        bucket: JsonObject,
+        keyHint: String?,
+        windows: LinkedHashMap<String, QuotaWindow>
+    ) {
+        if (bucket.booleanField(DISABLED) == true) return
+        val remaining = remainingFractionOf(bucket) ?: return
+        val modelId = (bucket.stringField(MODEL_ID) ?: keyHint)?.trim().orEmpty()
+        if (modelId.isEmpty()) return
+        val pool = poolFromText(modelId) ?: POOL_THIRD_PARTY
+        mergeWindow(
+            windows,
+            QuotaWindow(
+                id = WINDOW_5H,
+                poolId = pool,
+                used = (1.0 - remaining) * 100.0,
+                limit = FULL_LIMIT,
+                resetAtMillis = resetTimeOf(bucket)
+            ),
+            keepWorst = true
         )
+    }
+
+    private fun collectFamilyBuckets(node: JsonObject, windows: LinkedHashMap<String, QuotaWindow>) {
+        val groups = node.arrayField(GROUPS) ?: return
+        groups.forEach { groupElement ->
+            val group = groupElement as? JsonObject ?: return@forEach
+            val groupText = group.stringField(DISPLAY_NAME).orEmpty()
+            group.arrayField(BUCKETS)?.forEach { bucketElement ->
+                val bucket = bucketElement as? JsonObject ?: return@forEach
+                collectFamilyBucket(bucket, groupText, windows)
+            }
+        }
+    }
+
+    private fun collectFamilyBucket(
+        bucket: JsonObject,
+        groupText: String,
+        windows: LinkedHashMap<String, QuotaWindow>
+    ) {
+        if (bucket.booleanField(DISABLED) == true) return
+        val text = (
+            bucket.stringField(BUCKET_ID).orEmpty() + " " +
+                bucket.stringField(DISPLAY_NAME).orEmpty() + " " + groupText
+            ).lowercase()
+        val windowId = when {
+            text.contains(WEEKLY_TOKEN) -> WINDOW_7D
+            text.contains(FIVE_HOUR_TOKEN) || text.contains(FIVE_HOUR_LABEL) -> WINDOW_5H
+            else -> return
+        }
+        val remaining = remainingFractionOf(bucket) ?: return
+        val pool = poolFromText(
+            bucket.stringField(BUCKET_ID).orEmpty() + " " + bucket.stringField(DISPLAY_NAME).orEmpty()
+        ) ?: poolFromText(groupText) ?: POOL_THIRD_PARTY
+        mergeWindow(
+            windows,
+            QuotaWindow(
+                id = windowId,
+                poolId = pool,
+                used = (1.0 - remaining) * 100.0,
+                limit = FULL_LIMIT,
+                resetAtMillis = resetTimeOf(bucket)
+            ),
+            keepWorst = false
+        )
+    }
+
+    private fun remainingFractionOf(bucket: JsonObject): Double? =
+        bucket.doubleField(REMAINING_FRACTION)
+            ?.takeIf { it.isFinite() && it >= 0.0 }
+            ?.coerceAtMost(1.0)
+
+    private fun poolFromText(text: String): String? =
+        if (text.contains(GEMINI_TOKEN, ignoreCase = true)) POOL_GEMINI else null
+
+    private fun mergeWindow(
+        windows: LinkedHashMap<String, QuotaWindow>,
+        window: QuotaWindow,
+        keepWorst: Boolean
+    ) {
+        val key = (window.poolId ?: "") + WINDOW_KEY_SEPARATOR + window.id
+        val existing = windows[key] ?: run {
+            windows[key] = window
+            return
+        }
+        if (keepWorst) {
+            windows[key] = listOf(existing, window).maxByOrNull { it.used ?: 0.0 } ?: window
+        }
+    }
+
+    private fun resetTimeOf(node: JsonObject): Long? {
+        val raw = RESET_FIELDS.firstNotNullOfOrNull { field -> node.stringField(field) }
+            ?: RESET_FIELDS.firstNotNullOfOrNull { field -> node.longField(field) }?.toString()
+        return raw?.let { value -> resetAtMillis(value)?.takeIf { it > 0L } }
     }
 
     private fun codexWindows(root: JsonObject, nowMillis: Long): List<QuotaWindow>? {
@@ -137,12 +233,10 @@ object QuotaParser {
 
     private fun codexReset(node: JsonObject, nowMillis: Long): Long? {
         val absolute = node.stringField(RESET_AT) ?: node.stringField(RESET_AT_CAMEL)
-        resetTimeMillis(absolute)?.let { return it }
+        resetAtMillis(absolute)?.takeIf { it > 0L }?.let { return it }
         val relative = node.intField(RESET_AFTER) ?: node.intField(RESET_AFTER_CAMEL)
         return relative?.takeIf { it > 0 }?.let { nowMillis + it * SECOND_IN_MILLIS }
     }
-
-    private fun resetTimeMillis(raw: String?): Long? = resetAtMillis(raw)?.takeIf { it > 0L }
 
     private fun window(lower: Map<String, String>, spec: WindowSpec): QuotaWindow? {
         val used = lower[spec.usageHeader]?.trim()?.toDoubleOrNull()
@@ -156,11 +250,19 @@ object QuotaParser {
     private const val MILLIS_THRESHOLD = 100_000_000_000L
     private const val FULL_LIMIT = 100.0
     private const val GROUPS = "groups"
-    private const val RESPONSE_ENVELOPE = "response"
     private const val BUCKETS = "buckets"
+    private const val QUOTA_SUMMARY = "quotaSummary"
+    private const val RESPONSE_ENVELOPE = "response"
+    private const val MODEL_ID = "modelId"
     private const val BUCKET_ID = "bucketId"
+    private const val DISPLAY_NAME = "displayName"
+    private const val DISABLED = "disabled"
     private const val REMAINING_FRACTION = "remainingFraction"
-    private const val RESET_TIME = "resetTime"
+    private const val WEEKLY_TOKEN = "weekly"
+    private const val FIVE_HOUR_TOKEN = "5h"
+    private const val FIVE_HOUR_LABEL = "5-hour"
+    private const val GEMINI_TOKEN = "gemini"
+    private const val WINDOW_KEY_SEPARATOR = "|"
     private const val RATE_LIMIT = "rate_limit"
     private const val RATE_LIMIT_CAMEL = "rateLimit"
     private const val PRIMARY_WINDOW = "primary_window"
@@ -173,13 +275,9 @@ object QuotaParser {
     private const val RESET_AT_CAMEL = "resetAt"
     private const val RESET_AFTER = "reset_after_seconds"
     private const val RESET_AFTER_CAMEL = "resetAfterSeconds"
+    private const val RESET_TIME = "resetTime"
 
-    private val ANTIGRAVITY_BUCKETS = mapOf(
-        "gemini-5h" to (POOL_GEMINI to WINDOW_5H),
-        "gemini-weekly" to (POOL_GEMINI to WINDOW_7D),
-        "3p-5h" to (POOL_THIRD_PARTY to WINDOW_5H),
-        "3p-weekly" to (POOL_THIRD_PARTY to WINDOW_7D)
-    )
+    private val RESET_FIELDS = listOf(RESET_TIME, RESET_AT, RESET_AT_CAMEL)
 
     private val WINDOW_SPECS = listOf(
         WindowSpec(

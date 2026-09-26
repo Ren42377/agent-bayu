@@ -87,6 +87,63 @@ class QuotaTest {
     }
 
     @Test
+    fun `per model buckets collapse to the worst pool window`() {
+        val snapshot = QuotaParser.parseUsage(
+            "{\"buckets\":[" +
+                "{\"modelId\":\"gemini-2.5-pro\",\"remainingFraction\":0.9}," +
+                "{\"modelId\":\"gemini-2.5-flash\",\"remainingFraction\":0.5,\"resetTime\":1800000000}," +
+                "{\"modelId\":\"claude-opus-4-6-thinking\",\"remainingFraction\":0.2}" +
+                "]}",
+            1_000L
+        )
+
+        check(snapshot != null)
+        assertEquals(2, snapshot.windows.size)
+        val gemini = snapshot.windows.first { it.poolId == QuotaParser.POOL_GEMINI }
+        assertEquals(50.0, gemini.percentUsed!!, 0.001)
+        assertEquals(1_800_000_000_000L, gemini.resetAtMillis!!)
+        val other = snapshot.windows.first { it.poolId == QuotaParser.POOL_THIRD_PARTY }
+        assertEquals(80.0, other.percentUsed!!, 0.001)
+    }
+
+    @Test
+    fun `disabled buckets and missing fractions are skipped`() {
+        assertNull(
+            QuotaParser.parseUsage(
+                "{\"buckets\":[" +
+                    "{\"modelId\":\"gemini-2.5-pro\",\"remainingFraction\":0.1,\"disabled\":true}," +
+                    "{\"modelId\":\"gemini-2.5-flash\"}" +
+                    "]}",
+                0L
+            )
+        )
+    }
+
+    @Test
+    fun `family buckets match by display text`() {
+        val snapshot = QuotaParser.parseUsage(
+            "{\"quotaSummary\":{\"groups\":[" +
+                "{\"displayName\":\"Gemini models\",\"buckets\":[" +
+                "{\"bucketId\":\"session\",\"displayName\":\"5-hour\",\"remainingFraction\":0.5}" +
+                "]}," +
+                "{\"displayName\":\"Claude and other models\",\"buckets\":[" +
+                "{\"displayName\":\"Weekly\",\"remainingFraction\":0.25}" +
+                "]}" +
+                "]}}",
+            0L
+        )
+
+        check(snapshot != null)
+        assertEquals(2, snapshot.windows.size)
+        val gemini = snapshot.windows.first { it.id == QuotaParser.WINDOW_5H }
+        assertEquals(QuotaParser.POOL_GEMINI, gemini.poolId)
+        assertEquals(50.0, gemini.percentUsed!!, 0.001)
+        val weekly = snapshot.windows.first { it.id == QuotaParser.WINDOW_7D }
+        assertEquals(QuotaParser.POOL_THIRD_PARTY, weekly.poolId)
+        assertEquals(75.0, weekly.percentUsed!!, 0.001)
+    }
+
+    @Test
     fun `codex usage body becomes two quota windows`() {
         val snapshot = QuotaParser.parseUsage(
             "{\"rate_limit\":{" +

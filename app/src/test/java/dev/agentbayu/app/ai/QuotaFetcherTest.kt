@@ -64,12 +64,11 @@ class QuotaFetcherTest {
     }
 
     @Test
-    fun `antigravity quota summary expands every pool bucket`() {
+    fun `antigravity quota merges per model and family windows`() {
         server.enqueue(
             jsonResponse(
                 "{\"groups\":[" +
                     "{\"displayName\":\"Gemini models\",\"buckets\":[" +
-                    "{\"bucketId\":\"gemini-5h\",\"remainingFraction\":0.75,\"resetTime\":\"1800000000\"}," +
                     "{\"bucketId\":\"gemini-weekly\",\"remainingFraction\":0.9}" +
                     "]}," +
                     "{\"displayName\":\"Claude and other models\",\"buckets\":[" +
@@ -78,10 +77,24 @@ class QuotaFetcherTest {
                     "]}"
             )
         )
+        server.enqueue(
+            jsonResponse(
+                "{\"buckets\":[" +
+                    "{\"modelId\":\"gemini-2.5-pro\",\"remainingFraction\":0.75,\"resetTime\":1800000000}," +
+                    "{\"modelId\":\"claude-opus-4-6-thinking\",\"remainingFraction\":0.2}" +
+                    "]}"
+            )
+        )
         val fetcher = fetcher(agyProvider(), FixedCredentials("token-123"))
 
         val result = runBlocking {
-            fetcher.fetch(testConnection(providerId = "agy", model = "gemini-3.8-flash"))
+            fetcher.fetch(
+                testConnection(
+                    providerId = "agy",
+                    model = "gemini-3.8-flash",
+                    projectId = "bayu-42"
+                )
+            )
         }
 
         val snapshot = (result as QuotaFetchResult.Success).snapshot
@@ -90,14 +103,21 @@ class QuotaFetcherTest {
             it.poolId == QuotaParser.POOL_GEMINI && it.id == QuotaParser.WINDOW_5H
         }
         assertEquals(25.0, geminiShort.percentUsed!!, 0.001)
+        assertEquals(1_800_000_000_000L, geminiShort.resetAtMillis!!)
         val otherShort = snapshot.windows.first {
             it.poolId == QuotaParser.POOL_THIRD_PARTY && it.id == QuotaParser.WINDOW_5H
         }
-        assertEquals(60.0, otherShort.percentUsed!!, 0.001)
-        val request = server.takeRequest()
-        assertEquals("POST", request.method)
-        assertEquals("/daily/v1internal:retrieveUserQuotaSummary", request.path)
-        assertEquals("{}", request.body.readUtf8())
+        assertEquals(80.0, otherShort.percentUsed!!, 0.001)
+        val weekly = snapshot.windows.single { it.id == QuotaParser.WINDOW_7D }
+        assertEquals(10.0, weekly.percentUsed!!, 0.001)
+        assertEquals(QuotaParser.POOL_GEMINI, weekly.poolId)
+        val summaryRequest = server.takeRequest()
+        assertEquals("POST", summaryRequest.method)
+        assertEquals("/daily/v1internal:retrieveUserQuotaSummary", summaryRequest.path)
+        assertEquals("{\"project\":\"bayu-42\"}", summaryRequest.body.readUtf8())
+        val perModelRequest = server.takeRequest()
+        assertEquals("/daily/v1internal:retrieveUserQuota", perModelRequest.path)
+        assertEquals("{\"project\":\"bayu-42\"}", perModelRequest.body.readUtf8())
     }
 
     @Test
@@ -107,13 +127,21 @@ class QuotaFetcherTest {
             jsonResponse(
                 "{\"response\":{\"groups\":[{\"buckets\":[" +
                     "{\"bucketId\":\"3p-5h\",\"remainingFraction\":0.5}" +
-                    "]}]}}"
+                    "]}}]}"
             )
         )
+        server.enqueue(MockResponse().setResponseCode(500))
+        server.enqueue(MockResponse().setResponseCode(500))
         val fetcher = fetcher(agyProvider(), FixedCredentials("token-123"))
 
         val result = runBlocking {
-            fetcher.fetch(testConnection(providerId = "agy", model = "gemini-3.8-flash"))
+            fetcher.fetch(
+                testConnection(
+                    providerId = "agy",
+                    model = "gemini-3.8-flash",
+                    projectId = "bayu-42"
+                )
+            )
         }
 
         val snapshot = (result as QuotaFetchResult.Success).snapshot
@@ -121,6 +149,8 @@ class QuotaFetcherTest {
         assertEquals(50.0, snapshot.windows.single().percentUsed!!, 0.001)
         assertEquals("/daily/v1internal:retrieveUserQuotaSummary", server.takeRequest().path)
         assertEquals("/control/v1internal:retrieveUserQuotaSummary", server.takeRequest().path)
+        assertEquals("/daily/v1internal:retrieveUserQuota", server.takeRequest().path)
+        assertEquals("/control/v1internal:retrieveUserQuota", server.takeRequest().path)
     }
 
     @Test
@@ -129,7 +159,13 @@ class QuotaFetcherTest {
         val fetcher = fetcher(agyProvider(), FixedCredentials("expired"))
 
         val result = runBlocking {
-            fetcher.fetch(testConnection(providerId = "agy", model = "gemini-3.8-flash"))
+            fetcher.fetch(
+                testConnection(
+                    providerId = "agy",
+                    model = "gemini-3.8-flash",
+                    projectId = "bayu-42"
+                )
+            )
         }
 
         assertEquals(401, (result as QuotaFetchResult.Failure).failure.statusCode)
@@ -137,23 +173,41 @@ class QuotaFetcherTest {
     }
 
     @Test
-    fun `invalid buckets and unknown ids produce a failure`() {
-        val body =
+    fun `buckets without fractions produce a failure`() {
+        val summaryBody =
             "{\"groups\":[{\"buckets\":[" +
-                "{\"bucketId\":\"gemini-5h\",\"resetTime\":\"1800000000\"}," +
-                "{\"bucketId\":\"gemini-image-5h\",\"remainingFraction\":0.1}," +
-                "{\"bucketId\":\"3p-5h\",\"remainingFraction\":2.0}" +
+                "{\"bucketId\":\"gemini-5h\"}," +
+                "{\"bucketId\":\"seasonal\"}" +
                 "]}]}"
-        server.enqueue(jsonResponse(body))
-        server.enqueue(jsonResponse(body))
+        val perModelBody = "{\"buckets\":[{\"modelId\":\"gemini-2.5-pro\"}]}"
+        repeat(2) { server.enqueue(jsonResponse(summaryBody)) }
+        repeat(2) { server.enqueue(jsonResponse(perModelBody)) }
+        val fetcher = fetcher(agyProvider(), FixedCredentials("token-123"))
+
+        val result = runBlocking {
+            fetcher.fetch(
+                testConnection(
+                    providerId = "agy",
+                    model = "gemini-3.8-flash",
+                    projectId = "bayu-42"
+                )
+            )
+        }
+
+        assertTrue(result is QuotaFetchResult.Failure)
+        assertEquals(4, server.requestCount)
+    }
+
+    @Test
+    fun `missing project skips the quota fetch`() {
         val fetcher = fetcher(agyProvider(), FixedCredentials("token-123"))
 
         val result = runBlocking {
             fetcher.fetch(testConnection(providerId = "agy", model = "gemini-3.8-flash"))
         }
 
-        assertTrue(result is QuotaFetchResult.Failure)
-        assertEquals(2, server.requestCount)
+        assertEquals(QuotaFetchResult.Unsupported, result)
+        assertEquals(0, server.requestCount)
     }
 
     @Test
