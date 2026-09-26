@@ -9,6 +9,7 @@ import dev.agentbayu.app.ui.ai.AiLogsRoute
 import dev.agentbayu.app.ui.ai.AiProvidersRoute
 import dev.agentbayu.app.ui.components.PageStackHost
 import dev.agentbayu.app.ui.components.PageStackProgress
+import dev.agentbayu.app.ui.notes.NoteEditorRoute
 import dev.agentbayu.app.ui.settings.CustomPromptRoute
 import dev.agentbayu.app.ui.tasks.TaskDetailRoute
 
@@ -66,6 +67,13 @@ fun AppPageHost(
                 taskId = page.taskId,
                 listId = page.listId,
                 parentId = page.parentId,
+                onMessage = onMessage,
+                onBack = controller::back
+            )
+
+            is AppPage.NoteEditor -> NoteEditorRoute(
+                noteId = page.noteId,
+                folderId = page.folderId,
                 onMessage = onMessage,
                 onBack = controller::back
             )

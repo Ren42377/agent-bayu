@@ -69,6 +69,7 @@ import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
 import dev.agentbayu.app.ui.nav.AppPageHost
+import dev.agentbayu.app.ui.notes.NotesRoute
 import dev.agentbayu.app.ui.onboarding.OnboardingRoute
 import dev.agentbayu.app.ui.settings.SettingsRoute
 import dev.agentbayu.app.ui.tasks.TasksRoute
@@ -373,6 +374,12 @@ private fun TabContent(
             onOpenTask = { taskId, listId, parentId ->
                 controller.openTaskDetail(taskId, listId, parentId)
             },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        AgentBayuDestination.NOTES -> NotesRoute(
+            onMessage = onMessage,
+            onOpenNote = { noteId, folderId -> controller.openNoteEditor(noteId, folderId) },
             modifier = Modifier.fillMaxSize()
         )
 

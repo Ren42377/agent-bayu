@@ -30,15 +30,19 @@ import dev.agentbayu.app.ai.oauth.GoogleCodeFlow
 import dev.agentbayu.app.ai.oauth.TokenRefresher
 import dev.agentbayu.app.ai.tools.CompleteTaskTool
 import dev.agentbayu.app.ai.tools.CreateAlarmTool
+import dev.agentbayu.app.ai.tools.CreateNoteTool
 import dev.agentbayu.app.ai.tools.CreateTaskTool
 import dev.agentbayu.app.ai.tools.DeleteAlarmTool
+import dev.agentbayu.app.ai.tools.DeleteNoteTool
 import dev.agentbayu.app.ai.tools.DeleteTaskTool
 import dev.agentbayu.app.ai.tools.DeleteFileTool
 import dev.agentbayu.app.ai.tools.EditFileTool
 import dev.agentbayu.app.ai.tools.ListFilesTool
+import dev.agentbayu.app.ai.tools.ListNotesTool
 import dev.agentbayu.app.ai.tools.ListTasksTool
 import dev.agentbayu.app.ai.tools.MoveFileTool
 import dev.agentbayu.app.ai.tools.ReadFileTool
+import dev.agentbayu.app.ai.tools.ReadNoteTool
 import dev.agentbayu.app.ai.tools.ReadTaskTool
 import dev.agentbayu.app.ai.tools.RequestPermissionTool
 import dev.agentbayu.app.ai.tools.SearchFilesTool
@@ -46,6 +50,7 @@ import dev.agentbayu.app.ai.tools.SetTaskDeadlineTool
 import dev.agentbayu.app.ai.tools.SetTaskRemindersTool
 import dev.agentbayu.app.ai.tools.SetTaskTimeTool
 import dev.agentbayu.app.ai.tools.ToolRegistry
+import dev.agentbayu.app.ai.tools.UpdateNoteTool
 import dev.agentbayu.app.ai.tools.ViewImageTool
 import dev.agentbayu.app.ai.tools.WebSearchTool
 import dev.agentbayu.app.ai.tools.WriteFileTool
@@ -57,6 +62,7 @@ import dev.agentbayu.app.domain.ConversationSessionManager
 import dev.agentbayu.app.domain.ConversationStore
 import dev.agentbayu.app.domain.ProviderAgentEngine
 import dev.agentbayu.app.domain.ProviderCopy
+import dev.agentbayu.app.domain.notes.NoteStore
 import dev.agentbayu.app.domain.tasks.TaskStore
 import dev.agentbayu.app.domain.tools.PermissionKind
 import dev.agentbayu.app.domain.tools.PermissionRequests
@@ -64,6 +70,7 @@ import dev.agentbayu.app.domain.tools.ToolApprovalDecision
 import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import dev.agentbayu.app.domain.tools.ToolApprovalRouter
 import dev.agentbayu.app.domain.tools.UiToolApprovalGate
+import dev.agentbayu.app.platform.AppNoteStorage
 import dev.agentbayu.app.platform.AppSettings
 import dev.agentbayu.app.platform.AppTaskStorage
 import dev.agentbayu.app.platform.FileStorage
@@ -100,6 +107,7 @@ object AppGraph {
     private val settingsLock = Any()
     private val containerLock = Any()
     private val taskHubLock = Any()
+    private val noteStoreLock = Any()
     private val warmUpLock = Any()
 
     val assistantReadiness: StateFlow<Boolean> = assistantReadinessState.asStateFlow()
@@ -144,6 +152,7 @@ object AppGraph {
                     }
                     if (finishFullWarmUp) {
                         taskHub(context)
+                        notes(context)
                         synchronized(warmUpLock) {
                             readinessState.value = true
                             fullWarmUpRequested = false
@@ -209,6 +218,9 @@ object AppGraph {
     @Volatile
     private var taskHub: TaskHub? = null
 
+    @Volatile
+    private var noteStore: NoteStore? = null
+
     private class TaskHub(val store: TaskStore, val alarms: TaskAlarms)
 
     fun chat(context: Context): ChatController = container(context).chatController
@@ -256,6 +268,13 @@ object AppGraph {
 
     fun taskAlarms(context: Context): TaskAlarms = taskHub(context).alarms
 
+    fun notes(context: Context): NoteStore {
+        noteStore?.let { return it }
+        return synchronized(noteStoreLock) {
+            noteStore ?: buildNotes(context.applicationContext).also { noteStore = it }
+        }
+    }
+
     private fun taskHub(context: Context): TaskHub {
         taskHub?.let { return it }
         return synchronized(taskHubLock) {
@@ -273,6 +292,11 @@ object AppGraph {
         scope.launch { store.tasks.collect { alarms.sync(it) } }
         return TaskHub(store, alarms)
     }
+
+    private fun buildNotes(context: Context): NoteStore = NoteStore(
+        storage = AppNoteStorage(context),
+        clock = clock
+    )
 
     private fun container(context: Context): Container {
         container?.let { return it }
@@ -383,6 +407,14 @@ object AppGraph {
                     SetTaskRemindersTool(store = { tasks(context) }),
                     CompleteTaskTool { tasks(context) },
                     DeleteTaskTool { tasks(context) },
+                    CreateNoteTool(
+                        store = { notes(context) },
+                        defaultFolderTitle = context.getString(R.string.notes_folder_default)
+                    ),
+                    ListNotesTool { notes(context) },
+                    ReadNoteTool { notes(context) },
+                    UpdateNoteTool { notes(context) },
+                    DeleteNoteTool { notes(context) },
                     CreateAlarmTool(context),
                     DeleteAlarmTool(context),
                     WebSearchTool(client),
