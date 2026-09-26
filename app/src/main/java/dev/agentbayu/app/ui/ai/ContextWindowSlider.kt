@@ -177,7 +177,7 @@ internal fun ContextWindowSlider(
                     .matchParentSize()
                     .drawBehind {
                         val trackRadius = size.height / 2f
-                        val fillRight = if (hasSelection >= 0) {
+                        val fillRight = if (hasSelection >= 0 || dragAnimation.isGestureActive) {
                             thumbRadiusPx + (dragAnimation.value / lastIndex) * travelPx
                         } else {
                             0f
