@@ -135,7 +135,6 @@ jobs:
         run: gradle assembleRelease lint testDebugUnitTest --parallel --build-cache
 
       - name: Publish optimized release APK
-        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -150,7 +149,10 @@ jobs:
           fi
 
           cp "${release_apks[0]}" dist/agent-bayu-release.apk
-          gh release upload debug dist/agent-bayu-release.apk --clobber
+
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            gh release upload debug dist/agent-bayu-release.apk --clobber
+          fi
 
       - name: Upload release APK artifact
         uses: actions/upload-artifact@v7
