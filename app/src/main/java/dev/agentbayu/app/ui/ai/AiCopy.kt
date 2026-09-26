@@ -76,9 +76,6 @@ fun formatCost(value: Double?): String? {
     return String.format(Locale.US, pattern, value)
 }
 
-fun formatTokens(value: Int): String = String.format(Locale.US, TOKEN_PATTERN, value)
-
 private const val SMALL_COST = 0.01
 private const val SMALL_COST_PATTERN = "%.5f"
 private const val COST_PATTERN = "%.4f"
-private const val TOKEN_PATTERN = "%,d"

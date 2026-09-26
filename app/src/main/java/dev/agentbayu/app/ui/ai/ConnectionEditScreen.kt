@@ -357,7 +357,7 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 entry.contextLength
             }
             Text(
-                text = stringResource(R.string.connection_model_context, formatTokens(contextText)),
+                text = stringResource(R.string.connection_model_context, contextWindowLabel(contextText)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

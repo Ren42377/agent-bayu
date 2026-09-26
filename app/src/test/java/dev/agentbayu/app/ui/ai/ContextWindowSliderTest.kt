@@ -31,4 +31,13 @@ class ContextWindowSliderTest {
         assertEquals("1M", contextWindowLabel(1_048_576))
         assertEquals("32K", contextWindowLabel(32_768))
     }
+
+    @Test
+    fun `non stop sizes compact too`() {
+        assertEquals("200K", contextWindowLabel(200_000))
+        assertEquals("250K", contextWindowLabel(256_000))
+        assertEquals("1M", contextWindowLabel(1_000_000))
+        assertEquals("1.5M", contextWindowLabel(1_500_000))
+        assertEquals("98K", contextWindowLabel(100_352))
+    }
 }

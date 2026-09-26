@@ -4,9 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -30,6 +31,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -50,8 +52,16 @@ fun contextWindowStopOf(override: Int?): Int =
 
 fun contextWindowLabel(tokens: Int): String = when {
     tokens >= 1_048_576 && tokens % 1_048_576 == 0 -> (tokens / 1_048_576).toString() + "M"
+    tokens >= 1_000_000 -> compactContext(tokens / 1_000_000.0) + "M"
     tokens >= 1_024 && tokens % 1_024 == 0 -> (tokens / 1_024).toString() + "K"
+    tokens >= 1_000 -> compactContext(tokens / 1_000.0) + "K"
     else -> tokens.toString()
+}
+
+private fun compactContext(value: Double): String {
+    val factor = if (value >= 100.0) 1.0 else 10.0
+    val rounded = (value * factor).fastRoundToInt() / factor
+    return if (rounded % 1.0 == 0.0) rounded.toInt().toString() else rounded.toString()
 }
 
 @Composable
@@ -218,8 +228,17 @@ internal fun ContextWindowSlider(
                     .then(dragAnimation.modifier)
             )
         }
-        Row(modifier = Modifier.fillMaxWidth()) {
+        BoxWithConstraints(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = SLIDER_LABEL_HEIGHT)
+        ) {
+            val labelThumbRadiusPx = with(LocalDensity.current) {
+                SLIDER_THUMB_DIAMETER.toPx()
+            } / 2f
+            val labelTravelPx = (constraints.maxWidth - 2 * labelThumbRadiusPx).coerceAtLeast(1f)
             (0..lastIndex).forEach { index ->
+                var labelWidth by remember { mutableFloatStateOf(0f) }
                 Text(
                     text = labelOf(index),
                     style = MaterialTheme.typography.labelSmall,
@@ -228,7 +247,17 @@ internal fun ContextWindowSlider(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     },
-                    modifier = Modifier.weight(1f)
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .onSizeChanged { size -> labelWidth = size.width.toFloat() }
+                        .graphicsLayer {
+                            translationX = (
+                                labelThumbRadiusPx +
+                                    index * labelTravelPx / lastIndex -
+                                    labelWidth / 2f
+                                ).coerceIn(0f, (constraints.maxWidth - labelWidth).coerceAtLeast(0f))
+                        }
                 )
             }
         }
@@ -245,3 +274,4 @@ private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
 private val SLIDER_THUMB_SHADOW = 3.dp
+private val SLIDER_LABEL_HEIGHT = 18.dp
