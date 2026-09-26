@@ -130,4 +130,65 @@ class MessageMarkupTest {
         assertEquals(1, ranges.size)
         assertEquals("```\ndua\n```", source.substring(ranges.first().first, ranges.first().last))
     }
+
+    @Test
+    fun sanitiseSeparatesThematicBreakFromPrecedingText() {
+        assertEquals("Teks\n\n---", sanitiseMarkdown("Teks\n---"))
+    }
+
+    @Test
+    fun sanitiseSeparatesIndentedThematicBreakInListItem() {
+        assertEquals("1. Poin\n\n---", sanitiseMarkdown("1. Poin\n   ---"))
+    }
+
+    @Test
+    fun sanitiseKeepsFencedContentUntouched() {
+        val source = "```\nTeks\n---\n<span hidden>rahasia</span>\n```"
+
+        assertEquals(source, sanitiseMarkdown(source))
+    }
+
+    @Test
+    fun sanitiseLiftsFootnoteDefinitionsToTheEnd() {
+        val result = sanitiseMarkdown(
+            "Teks dengan catatan kaki[^1].\n\n[^1]: Ini adalah contoh catatan kaki."
+        )
+
+        assertFalse(result.contains("[^"))
+        assertTrue(result.contains("Teks dengan catatan kaki[1]."))
+        assertTrue(result.endsWith("[1] Ini adalah contoh catatan kaki.\n"))
+    }
+
+    @Test
+    fun sanitiseRemovesHiddenElementsAndKeepsSurroundingText() {
+        val result = sanitiseMarkdown(
+            "Sebelum <span hidden>Konten tersembunyi di dalam HTML.</span> Sesudah"
+        )
+
+        assertFalse(result.contains("Konten tersembunyi"))
+        assertTrue(result.contains("Sebelum"))
+        assertTrue(result.contains("Sesudah"))
+    }
+
+    @Test
+    fun sanitiseConvertsSimpleHtmlTagsToMarkdown() {
+        assertEquals(
+            "**Tebal** dan *miring*",
+            sanitiseMarkdown("<b>Tebal</b> dan <i>miring</i>")
+        )
+    }
+
+    @Test
+    fun inlineRunsTreatDisplayMathAsOneRun() {
+        val runs = splitInlineRuns("coba \$\$x^2\$\$ ya")
+
+        assertEquals(
+            listOf(
+                InlineRun.Text("coba "),
+                InlineRun.Math("x^2"),
+                InlineRun.Text(" ya")
+            ),
+            runs
+        )
+    }
 }
