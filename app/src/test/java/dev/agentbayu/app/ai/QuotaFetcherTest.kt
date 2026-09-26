@@ -127,7 +127,7 @@ class QuotaFetcherTest {
             jsonResponse(
                 "{\"response\":{\"groups\":[{\"buckets\":[" +
                     "{\"bucketId\":\"3p-5h\",\"remainingFraction\":0.5}" +
-                    "]}}]}"
+                    "]}]}}"
             )
         )
         server.enqueue(MockResponse().setResponseCode(500))
@@ -178,7 +178,7 @@ class QuotaFetcherTest {
             "{\"groups\":[{\"buckets\":[" +
                 "{\"bucketId\":\"gemini-5h\"}," +
                 "{\"bucketId\":\"seasonal\"}" +
-                "]}]}"
+                "]}]}}"
         val perModelBody = "{\"buckets\":[{\"modelId\":\"gemini-2.5-pro\"}]}"
         repeat(2) { server.enqueue(jsonResponse(summaryBody)) }
         repeat(2) { server.enqueue(jsonResponse(perModelBody)) }

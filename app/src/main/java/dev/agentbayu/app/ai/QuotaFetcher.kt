@@ -86,6 +86,9 @@ class QuotaFetcher(
         val hosts = listOf(candidate.baseUrl, candidate.controlBaseUrl).distinct()
         return withContext(Dispatchers.IO) {
             val summary = collectWindows(hosts, summaryPath, projectId, candidate, credential, config)
+            if (summary.windows == null && summary.failure?.let { isDeadToken(it) } == true) {
+                return@withContext QuotaFetchResult.Failure(summary.failure ?: unexpectedResponse())
+            }
             val perModel = collectWindows(
                 hosts,
                 PER_MODEL_PATH,
