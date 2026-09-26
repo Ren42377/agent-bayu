@@ -146,7 +146,7 @@ private fun CompleteCircle(completed: Boolean, onClick: () -> Unit) {
             Icon(
                 painter = painterResource(R.drawable.ic_check),
                 contentDescription = null,
-                tint = Color.White,
+                tint = scheme.onPrimary,
                 modifier = Modifier.size(14.dp)
             )
         }

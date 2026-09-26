@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalViewConfiguration
@@ -81,7 +82,7 @@ internal fun GlassSegmentedSelector(
         alpha = if (darkTheme) DARK_TRACK_ALPHA else TRACK_ALPHA
     )
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val selectedLabelColor = MaterialTheme.colorScheme.onPrimary
+    val selectedLabelColor = if (tint.luminance() > 0.5f) Color.Black else Color.White
     val backdrop = LocalGlassBackdrop.current
     val containerBackdrop = rememberLayerBackdrop()
     val indicatorBackdrop = rememberCombinedBackdrop(backdrop, containerBackdrop)
@@ -217,7 +218,7 @@ internal fun GlassSegmentedSelector(
                     SelectorLabel(
                         label = label,
                         icon = icons.getOrNull(index),
-                        color = if (index == currentIndex) selectedLabelColor else labelColor
+                        color = labelColor
                     )
                 }
             }
@@ -295,7 +296,7 @@ internal fun GlassSegmentedSelector(
                     SelectorLabel(
                         label = label,
                         icon = icons.getOrNull(index),
-                        color = Color.White,
+                        color = selectedLabelColor,
                         modifier = Modifier.graphicsLayer {
                             alpha = (1f - abs(index - dragAnimation.value))
                                 .fastCoerceIn(0f, 1f)

@@ -41,7 +41,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.drawWithContent
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -414,14 +413,12 @@ private fun ColumnScope.HistoryDrawerContent(
             Icon(
                 painter = painterResource(R.drawable.ic_chat_add),
                 contentDescription = null,
-                tint = Color.White,
                 modifier = Modifier.size(16.dp)
             )
             Spacer(modifier = Modifier.width(2.dp))
             Text(
                 text = stringResource(R.string.history_new),
-                style = MaterialTheme.typography.labelLarge,
-                color = Color.White
+                style = MaterialTheme.typography.labelLarge
             )
         }
     }

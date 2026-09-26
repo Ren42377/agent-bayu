@@ -114,7 +114,8 @@ fun Modifier.glassSurface(
     shape: Shape = GlassCardShape,
     style: GlassStyle = LocalGlassStyle.current,
     tint: Color = Color.Unspecified,
-    elevation: Dp = style.surfaceElevation
+    elevation: Dp = style.surfaceElevation,
+    bordered: Boolean = true
 ): Modifier {
     val edgeColor = remember(style.surfaceEdge, style.highlightAlpha) {
         style.surfaceEdge.copy(alpha = style.surfaceEdge.alpha * style.highlightAlpha)
@@ -125,7 +126,13 @@ fun Modifier.glassSurface(
             drawRect(color = style.surface)
             if (tint.isSpecified) drawRect(color = tint)
         }
-        .border(width = style.strokeWidth, color = edgeColor, shape = shape)
+        .then(
+            if (bordered) {
+                Modifier.border(width = style.strokeWidth, color = edgeColor, shape = shape)
+            } else {
+                Modifier
+            }
+        )
 }
 
 @Composable

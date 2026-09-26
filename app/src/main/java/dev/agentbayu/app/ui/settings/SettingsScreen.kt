@@ -36,6 +36,7 @@ import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -231,7 +232,13 @@ private fun ThemeModeSelector(
         labels = labels,
         icons = icons.map { painterResource(it) },
         selectedIndex = options.indexOf(mode).coerceAtLeast(0),
-        onSelect = { index -> onModeChange(options[index]) }
+        onSelect = { index -> onModeChange(options[index]) },
+        onValueChange = { value ->
+            val index = value.roundToInt().coerceIn(0, options.lastIndex)
+            if (index != options.indexOf(mode)) {
+                onModeChange(options[index])
+            }
+        }
     )
 }
 

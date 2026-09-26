@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -42,7 +43,7 @@ import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.domain.MessageSegment
 import dev.agentbayu.app.ui.theme.AppleGreenDark
 import dev.agentbayu.app.ui.theme.AppleGreenLight
-import dev.agentbayu.app.ui.theme.UserBubbleDark
+import dev.agentbayu.app.ui.theme.FilledControlDark
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.UserBubbleShape
@@ -117,6 +118,7 @@ private fun ReplyActions(
     onRegenerate: ((ChatMessage) -> Unit)?
 ) {
     Row(
+        modifier = Modifier.offset(x = (-6).dp),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -152,7 +154,7 @@ private fun UserMessage(
     onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
     val isDark = LocalDarkTheme.current
-    val userTint = if (isDark) UserBubbleDark else MaterialTheme.colorScheme.primary
+    val userTint = if (isDark) FilledControlDark else MaterialTheme.colorScheme.primary
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End
@@ -176,7 +178,7 @@ private fun UserMessage(
             Box(
                 modifier = Modifier
                     .widthIn(max = 300.dp)
-                    .glassSurface(shape = UserBubbleShape, tint = userTint)
+                    .glassSurface(shape = UserBubbleShape, tint = userTint, bordered = false)
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(

@@ -30,7 +30,9 @@ import androidx.compose.ui.util.fastCoerceAtMost
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.FilledControlDark
 import dev.agentbayu.app.ui.theme.liquidGlass
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -85,8 +87,14 @@ fun GlassButton(
     val raised by remember(interactiveHighlight) {
         derivedStateOf { interactiveHighlight.pressProgress > 0f }
     }
+    val isDark = LocalDarkTheme.current
+    val effectiveTint = if (tint.isSpecified && isDark && tint == MaterialTheme.colorScheme.primary) {
+        FilledControlDark
+    } else {
+        tint
+    }
     val contentColor = if (tint.isSpecified) {
-        MaterialTheme.colorScheme.onPrimary
+        Color.White
     } else {
         MaterialTheme.colorScheme.onSurface
     }
@@ -96,7 +104,7 @@ fun GlassButton(
             .zIndex(if (raised) RAISED_Z_INDEX else 0f)
             .liquidGlass(
                 shape = shape,
-                tint = tint,
+                tint = effectiveTint,
                 layerBlock = if (enabled) {
                     {
                         val width = size.width
