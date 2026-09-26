@@ -127,7 +127,7 @@ private fun latexDrawable(latex: String, sizePx: Float, color: Color): JLatexMat
             .color(color.toArgb())
             .align(JLatexMathDrawable.ALIGN_LEFT)
             .build()
-    } catch (error: Exception) {
+    } catch (error: Throwable) {
         null
     }
 }

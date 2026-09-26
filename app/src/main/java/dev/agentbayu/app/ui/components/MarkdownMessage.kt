@@ -30,7 +30,7 @@ fun MarkdownMessage(
     content: String,
     modifier: Modifier = Modifier
 ) {
-    val source = remember(content) { normaliseMarkdownFences(content) }
+    val source = remember(content) { sanitiseMarkdown(normaliseMarkdownFences(content)) }
     val blocks = remember(source) { splitMarkup(source) }
     if (blocks.size == 1 && blocks.first() is MarkupBlock.Markdown) {
         MarkdownBody(source = source, modifier = modifier)
@@ -68,100 +68,102 @@ private fun MarkdownBody(
         ),
         modifier = modifier.fillMaxWidth(),
         dimens = markdownDimens(tableCellWidth = 110.dp, tableCellPadding = 10.dp),
+        imageTransformer = NetworkImageTransformer,
         components = markdownComponents(
-            paragraph = { model ->
-                val text = model.source()
-                if (hasInlineMath(text)) {
-                    InlineMathText(
-                        source = text,
-                        style = MaterialTheme.typography.bodyLarge,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    MarkdownParagraph(content = model.content, node = model.node)
-                }
-            },
-            codeBlock = { model ->
-                val fence = fenceOf(model.source())
-                CodeCard(label = plainCode, icon = null, code = fence.body) {
-                    CodeBody(
-                        code = fence.body,
-                        language = null,
-                        darkTheme = darkTheme
-                    )
-                }
-            },
-            codeFence = { model ->
-                val fence = fenceOf(model.source())
-                when {
-                    !nested && isMarkdownLanguage(fence.language) -> CodeCard(
-                        label = markdownTitleOf(fence.body) ?: markdownLabel,
-                        icon = R.drawable.ic_note,
-                        code = fence.body
-                    ) {
-                        MarkdownBody(
-                            source = fence.body,
-                            modifier = Modifier.padding(
-                                start = 14.dp,
-                                end = 14.dp,
-                                bottom = 12.dp
-                            ),
-                            nested = true
+                image = { model -> MarkdownImageContent(model) },
+                paragraph = { model ->
+                    val text = model.source()
+                    if (hasInlineMath(text)) {
+                        InlineMathText(
+                            source = text,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.fillMaxWidth()
                         )
+                    } else {
+                        MarkdownParagraph(content = model.content, node = model.node)
                     }
-
-                    isDiagramLanguage(fence.language) -> CodeCard(
-                        label = fence.language ?: plainCode,
-                        icon = R.drawable.ic_diagram,
-                        code = fence.body
-                    ) {
+                },
+                codeBlock = { model ->
+                    val fence = fenceOf(model.source())
+                    CodeCard(label = plainCode, icon = null, code = fence.body) {
                         CodeBody(
                             code = fence.body,
                             language = null,
                             darkTheme = darkTheme
                         )
                     }
+                },
+                codeFence = { model ->
+                    val fence = fenceOf(model.source())
+                    when {
+                        !nested && isMarkdownLanguage(fence.language) -> CodeCard(
+                            label = markdownTitleOf(fence.body) ?: markdownLabel,
+                            icon = R.drawable.ic_note,
+                            code = fence.body
+                        ) {
+                            MarkdownBody(
+                                source = fence.body,
+                                modifier = Modifier.padding(
+                                    start = 14.dp,
+                                    end = 14.dp,
+                                    bottom = 12.dp
+                                ),
+                                nested = true
+                            )
+                        }
 
-                    else -> CodeCard(
-                        label = fence.language ?: plainCode,
-                        icon = null,
-                        code = fence.body
-                    ) {
-                        CodeBody(
-                            code = fence.body,
-                            language = fence.language,
-                            darkTheme = darkTheme
-                        )
+                        isDiagramLanguage(fence.language) -> CodeCard(
+                            label = fence.language ?: plainCode,
+                            icon = R.drawable.ic_diagram,
+                            code = fence.body
+                        ) {
+                            CodeBody(
+                                code = fence.body,
+                                language = null,
+                                darkTheme = darkTheme
+                            )
+                        }
+
+                        else -> CodeCard(
+                            label = fence.language ?: plainCode,
+                            icon = null,
+                            code = fence.body
+                        ) {
+                            CodeBody(
+                                code = fence.body,
+                                language = fence.language,
+                                darkTheme = darkTheme
+                            )
+                        }
                     }
+                },
+                table = { model ->
+                    MarkdownTable(
+                        content = model.content,
+                        node = model.node,
+                        style = model.typography.text,
+                        headerBlock = { cells, header, tableWidth, style ->
+                            MarkdownTableHeader(
+                                content = cells,
+                                header = header,
+                                tableWidth = tableWidth,
+                                style = style,
+                                maxLines = Int.MAX_VALUE,
+                                overflow = TextOverflow.Clip
+                            )
+                        },
+                        rowBlock = { cells, row, tableWidth, style ->
+                            MarkdownTableRow(
+                                content = cells,
+                                header = row,
+                                tableWidth = tableWidth,
+                                style = style,
+                                maxLines = Int.MAX_VALUE,
+                                overflow = TextOverflow.Clip
+                            )
+                        }
+                    )
                 }
-            },
-            table = { model ->
-                MarkdownTable(
-                    content = model.content,
-                    node = model.node,
-                    style = model.typography.text,
-                    headerBlock = { cells, header, tableWidth, style ->
-                        MarkdownTableHeader(
-                            content = cells,
-                            header = header,
-                            tableWidth = tableWidth,
-                            style = style,
-                            maxLines = Int.MAX_VALUE,
-                            overflow = TextOverflow.Clip
-                        )
-                    },
-                    rowBlock = { cells, row, tableWidth, style ->
-                        MarkdownTableRow(
-                            content = cells,
-                            header = row,
-                            tableWidth = tableWidth,
-                            style = style,
-                            maxLines = Int.MAX_VALUE,
-                            overflow = TextOverflow.Clip
-                        )
-                    }
-                )
-            }
         )
     )
 }

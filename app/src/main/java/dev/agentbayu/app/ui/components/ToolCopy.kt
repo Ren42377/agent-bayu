@@ -26,5 +26,10 @@ internal fun toolDisplayName(name: String): String = when (name) {
     "delete_file" -> stringResource(R.string.tool_name_delete_file)
     "move_file" -> stringResource(R.string.tool_name_move_file)
     "request_permission" -> stringResource(R.string.tool_name_request_permission)
+    "create_note" -> stringResource(R.string.tool_name_create_note)
+    "list_notes" -> stringResource(R.string.tool_name_list_notes)
+    "read_note" -> stringResource(R.string.tool_name_read_note)
+    "update_note" -> stringResource(R.string.tool_name_update_note)
+    "delete_note" -> stringResource(R.string.tool_name_delete_note)
     else -> name
 }

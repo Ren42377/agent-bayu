@@ -1,6 +1,7 @@
 package dev.agentbayu.app
 
 import android.Manifest
+import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,6 +9,9 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Box
@@ -69,6 +73,7 @@ import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
 import dev.agentbayu.app.ui.nav.AppPageHost
+import dev.agentbayu.app.ui.notes.NotesRoute
 import dev.agentbayu.app.ui.onboarding.OnboardingRoute
 import dev.agentbayu.app.ui.settings.SettingsRoute
 import dev.agentbayu.app.ui.tasks.TasksRoute
@@ -86,6 +91,7 @@ class MainActivity : ComponentActivity() {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        initImageLoader(applicationContext)
         pendingTaskId.value = intent?.getStringExtra(EXTRA_TASK_ID)
         splashScreen.setKeepOnScreenCondition { !AppGraph.readiness.value }
         AppGraph.warmUpApp(applicationContext)
@@ -112,6 +118,14 @@ class MainActivity : ComponentActivity() {
         Thread.setDefaultUncaughtExceptionHandler { thread, error ->
             runCatching { CrashLog.record(context, error) }
             previous?.uncaughtException(thread, error)
+        }
+    }
+
+    private fun initImageLoader(context: Context) {
+        SingletonImageLoader.setSafe { appContext ->
+            ImageLoader.Builder(appContext)
+                .components { add(OkHttpNetworkFetcherFactory()) }
+                .build()
         }
     }
 }
@@ -373,6 +387,12 @@ private fun TabContent(
             onOpenTask = { taskId, listId, parentId ->
                 controller.openTaskDetail(taskId, listId, parentId)
             },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        AgentBayuDestination.NOTES -> NotesRoute(
+            onMessage = onMessage,
+            onOpenNote = { noteId -> controller.openNoteEditor(noteId) },
             modifier = Modifier.fillMaxSize()
         )
 

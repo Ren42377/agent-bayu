@@ -76,6 +76,8 @@ class ToolArguments(raw: String) {
         root?.booleanField(field) ?: fallback
 
     fun number(field: String, fallback: Int): Int = root?.intField(field) ?: fallback
+
+    fun contains(field: String): Boolean = root?.containsKey(field) == true
 }
 
 fun ToolCall.reply(
