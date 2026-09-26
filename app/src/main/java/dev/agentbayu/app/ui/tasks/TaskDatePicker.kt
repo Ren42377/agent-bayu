@@ -307,7 +307,7 @@ private fun DayCell(
             text = date.dayOfMonth.toString(),
             style = MaterialTheme.typography.bodyMedium,
             color = when {
-                selected -> Color.White
+                selected -> scheme.onPrimary
                 today -> scheme.primary
                 else -> scheme.onSurface
             }
@@ -400,7 +400,7 @@ private fun PickerCell(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (selected) Color.White else scheme.onSurface,
+            color = if (selected) scheme.onPrimary else scheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

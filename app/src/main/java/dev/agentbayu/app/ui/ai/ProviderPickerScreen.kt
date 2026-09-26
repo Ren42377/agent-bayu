@@ -296,7 +296,7 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                         text = modelId,
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (selected) {
-                            Color.White
+                            MaterialTheme.colorScheme.onPrimary
                         } else {
                             MaterialTheme.colorScheme.onSurface
                         },
@@ -306,7 +306,7 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                         Icon(
                             painter = painterResource(R.drawable.ic_check),
                             contentDescription = stringResource(R.string.picker_model_selected),
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.onPrimary,
                             modifier = Modifier.size(16.dp)
                         )
                     }

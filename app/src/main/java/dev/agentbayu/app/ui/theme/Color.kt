@@ -28,6 +28,9 @@ internal val TextPrimaryDark = Color(0xFFFFFFFF)
 internal val TextSecondaryDark = Color(0xFF8E8E93)
 internal val TextTertiaryDark = Color(0xFF48484A)
 
+internal val UserBubbleDark = Color(0xFF2E2E2E)
+internal val ToggleTrackOnDark = Color(0xFF484848)
+
 internal val GlassFillLight = Color(0x99FFFFFF)
 internal val GlassFillDark = Color(0x99141418)
 

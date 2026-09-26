@@ -81,6 +81,7 @@ internal fun GlassSegmentedSelector(
         alpha = if (darkTheme) DARK_TRACK_ALPHA else TRACK_ALPHA
     )
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+    val selectedLabelColor = MaterialTheme.colorScheme.onPrimary
     val backdrop = LocalGlassBackdrop.current
     val containerBackdrop = rememberLayerBackdrop()
     val indicatorBackdrop = rememberCombinedBackdrop(backdrop, containerBackdrop)
@@ -216,7 +217,7 @@ internal fun GlassSegmentedSelector(
                     SelectorLabel(
                         label = label,
                         icon = icons.getOrNull(index),
-                        color = labelColor
+                        color = if (index == currentIndex) selectedLabelColor else labelColor
                     )
                 }
             }

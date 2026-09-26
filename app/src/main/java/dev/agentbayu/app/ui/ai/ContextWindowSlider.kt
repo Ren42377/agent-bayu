@@ -86,6 +86,7 @@ internal fun ContextWindowSlider(
     val fillColor = MaterialTheme.colorScheme.onSurface
     val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
     val dotOnFillColor = MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+    val thumbColor = MaterialTheme.colorScheme.onPrimary
     val animationScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
@@ -245,7 +246,7 @@ internal fun ContextWindowSlider(
                             scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
                             scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                         },
-                        onDrawSurface = { drawRect(Color.White) }
+                        onDrawSurface = { drawRect(thumbColor) }
                     )
             )
             Box(
