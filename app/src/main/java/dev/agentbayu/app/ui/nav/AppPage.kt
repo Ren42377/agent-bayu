@@ -20,7 +20,7 @@ sealed interface AppPage {
     data class TaskDetail(val taskId: String?, val listId: String, val parentId: String? = null) :
         AppPage
 
-    data class NoteEditor(val noteId: String?, val folderId: String) : AppPage
+    data class NoteEditor(val noteId: String?) : AppPage
 }
 
 @Stable
@@ -65,8 +65,8 @@ class AppPageController {
         stack.add(AppPage.TaskDetail(taskId, listId, parentId))
     }
 
-    fun openNoteEditor(noteId: String?, folderId: String) {
-        stack.add(AppPage.NoteEditor(noteId, folderId))
+    fun openNoteEditor(noteId: String?) {
+        stack.add(AppPage.NoteEditor(noteId))
     }
 
     fun back() {

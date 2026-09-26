@@ -26,7 +26,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
-import dev.agentbayu.app.domain.notes.NoteFolder
 import dev.agentbayu.app.domain.notes.NoteItem
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
@@ -38,14 +37,9 @@ import dev.agentbayu.app.ui.theme.glassSurface
 
 @Composable
 fun NotesScreen(
-    folders: List<NoteFolder>,
-    activeFolder: NoteFolder?,
     notes: List<NoteItem>,
     query: String,
     onQueryChange: (String) -> Unit,
-    onSelectFolder: (String) -> Unit,
-    onNewFolder: () -> Unit,
-    onFolderMenu: () -> Unit,
     onAddNote: () -> Unit,
     onOpenNote: (NoteItem) -> Unit,
     onNoteMenu: (NoteItem) -> Unit,
@@ -63,13 +57,6 @@ fun NotesScreen(
                 style = MaterialTheme.typography.headlineMedium,
                 color = MaterialTheme.colorScheme.onBackground,
                 modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 6.dp)
-            )
-            NoteFolderTabs(
-                folders = folders,
-                activeFolderId = activeFolder?.id,
-                onSelectFolder = onSelectFolder,
-                onNewFolder = onNewFolder,
-                modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = query,
@@ -145,20 +132,6 @@ fun NotesScreen(
                         onMenu = { onNoteMenu(note) }
                     )
                 }
-            }
-        }
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = insets.calculateTopPadding() + 12.dp, end = 12.dp)
-        ) {
-            GlassIconButton(onClick = onFolderMenu, size = 38.dp) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_more_vert),
-                    contentDescription = stringResource(R.string.notes_folder_menu),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
             }
         }
         GlassButton(

@@ -73,7 +73,6 @@ fun AppPageHost(
 
             is AppPage.NoteEditor -> NoteEditorRoute(
                 noteId = page.noteId,
-                folderId = page.folderId,
                 onMessage = onMessage,
                 onBack = controller::back
             )

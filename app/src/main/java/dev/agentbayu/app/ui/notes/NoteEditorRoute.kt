@@ -18,14 +18,12 @@ import dev.agentbayu.app.ui.components.GlassDialog
 @Composable
 fun NoteEditorRoute(
     noteId: String?,
-    folderId: String,
     onMessage: (String) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
     val store = remember(context) { AppGraph.notes(context) }
-    val folders by store.folders.collectAsState()
     val notes by store.notes.collectAsState()
     val emptyMessage = stringResource(R.string.notes_editor_empty)
     val savedMessage = stringResource(R.string.notes_saved)
@@ -33,19 +31,18 @@ fun NoteEditorRoute(
 
     val existing = noteId?.let { id -> notes.firstOrNull { it.id == id } }
     var draft by remember(noteId) {
-        mutableStateOf(draftOf(existing, folderId))
+        mutableStateOf(draftOf(existing))
     }
     var deleteOpen by remember { mutableStateOf(false) }
 
     NoteEditorScreen(
         isNew = existing == null,
         draft = draft,
-        folders = folders,
         onDraftChange = { draft = it },
         onSave = {
             val content = draft.content.trim()
             val title = draft.title.trim().ifEmpty { derivedTitle(content) }
-            if (title.isEmpty() && content.trim().isEmpty()) {
+            if (title.isEmpty() && content.isEmpty()) {
                 onMessage(emptyMessage)
             } else {
                 save(store, existing, draft.copy(title = title))
@@ -76,7 +73,6 @@ fun NoteEditorRoute(
 
 private fun save(store: NoteStore, existing: NoteItem?, draft: NoteDraft) {
     val id = existing?.id ?: store.createNote(
-        folderId = draft.folderId,
         title = draft.title,
         content = draft.content.trim()
     )
@@ -88,9 +84,6 @@ private fun save(store: NoteStore, existing: NoteItem?, draft: NoteDraft) {
             content = draft.content.trim()
         )
     )
-    if (base.folderId != draft.folderId) {
-        store.moveToFolder(id, draft.folderId)
-    }
     if (base.pinned != draft.pinned) {
         store.setPinned(id, draft.pinned)
     }
@@ -103,17 +96,15 @@ private fun derivedTitle(content: String): String = content
     ?.take(MAX_DERIVED_TITLE)
     .orEmpty()
 
-private fun draftOf(note: NoteItem?, folderId: String): NoteDraft = NoteDraft(
+private fun draftOf(note: NoteItem?): NoteDraft = NoteDraft(
     title = note?.title.orEmpty(),
     content = note?.content.orEmpty(),
-    folderId = note?.folderId ?: folderId,
     pinned = note?.pinned ?: false
 )
 
 data class NoteDraft(
     val title: String = "",
     val content: String = "",
-    val folderId: String = "",
     val pinned: Boolean = false
 )
 

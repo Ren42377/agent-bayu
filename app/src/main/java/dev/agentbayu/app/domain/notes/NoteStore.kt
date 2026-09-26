@@ -16,90 +16,25 @@ class NoteStore(
 
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val restored = load()
-    private val foldersState = MutableStateFlow(restored.folders)
     private val notesState = MutableStateFlow(restored.notes)
-    private val activeState = MutableStateFlow(
-        restored.activeFolderId ?: restored.folders.firstOrNull()?.id
-    )
     private var revision = restored.revision
     private var persistedNotes = restored.persistedNotes
     private var deletedNoteIds = restored.deletedNoteIds.toSet()
-    private var deletedFolderIds = restored.deletedFolderIds.toSet()
 
-    val folders: StateFlow<List<NoteFolder>> = foldersState.asStateFlow()
     val notes: StateFlow<List<NoteItem>> = notesState.asStateFlow()
-    val activeFolderId: StateFlow<String?> = activeState.asStateFlow()
 
     @Synchronized
     fun find(noteId: String): NoteItem? = notesState.value.firstOrNull { it.id == noteId }
 
     @Synchronized
-    fun findFolder(folderId: String): NoteFolder? =
-        foldersState.value.firstOrNull { it.id == folderId }
-
-    @Synchronized
-    fun createFolder(title: String): String {
+    fun createNote(title: String, content: String = ""): String {
         val trimmed = title.trim()
-        if (trimmed.isEmpty()) return ""
-        val id = newId(FOLDER_PREFIX) { candidate -> foldersState.value.any { it.id == candidate } }
-        val position = foldersState.value.maxOfOrNull { it.position }?.plus(1) ?: 0
-        foldersState.value = foldersState.value + NoteFolder(
-            id = id,
-            title = trimmed,
-            position = position,
-            createdAtMillis = clock.nowMillis()
-        )
-        deletedFolderIds -= id
-        if (activeState.value == null) activeState.value = id
-        persist()
-        return id
-    }
-
-    @Synchronized
-    fun renameFolder(folderId: String, title: String) {
-        val trimmed = title.trim()
-        if (trimmed.isEmpty()) return
-        val current = foldersState.value
-        val index = current.indexOfFirst { it.id == folderId }
-        if (index < 0 || current[index].title == trimmed) return
-        foldersState.value = current.toMutableList().apply {
-            set(index, current[index].copy(title = trimmed))
-        }
-        persist()
-    }
-
-    @Synchronized
-    fun removeFolder(folderId: String) {
-        val remaining = foldersState.value.filterNot { it.id == folderId }
-        if (remaining.size == foldersState.value.size) return
-        val removedNoteIds = notesState.value
-            .filter { it.folderId == folderId }
-            .mapTo(HashSet()) { it.id }
-        foldersState.value = remaining
-        notesState.value = notesState.value.filterNot { it.folderId == folderId }
-        deletedFolderIds += folderId
-        deletedNoteIds += removedNoteIds
-        if (activeState.value == folderId) activeState.value = remaining.firstOrNull()?.id
-        persist()
-    }
-
-    @Synchronized
-    fun setActiveFolder(folderId: String) {
-        if (activeState.value == folderId || findFolder(folderId) == null) return
-        activeState.value = folderId
-        persist()
-    }
-
-    @Synchronized
-    fun createNote(folderId: String, title: String, content: String = ""): String {
-        if (findFolder(folderId) == null) return ""
-        if (title.isBlank() && content.isBlank()) return ""
+        if (trimmed.isEmpty() && content.isBlank()) return ""
         val now = clock.nowMillis()
-        val id = newId(NOTE_PREFIX) { candidate -> notesState.value.any { it.id == candidate } }
+        val id = newId { candidate -> notesState.value.any { it.id == candidate } }
         notesState.value = notesState.value + NoteItem(
             id = id,
-            folderId = folderId,
-            title = title.trim(),
+            title = trimmed,
             content = content,
             createdAtMillis = now,
             updatedAtMillis = now
@@ -111,7 +46,7 @@ class NoteStore(
 
     @Synchronized
     fun upsertNote(note: NoteItem) {
-        if (!VALID_NOTE_ID.matches(note.id) || findFolder(note.folderId) == null) return
+        if (!VALID_NOTE_ID.matches(note.id)) return
         val now = clock.nowMillis()
         val current = notesState.value
         val index = current.indexOfFirst { it.id == note.id }
@@ -139,34 +74,23 @@ class NoteStore(
         val target = find(noteId) ?: return
         if (target.pinned == pinned) return
         val now = clock.nowMillis()
-        replace(
-            target.copy(
-                pinned = pinned,
-                pinnedAtMillis = if (pinned) now else null,
-                updatedAtMillis = now
-            )
-        )
-    }
-
-    @Synchronized
-    fun moveToFolder(noteId: String, folderId: String) {
-        val target = find(noteId) ?: return
-        if (target.folderId == folderId || findFolder(folderId) == null) return
-        replace(
-            target.copy(folderId = folderId, updatedAtMillis = clock.nowMillis())
-        )
-    }
-
-    private fun replace(note: NoteItem) {
         val current = notesState.value
-        val index = current.indexOfFirst { it.id == note.id }
-        if (index < 0) return
-        notesState.value = current.toMutableList().apply { set(index, note) }
+        val index = current.indexOfFirst { it.id == noteId }
+        notesState.value = current.toMutableList().apply {
+            set(
+                index,
+                target.copy(
+                    pinned = pinned,
+                    pinnedAtMillis = if (pinned) now else null,
+                    updatedAtMillis = now
+                )
+            )
+        }
         persist()
     }
 
-    private fun newId(prefix: String, taken: (String) -> Boolean): String {
-        val stamp = prefix + clock.nowMillis().toString(RADIX)
+    private fun newId(taken: (String) -> Boolean): String {
+        val stamp = NOTE_PREFIX + clock.nowMillis().toString(RADIX)
         if (!taken(stamp)) return stamp
         var suffix = 1
         while (taken(stamp + SUFFIX_SEPARATOR + suffix.toString(RADIX))) suffix += 1
@@ -193,37 +117,12 @@ class NoteStore(
             } else {
                 note
             }
-        }
-        val folders = recoverFolders(
-            metadata.folders.filterNot { it.id in metadata.deletedFolderIds },
-            notes
-        )
-        val folderIds = folders.mapTo(HashSet()) { it.id }
-        val sanitized = notes.distinctBy { it.id }
-            .filter { it.folderId in folderIds && VALID_NOTE_ID.matches(it.id) }
-        val active = metadata.activeFolderId?.takeIf { id -> folders.any { it.id == id } }
-            ?: folders.firstOrNull()?.id
+        }.distinctBy { it.id }
         return Restored(
-            metadata = metadata.copy(folders = folders, activeFolderId = active),
-            notes = sanitized,
-            persistedNotes = sanitized.associateBy { it.id }
+            metadata = metadata,
+            notes = notes,
+            persistedNotes = notes.associateBy { it.id }
         )
-    }
-
-    private fun recoverFolders(stored: List<NoteFolder>, notes: List<NoteItem>): List<NoteFolder> {
-        val recovered = stored.distinctBy { it.id }.toMutableList()
-        val existing = recovered.mapTo(HashSet()) { it.id }
-        notes.map { it.folderId }.distinct().sorted().forEach { folderId ->
-            if (folderId !in existing) {
-                recovered += NoteFolder(
-                    id = folderId,
-                    title = RECOVERED_FOLDER_TITLE,
-                    position = recovered.size
-                )
-                existing += folderId
-            }
-        }
-        return recovered
     }
 
     private fun decodeMetadata(raw: String): NoteMetadata? = try {
@@ -244,11 +143,8 @@ class NoteStore(
         val nextRevision = revision + 1L
         val metadata = NoteMetadata(
             revision = nextRevision,
-            folders = foldersState.value,
             noteIds = byId.keys.sorted(),
-            deletedNoteIds = deletedNoteIds.sorted(),
-            deletedFolderIds = deletedFolderIds.sorted(),
-            activeFolderId = activeState.value
+            deletedNoteIds = deletedNoteIds.sorted()
         )
         try {
             val writes = LinkedHashMap<String, String>()
@@ -296,19 +192,14 @@ class NoteStore(
         val notes: List<NoteItem>,
         val persistedNotes: Map<String, NoteItem>
     ) {
-        val folders: List<NoteFolder> = metadata.folders
         val revision: Long = metadata.revision
-        val activeFolderId: String? = metadata.activeFolderId
         val deletedNoteIds: List<String> = metadata.deletedNoteIds
-        val deletedFolderIds: List<String> = metadata.deletedFolderIds
     }
 
     companion object {
         const val METADATA_FILE = "metadata.json"
         private const val JSON_SUFFIX = ".json"
-        private const val RECOVERED_FOLDER_TITLE = "Recovered"
         private val VALID_NOTE_ID = Regex("note-[a-z0-9]+(?:-[a-z0-9]+)*")
-        private const val FOLDER_PREFIX = "folder-"
         private const val NOTE_PREFIX = "note-"
         private const val SUFFIX_SEPARATOR = "-"
         private const val RADIX = 36

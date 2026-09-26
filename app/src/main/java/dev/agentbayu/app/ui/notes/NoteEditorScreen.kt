@@ -21,7 +21,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
@@ -30,8 +29,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
-import dev.agentbayu.app.domain.notes.NoteFolder
-import dev.agentbayu.app.ui.ai.AiDropdown
 import dev.agentbayu.app.ui.ai.AiScreenHeader
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
@@ -44,7 +41,6 @@ import dev.agentbayu.app.ui.theme.LocalScreenInsets
 fun NoteEditorScreen(
     isNew: Boolean,
     draft: NoteDraft,
-    folders: List<NoteFolder>,
     onDraftChange: (NoteDraft) -> Unit,
     onSave: () -> Unit,
     onDelete: () -> Unit,
@@ -97,20 +93,6 @@ fun NoteEditorScreen(
                     modifier = Modifier.size(18.dp)
                 )
             }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            AiDropdown(
-                selectedLabel = folders.firstOrNull { it.id == draft.folderId }?.title
-                    ?: stringResource(R.string.notes_folder_default),
-                options = folders.map { it.id to it.title },
-                onSelect = { onDraftChange(draft.copy(folderId = it)) },
-                selectedId = draft.folderId
-            )
         }
         Column(
             modifier = Modifier

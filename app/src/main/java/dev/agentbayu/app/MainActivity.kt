@@ -379,7 +379,7 @@ private fun TabContent(
 
         AgentBayuDestination.NOTES -> NotesRoute(
             onMessage = onMessage,
-            onOpenNote = { noteId, folderId -> controller.openNoteEditor(noteId, folderId) },
+            onOpenNote = { noteId -> controller.openNoteEditor(noteId) },
             modifier = Modifier.fillMaxSize()
         )
 

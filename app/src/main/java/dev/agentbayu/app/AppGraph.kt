@@ -407,10 +407,7 @@ object AppGraph {
                     SetTaskRemindersTool(store = { tasks(context) }),
                     CompleteTaskTool { tasks(context) },
                     DeleteTaskTool { tasks(context) },
-                    CreateNoteTool(
-                        store = { notes(context) },
-                        defaultFolderTitle = context.getString(R.string.notes_folder_default)
-                    ),
+                    CreateNoteTool(store = { notes(context) }),
                     ListNotesTool { notes(context) },
                     ReadNoteTool { notes(context) },
                     UpdateNoteTool { notes(context) },

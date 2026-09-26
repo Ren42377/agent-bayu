@@ -6,8 +6,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class CreateNoteTool(
-    private val store: () -> NoteStore,
-    private val defaultFolderTitle: String
+    private val store: () -> NoteStore
 ) : ToolHandler {
 
     override val spec: ToolSpec = ToolSpec(
@@ -23,15 +22,9 @@ class CreateNoteTool(
                 required = false
             ),
             ToolField(
-                name = "folder",
-                type = "string",
-                description = "Name of the folder to put the note in, created when missing",
-                required = false
-            ),
-            ToolField(
                 name = "pinned",
                 type = "boolean",
-                description = "Pin the note to the top of its folder",
+                description = "Pin the note to the top of the list",
                 required = false
             )
         )
@@ -45,15 +38,10 @@ class CreateNoteTool(
             return@withContext call.problem("A title or content is required")
         }
         val notes = store()
-        val folderId = folderIdFor(notes, arguments.text("folder"), defaultFolderTitle)
-        if (folderId.isEmpty()) {
-            return@withContext call.problem("The note folder could not be created")
-        }
-        val id = notes.createNote(folderId, title, content)
+        val id = notes.createNote(title, content)
         if (id.isEmpty()) return@withContext call.problem("The note was not stored")
         if (arguments.flag("pinned")) notes.setPinned(id, true)
-        val folderName = notes.findFolder(folderId)?.title.orEmpty()
-        call.reply("Created " + id + ": " + title.ifEmpty { "(untitled)" } + " in " + folderName)
+        call.reply("Created " + id + ": " + title.ifEmpty { "(untitled)" })
     }
 
     private companion object {
@@ -67,46 +55,21 @@ class ListNotesTool(private val store: () -> NoteStore) : ToolHandler {
         name = NAME,
         description = "List the owner markdown notes with their ids, so a note can be read " +
             "or updated later.",
-        parameters = toolSchema(
-            ToolField(
-                name = "folder",
-                type = "string",
-                description = "Name of one folder to read, otherwise every folder is read",
-                required = false
-            )
-        )
+        parameters = toolSchema()
     )
 
     override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
-        val arguments = ToolArguments(call.arguments)
         val notes = store()
-        val wanted = arguments.text("folder")
-        val folders = if (wanted == null) {
-            notes.folders.value
-        } else {
-            notes.folders.value.filter { it.title.equals(wanted, true) }
-        }
-        if (folders.isEmpty()) {
-            return@withContext call.reply(
-                if (wanted == null) "There are no notes yet" else "No folder named " + wanted
-            )
-        }
         val all = notes.notes.value
-        val lines = ArrayList<String>()
-        folders.sortedBy { it.position }.forEach { folder ->
-            lines += folder.title
-            val rows = all
-                .filter { it.folderId == folder.id }
-                .sortedWith(
-                    compareByDescending<NoteItem> { it.pinned }
-                        .thenByDescending { it.updatedAtMillis }
-                )
-            if (rows.isEmpty()) {
-                lines += INDENT + "no notes"
-            } else {
-                rows.forEach { note -> lines += INDENT + describe(note) }
-            }
+        if (all.isEmpty()) {
+            return@withContext call.reply("There are no notes yet")
         }
+        val lines = all
+            .sortedWith(
+                compareByDescending<NoteItem> { it.pinned }
+                    .thenByDescending { it.updatedAtMillis }
+            )
+            .map { note -> describe(note) }
         call.reply(lines.joinToString("\n"))
     }
 
@@ -120,7 +83,6 @@ class ListNotesTool(private val store: () -> NoteStore) : ToolHandler {
 
     private companion object {
         const val NAME = "list_notes"
-        const val INDENT = "  "
     }
 }
 
@@ -138,13 +100,11 @@ class ReadNoteTool(private val store: () -> NoteStore) : ToolHandler {
     override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
         val noteId = ToolArguments(call.arguments).text("note_id")
             ?: return@withContext call.problem("A note_id is required")
-        val notes = store()
-        val note = notes.find(noteId)
+        val note = store().find(noteId)
             ?: return@withContext call.problem("No note with id " + noteId)
         val lines = ArrayList<String>()
         lines += "Id: " + note.id
         lines += "Title: " + note.title.ifEmpty { "(untitled)" }
-        lines += "Folder: " + (notes.findFolder(note.folderId)?.title ?: note.folderId)
         lines += "Pinned: " + if (note.pinned) "yes" else "no"
         lines += "Content:"
         lines += note.content.ifBlank { "(empty)" }
@@ -160,8 +120,8 @@ class UpdateNoteTool(private val store: () -> NoteStore) : ToolHandler {
 
     override val spec: ToolSpec = ToolSpec(
         name = NAME,
-        description = "Update one note: rename its title, replace its markdown content, pin " +
-            "or unpin it, or move it to another folder. Read the ids with list_notes first.",
+        description = "Update one note: rename its title, replace its markdown content, or " +
+            "pin and unpin it. Read the ids with list_notes first.",
         parameters = toolSchema(
             ToolField("note_id", "string", "Id of the note, as reported by list_notes"),
             ToolField(
@@ -174,12 +134,6 @@ class UpdateNoteTool(private val store: () -> NoteStore) : ToolHandler {
                 name = "content",
                 type = "string",
                 description = "New markdown body, replaces the current one",
-                required = false
-            ),
-            ToolField(
-                name = "folder",
-                type = "string",
-                description = "Name of the folder to move the note to",
                 required = false
             ),
             ToolField(
@@ -202,13 +156,6 @@ class UpdateNoteTool(private val store: () -> NoteStore) : ToolHandler {
         arguments.raw("title")?.let { title -> updated = updated.copy(title = title.trim()) }
         arguments.raw("content")?.let { content -> updated = updated.copy(content = content) }
         if (updated != note) notes.upsertNote(updated)
-        arguments.text("folder")?.let { wanted ->
-            val folderId = folderIdFor(notes, wanted)
-            if (folderId.isEmpty()) {
-                return@withContext call.problem("Cannot move the note to folder " + wanted)
-            }
-            notes.moveToFolder(noteId, folderId)
-        }
         if (arguments.contains("pinned")) {
             notes.setPinned(noteId, arguments.flag("pinned"))
         }
@@ -243,21 +190,4 @@ class DeleteNoteTool(private val store: () -> NoteStore) : ToolHandler {
     private companion object {
         const val NAME = "delete_note"
     }
-}
-
-internal fun folderIdFor(
-    notes: NoteStore,
-    wanted: String?,
-    fallbackTitle: String? = null
-): String {
-    if (wanted != null) {
-        val match = notes.folders.value.firstOrNull { it.title.equals(wanted, true) }
-        if (match != null) return match.id
-        return notes.createFolder(wanted)
-    }
-    val active = notes.activeFolderId.value
-    if (active != null && notes.findFolder(active) != null) return active
-    val first = notes.folders.value.firstOrNull()
-    if (first != null) return first.id
-    return fallbackTitle?.let(notes::createFolder).orEmpty()
 }
