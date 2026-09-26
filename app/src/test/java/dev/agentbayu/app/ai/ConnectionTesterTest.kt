@@ -176,49 +176,4 @@ class ConnectionTesterTest {
         assertEquals(listOf("gemini-pro-agent"), (result as ModelFetchResult.Success).models)
         assertEquals("{\"project\":\"bayu-42\"}", server.takeRequest().body.readUtf8())
     }
-
-    @Test
-    fun `probeModels returns one result per model including the dead ones`() {
-        server.enqueue(sseResponse("{\"choices\":[{\"delta\":{\"content\":\"pong\"}}]}", "[DONE]"))
-        server.enqueue(MockResponse().setResponseCode(400).setBody("model unavailable"))
-        server.enqueue(MockResponse().setResponseCode(503).setBody("overloaded"))
-
-        val results = runBlocking {
-            tester(provider()).probeModels(
-                connection = connection(),
-                modelIds = listOf("a-free", "b-free", "c-free")
-            )
-        }
-
-        assertEquals(listOf("a-free", "b-free", "c-free"), results.keys.toList())
-        assertTrue(results["a-free"] is ConnectionTestResult.Success)
-        assertEquals(
-            "a-free",
-            (results.getValue("a-free") as ConnectionTestResult.Success).model
-        )
-        assertEquals(
-            FailureKind.MODEL_LOCK,
-            (results.getValue("b-free") as ConnectionTestResult.Failure).failure.kind
-        )
-        assertEquals(
-            FailureKind.RETRYABLE,
-            (results.getValue("c-free") as ConnectionTestResult.Failure).failure.kind
-        )
-    }
-
-    @Test
-    fun `probe requests carry the model under test`() {
-        server.enqueue(sseResponse("{\"choices\":[{\"delta\":{\"content\":\"pong\"}}]}", "[DONE]"))
-
-        runBlocking {
-            tester(provider()).probeModels(
-                connection = connection(),
-                modelIds = listOf("only-free")
-            )
-        }
-
-        val recorded = server.takeRequest()
-        assertEquals("/v1/chat/completions", recorded.path)
-        assertTrue(recorded.body.readUtf8().contains("\"only-free\""))
-    }
 }

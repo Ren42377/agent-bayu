@@ -104,9 +104,24 @@ internal fun readTokens(
     val extras = HashMap(previous?.extras.orEmpty())
     val claim = config.accountClaim
     val field = config.accountField
+    val planField = config.planField
     val idToken = root.stringField("id_token")
-    if (idToken != null && !claim.isNullOrBlank() && !field.isNullOrBlank()) {
-        JwtClaims.claim(idToken, claim, field)?.let { value -> extras[field] = value }
+    if (idToken != null && !claim.isNullOrBlank()) {
+        if (!field.isNullOrBlank()) {
+            JwtClaims.claim(idToken, claim, field)?.let { value -> extras[field] = value }
+        }
+        if (!planField.isNullOrBlank()) {
+            JwtClaims.claim(idToken, claim, planField)?.let { value -> extras[planField] = value }
+        }
+    }
+    if (!config.emailClaim.isNullOrBlank()) {
+        val email = idToken?.let { JwtClaims.claim(it, config.emailClaim, null) }
+            ?: root.stringField("access_token")?.let { token ->
+                JwtClaims.claim(token, config.emailClaim, null)
+            }
+        if (!email.isNullOrBlank()) {
+            extras[Credential.EMAIL_EXTRA] = email
+        }
     }
     return Credential.OAuthTokens(
         accessToken = accessToken,

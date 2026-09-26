@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -49,6 +50,7 @@ data class ProviderRowState(
     val keyHint: String?,
     val acceptsKey: Boolean,
     val hasCredential: Boolean,
+    val accountEmail: String? = null,
     val isActive: Boolean
 )
 
@@ -60,6 +62,11 @@ fun ProvidersScreen(
     onEdit: (String) -> Unit,
     onActivate: (String) -> Unit,
     onDelete: (String) -> Unit,
+    onUsage: () -> Unit = {},
+    onUpdateCatalog: () -> Unit = {},
+    catalogUpdateAvailable: Boolean = false,
+    catalogRefreshing: Boolean = false,
+    catalogLastUpdated: String? = null,
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
@@ -68,7 +75,15 @@ fun ProvidersScreen(
             .fillMaxSize()
             .padding(top = insets.calculateTopPadding())
     ) {
-        AiScreenHeader(title = stringResource(R.string.providers_title), onBack = onBack)
+        AiScreenHeader(title = stringResource(R.string.providers_title), onBack = onBack) {
+            GlassIconButton(onClick = onUsage) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_data_usage),
+                    contentDescription = stringResource(R.string.usage_title),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -124,7 +139,7 @@ fun ProvidersScreen(
                 }
             }
         }
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(
@@ -132,8 +147,42 @@ fun ProvidersScreen(
                     end = 16.dp,
                     top = 12.dp,
                     bottom = 12.dp + insets.calculateBottomPadding()
-                )
+                ),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (catalogUpdateAvailable) {
+                catalogLastUpdated?.let { updated ->
+                    Text(
+                        text = stringResource(R.string.providers_catalog_updated_at, updated),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                }
+                GlassButton(
+                    onClick = onUpdateCatalog,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !catalogRefreshing,
+                    contentPadding = PaddingValues(vertical = 12.dp)
+                ) {
+                    if (catalogRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp
+                        )
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_refresh),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = stringResource(R.string.providers_update_catalog),
+                        style = MaterialTheme.typography.labelLarge
+                    )
+                }
+            }
             GlassButton(
                 onClick = onAdd,
                 modifier = Modifier.fillMaxWidth(),
@@ -202,6 +251,13 @@ private fun ConnectionCard(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            row.accountEmail?.let { email ->
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
             Text(
                 text = stringResource(
                     R.string.providers_meta,

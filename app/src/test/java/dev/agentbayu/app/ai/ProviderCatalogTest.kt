@@ -234,20 +234,37 @@ class ProviderCatalogTest {
     }
 
     @Test
-    fun `agy keeps the level inside the model id and offers no effort ladder`() {
+    fun `agy unifies each family and exposes the effort ladder`() {
         val provider = catalog.find("agy")!!
 
-        assertEquals(EffortMode.NONE, provider.effortMode)
-        provider.models.forEach { model ->
+        assertEquals(EffortMode.REQUEST_FIELD, provider.effortMode)
+        assertEquals(
+            listOf(ReasoningEffort.LOW, ReasoningEffort.MEDIUM, ReasoningEffort.HIGH),
+            availableEfforts(provider, "gemini-3.8-flash")
+        )
+        assertEquals(
+            listOf(ReasoningEffort.LOW, ReasoningEffort.HIGH),
+            availableEfforts(provider, "gemini-3.1-pro")
+        )
+        assertEquals(
+            "gemini-3.8-flash-high(high)",
+            provider.model("gemini-3.8-flash")?.upstreamByEffort?.get("high")
+        )
+        assertEquals(
+            "gemini-pro-agent",
+            provider.model("gemini-3.1-pro")?.upstreamByEffort?.get("high")
+        )
+        provider.models.filter { it.deprecated }.forEach { model ->
             assertTrue(model.id, model.efforts.isEmpty())
-            assertTrue(model.id, availableEfforts(provider, model.id).isEmpty())
         }
         listOf(
-            "gemini-3.7-flash-high",
-            "gemini-3.7-flash-medium",
-            "gemini-3.7-flash-low",
-            "gemini-3.6-flash-high",
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.1-pro",
             "claude-opus-4-6-thinking",
+            "claude-sonnet-4-6",
             "gpt-oss-120b-medium"
         ).forEach { id ->
             assertNotNull(id, provider.model(id))
@@ -280,6 +297,13 @@ class ProviderCatalogTest {
                 "codex/gpt-5.6-sol",
                 "codex/gpt-5.6-terra",
                 "codex/gpt-5.6-luna",
+                "agy/gemini-3.8-flash",
+                "agy/gemini-3.7-flash",
+                "agy/gemini-3.6-flash",
+                "agy/gemini-3.5-flash",
+                "agy/gemini-3.1-pro",
+                "agy/claude-opus-4-6-thinking",
+                "agy/claude-sonnet-4-6",
                 "agy/gemini-3.8-flash-high",
                 "agy/gemini-3.8-flash-medium",
                 "agy/gemini-3.8-flash-low",
@@ -291,11 +315,9 @@ class ProviderCatalogTest {
                 "agy/gemini-3.6-flash-low",
                 "agy/gemini-3.5-flash-low",
                 "agy/gemini-3.5-flash-extra-low",
+                "agy/gemini-3.5-flash-high",
                 "agy/gemini-pro-agent",
                 "agy/gemini-3.1-pro-low",
-                "agy/claude-opus-4-6-thinking",
-                "agy/claude-sonnet-4-6",
-                "agy/gemini-3.5-flash-high",
                 "agy/gemini-3-flash-agent",
                 "agy/gemini-3-flash"
             ),
@@ -312,19 +334,59 @@ class ProviderCatalogTest {
     fun `agy hides the retired duplicates but still resolves their limits`() {
         val provider = catalog.find("agy")!!
         val retired = listOf(
+            "gemini-3.8-flash-high",
+            "gemini-3.8-flash-medium",
+            "gemini-3.8-flash-low",
+            "gemini-3.7-flash-high",
+            "gemini-3.7-flash-medium",
+            "gemini-3.7-flash-low",
+            "gemini-3.6-flash-high",
+            "gemini-3.6-flash-medium",
+            "gemini-3.6-flash-low",
+            "gemini-3.5-flash-low",
+            "gemini-3.5-flash-extra-low",
             "gemini-3.5-flash-high",
+            "gemini-pro-agent",
+            "gemini-3.1-pro-low",
             "gemini-3-flash-agent",
             "gemini-3-flash"
         )
 
-        assertEquals(19, provider.models.size)
-        assertEquals(16, provider.selectableModels.size)
+        assertEquals(24, provider.models.size)
+        assertEquals(8, provider.selectableModels.size)
         retired.forEach { id ->
             assertNotNull(id, provider.model(id))
             assertTrue(id, provider.model(id)!!.deprecated)
             assertFalse(id, provider.pickerModelIds().contains(id))
         }
-        assertEquals("gemini-3.8-flash-high", provider.selectableModels.first().id)
+        assertEquals("gemini-3.8-flash", provider.selectableModels.first().id)
+    }
+
+    @Test
+    fun `codex sol is gated to paid plans and terra luna stay open`() {
+        val provider = catalog.find("codex")!!
+
+        assertEquals(
+            listOf("plus", "pro", "team", "business", "enterprise", "edu"),
+            provider.model("gpt-5.6-sol")?.plans
+        )
+        assertTrue(provider.model("gpt-5.6-terra")!!.plans.isEmpty())
+        assertTrue(provider.model("gpt-5.6-luna")!!.plans.isEmpty())
+        assertEquals("chatgpt_plan_type", provider.oauth?.planField)
+    }
+
+    @Test
+    fun `bundled catalog is self contained and declares its version`() {
+        assertNull(catalog.updateUrl)
+        assertEquals(2, catalog.version)
+    }
+
+    @Test
+    fun `agy blocks retired ids that no longer have a catalog entry`() {
+        val provider = catalog.find("agy")!!
+
+        assertTrue("gemini-2.5-pro" in provider.retiredModels)
+        assertTrue("gemini-1.5-pro" in provider.retiredModels)
     }
 
     @Test

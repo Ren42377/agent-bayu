@@ -70,6 +70,66 @@ class ConnectionStore(
         upsert(target.copy(projectId = trimmed))
     }
 
+    fun setDiscoveredModels(connectionId: String, models: List<String>) {
+        val target = find(connectionId) ?: return
+        val cleaned = models.map { it.trim() }.filter { it.isNotEmpty() }.distinct()
+        if (target.discoveredModels == cleaned) return
+        upsert(target.copy(discoveredModels = cleaned))
+    }
+
+    fun addCustomModel(connectionId: String, modelId: String) {
+        val target = find(connectionId) ?: return
+        val trimmed = modelId.trim()
+        if (trimmed.isEmpty()) return
+        if (trimmed in target.customModels) return
+        upsert(target.copy(customModels = target.customModels + trimmed))
+    }
+
+    fun removeCustomModel(connectionId: String, modelId: String) {
+        val target = find(connectionId) ?: return
+        if (modelId !in target.customModels) return
+        upsert(target.copy(customModels = target.customModels - modelId))
+    }
+
+    fun applyAccountLabel(connectionId: String, email: String?, providerLabel: String?) {
+        val target = find(connectionId) ?: return
+        val trimmed = email?.trim().orEmpty()
+        if (trimmed.isEmpty()) return
+        if (target.label.contains(trimmed, ignoreCase = true)) return
+        val base = providerLabel?.trim()?.takeIf { it.isNotEmpty() } ?: target.label
+        upsert(target.copy(label = base + ACCOUNT_LABEL_SEPARATOR + trimmed))
+    }
+
+    fun migrateModels(catalog: ProviderCatalog) {
+        state.value.forEach { connection ->
+            val provider = catalog.find(connection.providerId) ?: return@forEach
+            val current = connection.model.trim()
+            if (current.isEmpty()) return@forEach
+            val retired = isRetiredModel(provider, current)
+            val deprecated = provider.model(current)?.deprecated == true
+            if (!retired && !deprecated) return@forEach
+            val target = migrationTarget(provider, current) ?: return@forEach
+            val effort = connection.effort ?: splitEffortSuffix(current)?.second
+            upsert(connection.copy(model = target, effort = effort))
+        }
+    }
+
+    private fun migrationTarget(provider: ProviderEntry, current: String): String? {
+        val fallback = provider.selectableModels.firstOrNull()?.id ?: return null
+        val candidate = normalizeDiscoveredModelId(provider, current).trim()
+        if (candidate.isEmpty()) return fallback
+        if (isRetiredModel(provider, candidate)) return fallback
+        if (provider.model(candidate)?.deprecated == true) return fallback
+        return candidate
+    }
+
+    fun setContextLength(connectionId: String, contextLength: Int?) {
+        val target = find(connectionId) ?: return
+        val normalized = contextLength?.takeIf { it > 0 }
+        if (target.contextLengthOverride == normalized) return
+        upsert(target.copy(contextLengthOverride = normalized))
+    }
+
     fun setActive(connectionId: String) {
         if (activeState.value == connectionId) return
         if (find(connectionId) == null) return
@@ -112,6 +172,7 @@ class ConnectionStore(
 
     companion object {
         const val FILE_NAME = "connections.bin"
+        const val ACCOUNT_LABEL_SEPARATOR = " - "
         private const val ID_PREFIX = "conn-"
         private const val RADIX = 36
     }

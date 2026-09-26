@@ -4,6 +4,7 @@ import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ModelEntry
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.RouteFailure
 import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.coroutines.flow.Flow
@@ -49,7 +50,12 @@ class AntigravityAdapter(
             .build()
 
         val tools = ToolCallBuffer()
-        return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
+        return StreamingHttp.stream(
+            client,
+            httpRequest,
+            candidate.provider.timeoutMillis,
+            candidate.connection.id
+        ) { chunk ->
             parseAntigravityChunk(chunk, tools)
         }.releasingToolCalls(tools)
     }
@@ -72,7 +78,7 @@ internal fun antigravityBody(
     sessionId: String,
     nowMillis: Long
 ): JsonObject = buildJsonObject {
-    val model = antigravityModel(candidate.model)
+    val model = antigravityModel(resolveAntigravityUpstream(candidate.model, request.effort))
     val contents = antigravityTurns(request.turns)
     put(PROJECT, projectId)
     put(
@@ -200,6 +206,13 @@ internal fun antigravityTurns(turns: List<ChatTurn>): List<ChatTurn> {
 
 internal fun resolveAntigravityModelId(modelId: String): String =
     MODEL_ALIASES[modelId] ?: modelId
+
+internal fun resolveAntigravityUpstream(model: ModelEntry, effort: ReasoningEffort?): String {
+    val mapped = effort
+        ?.let { model.upstreamByEffort[it.wireValue] }
+        ?.takeIf { it.isNotBlank() }
+    return mapped ?: resolveAntigravityModelId(model)
+}
 
 internal fun resolveAntigravityModelId(model: ModelEntry): String {
     val upstream = model.upstreamId?.takeIf { it.isNotBlank() }

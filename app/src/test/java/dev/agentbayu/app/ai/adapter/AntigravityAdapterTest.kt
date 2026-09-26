@@ -3,8 +3,11 @@ package dev.agentbayu.app.ai.adapter
 import dev.agentbayu.app.ai.Candidate
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.ModelEntry
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ai.WireFormat
 import dev.agentbayu.app.ai.testCandidate
+import dev.agentbayu.app.ai.testConnection
+import dev.agentbayu.app.ai.testProvider
 import dev.agentbayu.app.ai.tools.ToolCall
 import kotlinx.serialization.json.JsonObject
 import okhttp3.mockwebserver.MockWebServer
@@ -55,12 +58,14 @@ class AntigravityAdapterTest {
         systemPrompt: String? = "be brief",
         turns: List<ChatTurn> = listOf(ChatTurn(ChatRole.USER, "hello")),
         maxOutputTokens: Int? = 512,
-        temperature: Double? = 0.4
+        temperature: Double? = 0.4,
+        effort: ReasoningEffort? = null
     ) = ChatRequest(
         systemPrompt = systemPrompt,
         turns = turns,
         maxOutputTokens = maxOutputTokens,
-        temperature = temperature
+        temperature = temperature,
+        effort = effort
     )
 
     private fun bodyOf(
@@ -352,6 +357,85 @@ class AntigravityAdapterTest {
             "gemini-3.7-flash-tiered(high)",
             resolveAntigravityModelId(ModelEntry(id = "gemini-3.7-flash", upstreamId = " "))
         )
+    }
+
+    @Test
+    fun theEffortSelectsTheUnifiedUpstreamName() {
+        val model = ModelEntry(
+            id = "gemini-3.8-flash",
+            contextLength = 1_048_576,
+            maxOutputTokens = 64_000,
+            vision = true,
+            upstreamByEffort = mapOf(
+                "low" to "gemini-3.8-flash-low(low)",
+                "medium" to "gemini-3.8-flash-medium(medium)",
+                "high" to "gemini-3.8-flash-high(high)"
+            )
+        )
+
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-low", "low"),
+            antigravityModel(resolveAntigravityUpstream(model, ReasoningEffort.LOW))
+        )
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-medium", "medium"),
+            antigravityModel(resolveAntigravityUpstream(model, ReasoningEffort.MEDIUM))
+        )
+        assertEquals(
+            AntigravityModel("gemini-3.8-flash-high", "high"),
+            antigravityModel(resolveAntigravityUpstream(model, ReasoningEffort.HIGH))
+        )
+        assertEquals(
+            "gemini-3.7-flash-tiered(high)",
+            resolveAntigravityUpstream(ModelEntry(id = "gemini-3.7-flash"), null)
+        )
+        assertEquals(
+            "gemini-3.7-flash-tiered(low)",
+            resolveAntigravityUpstream(
+                ModelEntry(id = "gemini-3.7-flash", upstreamId = "gemini-3.7-flash-tiered(low)"),
+                ReasoningEffort.HIGH
+            )
+        )
+    }
+
+    @Test
+    fun theEffortMappedUpstreamNameDrivesTheWireBody() {
+        val model = ModelEntry(
+            id = "gemini-3.8-flash",
+            contextLength = 1_048_576,
+            maxOutputTokens = 64_000,
+            vision = true,
+            upstreamByEffort = mapOf(
+                "low" to "gemini-3.8-flash-low(low)",
+                "medium" to "gemini-3.8-flash-medium(medium)",
+                "high" to "gemini-3.8-flash-high(high)"
+            )
+        )
+        val route = Candidate(
+            connection = testConnection(
+                id = "conn-1",
+                providerId = "agy",
+                model = "gemini-3.8-flash",
+                projectId = "projects/42"
+            ),
+            provider = testProvider(
+                id = "agy",
+                wireFormat = WireFormat.ANTIGRAVITY,
+                baseUrl = server.url("/").toString(),
+                models = listOf(model),
+                extraHeaders = mapOf("User-Agent" to IDE_USER_AGENT)
+            ),
+            model = model
+        )
+
+        val body = bodyOf(route = route, request = chat(effort = ReasoningEffort.LOW))
+
+        assertEquals("gemini-3.8-flash-low", body.stringField("model"))
+        val thinking = body.objectField("request")
+            ?.objectField("generationConfig")
+            ?.objectField("thinkingConfig")
+        assertEquals("low", thinking?.stringField("thinkingLevel"))
+        assertTrue(thinking?.booleanField("includeThoughts") == true)
     }
 
     @Test

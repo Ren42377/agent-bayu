@@ -7,6 +7,7 @@ import dev.agentbayu.app.ui.ai.AiConnectionEditRoute
 import dev.agentbayu.app.ui.ai.AiDeviceCodeRoute
 import dev.agentbayu.app.ui.ai.AiLogsRoute
 import dev.agentbayu.app.ui.ai.AiProvidersRoute
+import dev.agentbayu.app.ui.ai.AiUsageRoute
 import dev.agentbayu.app.ui.components.PageStackHost
 import dev.agentbayu.app.ui.components.PageStackProgress
 import dev.agentbayu.app.ui.settings.CustomPromptRoute
@@ -29,6 +30,7 @@ fun AppPageHost(
             AppPage.Providers -> AiProvidersRoute(
                 onBack = controller::back,
                 onEdit = controller::openConnection,
+                onUsage = controller::openUsage,
                 onMessage = onMessage
             )
 
@@ -38,6 +40,11 @@ fun AppPageHost(
             )
 
             AppPage.CustomPrompt -> CustomPromptRoute(
+                onBack = controller::back,
+                onMessage = onMessage
+            )
+
+            AppPage.Usage -> AiUsageRoute(
                 onBack = controller::back,
                 onMessage = onMessage
             )

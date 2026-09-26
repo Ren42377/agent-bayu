@@ -11,6 +11,8 @@ sealed interface AppPage {
 
     data object CustomPrompt : AppPage
 
+    data object Usage : AppPage
+
     data class Connection(val connectionId: String?) : AppPage
 
     data class DeviceCode(val connectionId: String) : AppPage
@@ -39,6 +41,10 @@ class AppPageController {
     fun openCustomPrompt() {
         stack.clear()
         stack.add(AppPage.CustomPrompt)
+    }
+
+    fun openUsage() {
+        stack.add(AppPage.Usage)
     }
 
     fun openConnection(connectionId: String?) {

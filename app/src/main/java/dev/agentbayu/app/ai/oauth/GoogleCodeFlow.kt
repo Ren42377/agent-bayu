@@ -6,6 +6,8 @@ import dev.agentbayu.app.ai.FailureClassifier
 import dev.agentbayu.app.ai.FailureKind
 import dev.agentbayu.app.ai.RealClock
 import dev.agentbayu.app.ai.RouteFailure
+import dev.agentbayu.app.ai.adapter.parseJsonObject
+import dev.agentbayu.app.ai.adapter.stringField
 import java.io.IOException
 import java.net.InetAddress
 import java.net.ServerSocket
@@ -162,7 +164,34 @@ class GoogleCodeFlow(
         if (!outcome.successful) return BrowserLoginResult.Failure(outcome.asFailure())
         val tokens = readTokens(outcome.body, config, null, clock.nowMillis())
             ?: return BrowserLoginResult.Failure(malformed())
-        return BrowserLoginResult.Success(tokens)
+        val settled = fetchEmail(config, tokens)
+            ?: return BrowserLoginResult.Success(tokens)
+        return BrowserLoginResult.Success(settled)
+    }
+
+    private suspend fun fetchEmail(
+        config: OAuthConfig,
+        tokens: Credential.OAuthTokens
+    ): Credential.OAuthTokens? {
+        val url = config.userinfoUrl?.takeIf { it.isNotBlank() } ?: return null
+        val email = try {
+            withContext(Dispatchers.IO) {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Accept", "application/json")
+                    .header("Authorization", "Bearer " + tokens.accessToken)
+                    .build()
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use null
+                    parseJsonObject(response.body?.string().orEmpty())
+                        ?.stringField(EMAIL_FIELD)
+                        ?.takeIf { it.isNotBlank() }
+                }
+            }
+        } catch (error: IOException) {
+            null
+        } ?: return null
+        return tokens.copy(extras = tokens.extras + (Credential.EMAIL_EXTRA to email))
     }
 
     private fun buildAuthorizeUrl(
@@ -284,6 +313,7 @@ class GoogleCodeFlow(
         const val ERROR = "error"
         const val GRANT_TYPE = "grant_type"
         const val AUTHORIZATION_CODE_GRANT = "authorization_code"
+        const val EMAIL_FIELD = "email"
         const val DEFAULT_TIMEOUT_MILLIS = 300_000L
         private const val LOOPBACK_HOST = "127.0.0.1"
         private const val DEFAULT_REDIRECT_PATH = "/callback"

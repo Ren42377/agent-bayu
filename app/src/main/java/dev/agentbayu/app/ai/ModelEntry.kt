@@ -14,6 +14,8 @@ data class ModelEntry(
     val outputPricePerMillion: Double? = null,
     val unsupportedParams: List<String> = emptyList(),
     val efforts: List<ReasoningEffort> = emptyList(),
+    val upstreamByEffort: Map<String, String> = emptyMap(),
+    val plans: List<String> = emptyList(),
     val free: Boolean = false,
     val vision: Boolean = false,
     val tools: Boolean = false,

@@ -36,7 +36,12 @@ class AnthropicAdapter(private val client: OkHttpClient) : ChatAdapter {
         var inputTokens = 0
         var outputTokens = 0
 
-        return StreamingHttp.stream(client, httpRequest, candidate.provider.timeoutMillis) { chunk ->
+        return StreamingHttp.stream(
+            client,
+            httpRequest,
+            candidate.provider.timeoutMillis,
+            candidate.connection.id
+        ) { chunk ->
             val root = parseJsonObject(chunk)
             if (root == null) {
                 emptyList()

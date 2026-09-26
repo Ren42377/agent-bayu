@@ -48,6 +48,7 @@ data class ProviderOption(
     val efforts: List<ReasoningEffort>,
     val effort: ReasoningEffort?,
     val authKind: AuthKind,
+    val accountEmail: String? = null,
     val isActive: Boolean,
     val ready: Boolean
 )
@@ -185,6 +186,13 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            option.accountEmail?.let { email ->
+                Text(
+                    text = email,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                )
+            }
             Text(
                 text = if (option.ready) {
                     authKindLabel(option.authKind)

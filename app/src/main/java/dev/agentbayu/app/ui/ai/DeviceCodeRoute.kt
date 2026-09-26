@@ -18,6 +18,7 @@ import androidx.compose.ui.text.AnnotatedString
 import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ConnectionHealth
+import dev.agentbayu.app.ai.accountEmailOf
 import dev.agentbayu.app.ai.oauth.DeviceCodeResult
 import dev.agentbayu.app.ai.oauth.DeviceCodeStartResult
 import dev.agentbayu.app.ui.components.GlassDialog
@@ -85,6 +86,11 @@ fun AiDeviceCodeRoute(
             is DeviceCodeResult.Success -> {
                 credentials.put(connectionId, result.tokens)
                 store.markHealth(connectionId, ConnectionHealth.READY, null)
+                store.applyAccountLabel(
+                    connectionId = connectionId,
+                    email = accountEmailOf(result.tokens),
+                    providerLabel = provider?.label
+                )
                 ui = DeviceCodeUiState.Done
                 onMessage(successMessage)
                 onBack()

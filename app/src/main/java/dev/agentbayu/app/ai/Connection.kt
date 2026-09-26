@@ -22,6 +22,8 @@ data class Connection(
     val keyHint: String? = null,
     val projectId: String? = null,
     val effort: ReasoningEffort? = null,
+    val contextLengthOverride: Int? = null,
+    val customModels: List<String> = emptyList(),
     val createdAtMillis: Long = 0L
 )
 

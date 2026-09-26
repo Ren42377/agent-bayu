@@ -66,6 +66,7 @@ fun testProvider(
     supportsStreamUsage: Boolean = false,
     modelsPath: String? = null,
     modelIdFilter: String? = null,
+    retiredModels: List<String> = emptyList(),
     timeoutMillis: Long = ProviderEntry.DEFAULT_TIMEOUT_MILLIS,
     unsupportedParams: List<String> = emptyList(),
     effortMode: EffortMode = EffortMode.NONE,
@@ -90,6 +91,7 @@ fun testProvider(
     supportsStreamUsage = supportsStreamUsage,
     modelsPath = modelsPath,
     modelIdFilter = modelIdFilter,
+    retiredModels = retiredModels,
     timeoutMillis = timeoutMillis,
     unsupportedParams = unsupportedParams,
     effortMode = effortMode,
@@ -109,6 +111,8 @@ fun testConnection(
     discoveredModels: List<String> = emptyList(),
     projectId: String? = null,
     effort: ReasoningEffort? = null,
+    contextLengthOverride: Int? = null,
+    customModels: List<String> = emptyList(),
     health: ConnectionHealth = ConnectionHealth.READY,
     createdAtMillis: Long = 0L
 ): Connection = Connection(
@@ -120,6 +124,8 @@ fun testConnection(
     discoveredModels = discoveredModels,
     projectId = projectId,
     effort = effort,
+    contextLengthOverride = contextLengthOverride,
+    customModels = customModels,
     health = health,
     createdAtMillis = createdAtMillis
 )
@@ -156,6 +162,8 @@ fun testCandidate(
     providerVision: Boolean = false,
     tools: Boolean = false,
     providerTools: Boolean = false,
+    upstreamByEffort: Map<String, String> = emptyMap(),
+    plans: List<String> = emptyList(),
     oauth: OAuthConfig? = null
 ): Candidate {
     val model = ModelEntry(
@@ -167,6 +175,8 @@ fun testCandidate(
         inputPricePerMillion = inputPrice,
         outputPricePerMillion = outputPrice,
         unsupportedParams = modelUnsupportedParams,
+        upstreamByEffort = upstreamByEffort,
+        plans = plans,
         free = free,
         vision = vision,
         tools = tools

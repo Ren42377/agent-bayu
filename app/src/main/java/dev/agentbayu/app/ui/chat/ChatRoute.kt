@@ -31,7 +31,10 @@ import dev.agentbayu.app.AppGraph
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.AuthKind
 import dev.agentbayu.app.ai.Candidate
+import dev.agentbayu.app.ai.accountEmailOf
 import dev.agentbayu.app.ai.availableEfforts
+import dev.agentbayu.app.ai.planTypeOf
+import dev.agentbayu.app.ai.pickerModelIds
 import dev.agentbayu.app.ai.resolveActiveConnection
 import dev.agentbayu.app.ai.resolveEffort
 import dev.agentbayu.app.domain.ChatMessage
@@ -55,7 +58,8 @@ fun ChatRoute(
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
     val chat = remember(context) { AppGraph.chat(context) }
-    val catalog = remember(context) { AppGraph.catalog(context) }
+    val catalogRepository = remember(context) { AppGraph.catalogRepository(context) }
+    val catalog by catalogRepository.catalog.collectAsState()
     val credentials = remember(context) { AppGraph.credentials(context) }
     val connectionStore = remember(context) { AppGraph.connections(context) }
     val attachmentStore = remember(context) { AppGraph.attachments(context) }
@@ -144,12 +148,12 @@ fun ChatRoute(
     }
 
     val active = remember(connections, activeId) { resolveActiveConnection(connections, activeId) }
-    val canAttach = remember(active) {
+    val canAttach = remember(active, catalog) {
         val connection = active ?: return@remember false
         val provider = catalog.find(connection.providerId) ?: return@remember false
         Candidate(connection, provider, provider.modelOrFallback(connection.model)).supportsVision
     }
-    val options = remember(connections, activeId) {
+    val options = remember(connections, activeId, catalog) {
         connections.map { connection ->
             val provider = catalog.find(connection.providerId)
             val hasCredential = provider?.requiresCredential != true ||
@@ -157,17 +161,21 @@ fun ChatRoute(
             val efforts = provider
                 ?.let { availableEfforts(it, connection.model, connection.discoveredModels) }
                 .orEmpty()
+            val plan = provider
+                ?.let { planTypeOf(credentials.credential(connection.id), it) }
             ProviderOption(
                 connectionId = connection.id,
                 label = connection.label,
                 providerLabel = provider?.label ?: connection.providerId,
                 model = connection.model,
                 models = provider
-                    ?.pickerModelIds(connection.discoveredModels, connection.model)
+                    ?.let { pickerModelIds(it, connection, plan) }
                     .orEmpty(),
                 efforts = efforts,
                 effort = resolveEffort(efforts, connection.effort, connection.model),
                 authKind = provider?.authKind ?: AuthKind.API_KEY,
+                accountEmail = provider
+                    ?.let { accountEmailOf(credentials.credential(connection.id)) },
                 isActive = connection.id == active?.id,
                 ready = provider != null && hasCredential
             )

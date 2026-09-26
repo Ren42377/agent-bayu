@@ -58,13 +58,12 @@ data class ConnectionEditState(
     val keyHint: String?,
     val model: String,
     val modelOptions: List<String>,
-    val modelProbes: Map<String, String>,
+    val contextStop: Int,
     val baseUrl: String,
     val isNew: Boolean,
     val loggedIn: Boolean = false,
     val testing: Boolean = false,
-    val refreshing: Boolean = false,
-    val probing: Boolean = false
+    val refreshing: Boolean = false
 ) {
     val modelEntry: ModelEntry?
         get() = provider?.model(model)
@@ -75,15 +74,19 @@ data class ConnectionEditActions(
     val onLabelChange: (String) -> Unit,
     val onKeyChange: (String) -> Unit,
     val onModelChange: (String) -> Unit,
+    val onRequestAddCustomModel: () -> Unit,
+    val onContextStopSelected: (Int) -> Unit,
+    val onContextDefault: () -> Unit,
     val onBaseUrlChange: (String) -> Unit,
     val onRefreshModels: () -> Unit,
-    val onProbeModels: () -> Unit,
     val onTest: () -> Unit,
     val onSave: () -> Unit,
     val onLogin: () -> Unit,
     val onOpenKeyUrl: (String) -> Unit,
     val onBack: () -> Unit
 )
+
+private const val ADD_CUSTOM_MODEL_OPTION = "__add_custom_model__"
 
 @Composable
 fun ConnectionEditScreen(
@@ -317,32 +320,44 @@ private fun ProviderNotes(provider: ProviderEntry) {
 @Composable
 private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActions) {
     val provider = state.provider ?: return
+    val addCustomLabel = stringResource(R.string.connection_model_add)
     FormSection(title = stringResource(R.string.connection_model_section)) {
         if (state.modelOptions.isNotEmpty()) {
+            val options = state.modelOptions.map { it to it } +
+                listOf(ADD_CUSTOM_MODEL_OPTION to addCustomLabel)
             AiDropdown(
                 selectedLabel = state.model,
-                options = state.modelOptions.map { it to it },
-                onSelect = actions.onModelChange,
+                options = options,
+                onSelect = { id ->
+                    if (id == ADD_CUSTOM_MODEL_OPTION) {
+                        actions.onRequestAddCustomModel()
+                    } else {
+                        actions.onModelChange(id)
+                    }
+                },
                 selectedId = state.model
             )
-        }
-        if (provider.allowCustomModel || state.modelOptions.isEmpty()) {
-            OutlinedTextField(
-                value = state.model,
-                onValueChange = actions.onModelChange,
-                label = { Text(text = stringResource(R.string.connection_custom_model_hint)) },
-                singleLine = true,
-                shape = MaterialTheme.shapes.medium,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                ),
-                modifier = Modifier.fillMaxWidth()
-            )
+        } else {
+            GlassButton(
+                onClick = actions.onRequestAddCustomModel,
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(vertical = 10.dp)
+            ) {
+                Text(
+                    text = addCustomLabel,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
         }
         state.modelEntry?.let { entry ->
+            val contextText = if (state.contextStop >= 0) {
+                CONTEXT_WINDOW_STOPS[state.contextStop]
+            } else {
+                entry.contextLength
+            }
             Text(
-                text = stringResource(R.string.connection_model_context, formatTokens(entry.contextLength)),
+                text = stringResource(R.string.connection_model_context, contextWindowLabel(contextText)),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -365,61 +380,56 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 )
             }
         }
-        if (provider.modelsPath != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.connection_context_title).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                modifier = Modifier.weight(1f)
+            )
+            if (state.contextStop >= 0) {
                 GlassButton(
-                    onClick = actions.onRefreshModels,
-                    enabled = !state.refreshing,
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+                    onClick = actions.onContextDefault,
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    if (state.refreshing) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_refresh),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
-                    }
                     Text(
-                        text = stringResource(R.string.connection_refresh_models),
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-                GlassButton(
-                    onClick = actions.onProbeModels,
-                    enabled = !state.probing && state.modelOptions.isNotEmpty(),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
-                ) {
-                    if (state.probing) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                    }
-                    Text(
-                        text = stringResource(R.string.connection_probe_models),
-                        style = MaterialTheme.typography.labelMedium
+                        text = stringResource(R.string.connection_context_default),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
         }
-        ModelProbeList(state = state)
-    }
-}
-
-@Composable
-private fun ModelProbeList(state: ConnectionEditState) {
-    if (state.modelProbes.isEmpty()) return
-    Text(
-        text = stringResource(R.string.connection_probe_result_title),
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant
-    )
-    state.modelOptions.forEach { modelId ->
-        val status = state.modelProbes[modelId] ?: return@forEach
-        Text(
-            text = stringResource(R.string.connection_probe_result_line, modelId, status),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+        ContextWindowSlider(
+            stopCount = CONTEXT_WINDOW_STOPS.size,
+            selectedIndex = state.contextStop,
+            labelOf = { index -> contextWindowLabel(CONTEXT_WINDOW_STOPS[index]) },
+            onSelect = actions.onContextStopSelected
         )
+        if (provider.modelsPath != null) {
+            GlassButton(
+                onClick = actions.onRefreshModels,
+                enabled = !state.refreshing,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp)
+            ) {
+                if (state.refreshing) {
+                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                } else {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_refresh),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.connection_refresh_models),
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
+        }
     }
 }
 
