@@ -107,7 +107,7 @@ class QuotaFetcherTest {
             jsonResponse(
                 "{\"response\":{\"groups\":[{\"buckets\":[" +
                     "{\"bucketId\":\"3p-5h\",\"remainingFraction\":0.5}" +
-                    "]}}]}"
+                    "]}]}}"
             )
         )
         val fetcher = fetcher(agyProvider(), FixedCredentials("token-123"))
