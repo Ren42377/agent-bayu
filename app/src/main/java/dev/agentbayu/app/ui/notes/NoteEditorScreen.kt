@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.notes
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -22,10 +21,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
@@ -34,7 +31,6 @@ import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.MarkdownMessage
 import dev.agentbayu.app.ui.tasks.TaskTextField
-import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 
 @Composable
@@ -93,6 +89,19 @@ fun NoteEditorScreen(
                     modifier = Modifier.size(18.dp)
                 )
             }
+            if (!isNew) {
+                GlassIconButton(
+                    onClick = onDelete,
+                    size = 38.dp
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_delete),
+                        contentDescription = stringResource(R.string.notes_delete),
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
         }
         Column(
             modifier = Modifier
@@ -138,19 +147,6 @@ fun NoteEditorScreen(
                         focusedBorderColor = MaterialTheme.colorScheme.primary,
                         unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
                     )
-                )
-            }
-            if (!isNew) {
-                Text(
-                    text = stringResource(R.string.notes_delete),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.error,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(CapsuleShape)
-                        .clickable(onClick = onDelete)
-                        .padding(vertical = 12.dp)
                 )
             }
         }
