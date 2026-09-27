@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
@@ -31,8 +32,9 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.FilledControlDark
+import dev.agentbayu.app.ui.theme.FilledControlLight
 import dev.agentbayu.app.ui.theme.liquidGlass
-import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -87,9 +89,9 @@ fun GlassButton(
     val raised by remember(interactiveHighlight) {
         derivedStateOf { interactiveHighlight.pressProgress > 0f }
     }
-    val isDark = LocalDarkTheme.current
-    val effectiveTint = if (tint.isSpecified && isDark && tint == MaterialTheme.colorScheme.primary) {
-        FilledControlDark
+    val darkFraction = LocalThemeDarkFraction.current
+    val effectiveTint = if (tint.isSpecified && tint == MaterialTheme.colorScheme.primary) {
+        lerp(FilledControlLight, FilledControlDark, darkFraction)
     } else {
         tint
     }

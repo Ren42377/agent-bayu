@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
@@ -28,9 +29,10 @@ fun AmbientBackground(
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val baseColor = MaterialTheme.colorScheme.background
-        val auraPrimary = Color.Black.copy(alpha = 0.08f)
-        val auraSecondary = Color.Black.copy(alpha = 0.07f)
-        val auraTertiary = Color.Black.copy(alpha = 0.05f)
+        val auraScale = 1f - LocalThemeDarkFraction.current
+        val auraPrimary = Color.Black.copy(alpha = 0.08f * auraScale)
+        val auraSecondary = Color.Black.copy(alpha = 0.07f * auraScale)
+        val auraTertiary = Color.Black.copy(alpha = 0.05f * auraScale)
 
         val drift = remember { mutableFloatStateOf(0f) }
         LaunchedEffect(darkTheme) {
@@ -43,7 +45,7 @@ fun AmbientBackground(
 
         Canvas(modifier = canvasModifier.fillMaxSize()) {
             drawRect(color = baseColor)
-            if (darkTheme) return@Canvas
+            if (auraScale <= 0f) return@Canvas
 
             val elapsed = drift.floatValue
             val primaryCenter = driftCenter(

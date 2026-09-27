@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
@@ -44,6 +45,8 @@ import dev.agentbayu.app.domain.MessageSegment
 import dev.agentbayu.app.ui.theme.AppleGreenDark
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.FilledControlDark
+import dev.agentbayu.app.ui.theme.FilledControlLight
+import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.UserBubbleShape
@@ -153,8 +156,7 @@ private fun UserMessage(
     onEdit: ((ChatMessage) -> Unit)? = null,
     onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
-    val isDark = LocalDarkTheme.current
-    val userTint = if (isDark) FilledControlDark else MaterialTheme.colorScheme.primary
+    val userTint = lerp(FilledControlLight, FilledControlDark, LocalThemeDarkFraction.current)
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End
@@ -184,7 +186,7 @@ private fun UserMessage(
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = if (isDark) Color.White else MaterialTheme.colorScheme.onPrimary
+                    color = Color.White
                 )
             }
         }

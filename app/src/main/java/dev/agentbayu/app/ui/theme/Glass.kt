@@ -16,8 +16,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.lerp
+import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.emptyBackdrop
@@ -57,34 +60,46 @@ val LocalGlassStyle = compositionLocalOf {
 
 val LocalGlassBackdrop = staticCompositionLocalOf { emptyBackdrop() }
 
+val lightGlassStyle = GlassStyle(
+    fill = GlassFillLight,
+    highlight = GlassHighlightLight,
+    strokeWidth = 1.dp,
+    elevation = 4.dp,
+    highlightAlpha = 0.7f,
+    brightness = 0.12f,
+    surface = GlassSurfaceLight,
+    surfaceEdge = GlassEdgeLight,
+    surfaceElevation = 5.dp
+)
+
+val darkGlassStyle = GlassStyle(
+    fill = GlassFillDark,
+    highlight = GlassHighlightDark,
+    strokeWidth = 1.dp,
+    elevation = 6.dp,
+    highlightAlpha = 0.7f,
+    brightness = 0f,
+    surface = GlassSurfaceDark,
+    surfaceEdge = GlassEdgeDark,
+    surfaceElevation = 0.dp
+)
+
 @Composable
 fun currentGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
-    return if (darkTheme) {
-        GlassStyle(
-            fill = GlassFillDark,
-            highlight = GlassHighlightDark,
-            strokeWidth = 1.dp,
-            elevation = 6.dp,
-            highlightAlpha = 0.7f,
-            brightness = 0f,
-            surface = GlassSurfaceDark,
-            surfaceEdge = GlassEdgeDark,
-            surfaceElevation = 0.dp
-        )
-    } else {
-        GlassStyle(
-            fill = GlassFillLight,
-            highlight = GlassHighlightLight,
-            strokeWidth = 1.dp,
-            elevation = 4.dp,
-            highlightAlpha = 0.7f,
-            brightness = 0.12f,
-            surface = GlassSurfaceLight,
-            surfaceEdge = GlassEdgeLight,
-            surfaceElevation = 5.dp
-        )
-    }
+    return if (darkTheme) darkGlassStyle else lightGlassStyle
 }
+
+internal fun GlassStyle.blend(other: GlassStyle, fraction: Float): GlassStyle = copy(
+    fill = lerp(fill, other.fill, fraction),
+    highlight = lerp(highlight, other.highlight, fraction),
+    strokeWidth = lerp(strokeWidth, other.strokeWidth, fraction),
+    elevation = lerp(elevation, other.elevation, fraction),
+    brightness = lerp(brightness, other.brightness, fraction),
+    saturation = lerp(saturation, other.saturation, fraction),
+    surface = lerp(surface, other.surface, fraction),
+    surfaceEdge = lerp(surfaceEdge, other.surfaceEdge, fraction),
+    surfaceElevation = lerp(surfaceElevation, other.surfaceElevation, fraction)
+)
 
 @Composable
 fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {

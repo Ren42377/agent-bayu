@@ -45,8 +45,8 @@ import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
 import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
-import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
+import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 import kotlinx.coroutines.flow.collectLatest
 
 @Composable
@@ -58,8 +58,8 @@ fun GlassToggle(
     interactive: Boolean = true,
     backdrop: Backdrop = LocalGlassBackdrop.current
 ) {
-    val darkTheme = LocalDarkTheme.current
-    val accentColor = if (darkTheme) Color.White else MaterialTheme.colorScheme.primary
+    val darkFraction = LocalThemeDarkFraction.current
+    val accentColor = MaterialTheme.colorScheme.primary
     val trackColor = MaterialTheme.colorScheme.surfaceVariant
 
     val density = LocalDensity.current
@@ -205,11 +205,8 @@ fun GlassToggle(
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
-                        val surfaceColor = if (darkTheme) {
-                            lerp(Color.White, Color.Black, dampedDragAnimation.value)
-                        } else {
-                            Color.White
-                        }
+                        val thumbFraction = darkFraction * dampedDragAnimation.value
+                        val surfaceColor = lerp(Color.White, Color.Black, thumbFraction)
                         drawRect(surfaceColor.copy(alpha = 1f - dampedDragAnimation.pressProgress))
                     }
                 )
