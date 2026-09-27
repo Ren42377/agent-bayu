@@ -73,6 +73,18 @@ class WebSearchToolTest {
     }
 
     @Test
+    fun aFailedPrimaryWithAnEmptyFallbackStillSaysThereAreNoResults() = runBlocking {
+        val primary = RecordingBackend("Primary", emptyList(), failing = true)
+        val fallback = RecordingBackend("Fallback", emptyList())
+
+        val result = tool(primary, fallback).run(query("emas"))
+
+        assertFalse(result.isError)
+        assertEquals("No results for emas", result.content)
+        assertEquals(1, fallback.calls)
+    }
+
+    @Test
     fun aQueryIsRequired() = runBlocking {
         val result = tool(
             RecordingBackend("Primary", emptyList()),

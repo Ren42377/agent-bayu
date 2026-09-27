@@ -84,10 +84,21 @@ class WebSearchTool internal constructor(
             freshness = freshnessOf(arguments.text("freshness"))
         )
         val failure = StringBuilder()
-        val results = attempt(primary, request, failure)
-            ?: attempt(fallback, request, failure)
-            ?: return@withContext call.problem(failure.toString())
-        if (results.isEmpty()) return@withContext call.reply(NO_RESULTS + query)
+        val fromPrimary = attempt(primary, request, failure)
+        val fromFallback = if (fromPrimary.isNullOrEmpty()) {
+            attempt(fallback, request, failure)
+        } else {
+            null
+        }
+        val results = if (!fromPrimary.isNullOrEmpty()) fromPrimary else fromFallback.orEmpty()
+        if (results.isEmpty()) {
+            val answered = fromPrimary != null || fromFallback != null
+            return@withContext if (answered) {
+                call.reply(NO_RESULTS + query)
+            } else {
+                call.problem(failure.toString())
+            }
+        }
         call.reply(renderResults(query, results, clock.nowMillis(), zone))
     }
 
