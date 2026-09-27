@@ -52,6 +52,7 @@ import dev.agentbayu.app.ai.tools.MoveFileTool
 import dev.agentbayu.app.ai.tools.ReadFileTool
 import dev.agentbayu.app.ai.tools.ReadNoteTool
 import dev.agentbayu.app.ai.tools.ReadTaskTool
+import dev.agentbayu.app.ai.tools.ReadWebPageTool
 import dev.agentbayu.app.ai.tools.RequestPermissionTool
 import dev.agentbayu.app.ai.tools.SearchFilesTool
 import dev.agentbayu.app.ai.tools.SetTaskDeadlineTool
