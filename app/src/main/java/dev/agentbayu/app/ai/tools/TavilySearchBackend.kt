@@ -32,7 +32,7 @@ internal class TavilySearchBackend(
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
-    override val name: String = SOURCE
+    override val name: String = TAVILY_SOURCE
 
     override suspend fun search(query: SearchQuery): List<SearchResult> =
         withContext(Dispatchers.IO) {
@@ -71,7 +71,6 @@ internal class TavilySearchBackend(
         }
 
     private companion object {
-        const val SOURCE = "Tavily"
         const val ENDPOINT = "https://api.tavily.com/search"
         const val DEPTH = "basic"
         const val TOPIC_NEWS = "news"
@@ -83,6 +82,10 @@ internal class TavilySearchBackend(
         const val UNREACHABLE = "Cannot reach the search service right now"
     }
 }
+
+private const val TAVILY_SOURCE = "Tavily"
+
+private const val UNREADABLE = "The search service sent back something that could not be read"
 
 private val JSON_MEDIA = "application/json; charset=utf-8".toMediaType()
 
@@ -118,7 +121,7 @@ internal fun parseTavilyResponse(payload: String): List<SearchResult> {
                 link = link,
                 summary = tidyTavily(item.stringOf("content")),
                 publishedAt = epochOfTavily(item.stringOf("published_date")),
-                source = "Tavily",
+                source = TAVILY_SOURCE,
                 dateKind = DateKind.PUBLISHED
             )
         }

@@ -4,7 +4,6 @@ import java.io.IOException
 import java.time.Instant
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
-import java.util.Locale
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -23,7 +22,7 @@ internal class BingSearchBackend(
         .callTimeout(CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 
-    override val name: String = SOURCE
+    override val name: String = BING_SOURCE
 
     override suspend fun search(query: SearchQuery): List<SearchResult> =
         withContext(Dispatchers.IO) {
@@ -85,7 +84,6 @@ internal class BingSearchBackend(
     }
 
     private companion object {
-        const val SOURCE = "Bing"
         const val NEWS_ENDPOINT = "https://www.bing.com/news/search"
         const val WEB_ENDPOINT = "https://www.bing.com/search"
         const val MAX_FETCH = 8
@@ -97,6 +95,8 @@ internal class BingSearchBackend(
                 "Chrome/126.0.0.0 Mobile Safari/537.36"
     }
 }
+
+private const val BING_SOURCE = "Bing"
 
 private sealed interface Feed {
     class Loaded(val body: String) : Feed
@@ -127,7 +127,7 @@ internal fun parseSearchFeed(feed: String, limit: Int, dateKind: DateKind): List
                     link = link,
                     summary = tidyFeed(rawTagOf(item, "description")),
                     publishedAt = epochOf(unescape(rawTagOf(item, "pubDate"))),
-                    source = "Bing",
+                    source = BING_SOURCE,
                     dateKind = dateKind
                 )
             }
