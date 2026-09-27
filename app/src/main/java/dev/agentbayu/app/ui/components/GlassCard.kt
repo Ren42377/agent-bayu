@@ -35,7 +35,7 @@ fun GlassBadge(
     Box(
         modifier = modifier
             .size(size)
-            .glassSurface(shape = shape, tint = containerColor, elevation = BADGE_ELEVATION),
+            .glassSurface(shape = shape, tint = containerColor),
         contentAlignment = Alignment.Center
     ) {
         Icon(
@@ -47,7 +47,6 @@ fun GlassBadge(
     }
 }
 
-private val BADGE_ELEVATION = 2.dp
 
 @Composable
 fun GlassPill(

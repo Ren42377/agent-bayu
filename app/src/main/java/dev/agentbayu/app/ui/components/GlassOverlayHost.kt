@@ -49,7 +49,6 @@ import com.kyant.backdrop.effects.colorControls
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
-import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassOverlayDimDark
 import dev.agentbayu.app.ui.theme.GlassOverlayDimLight
@@ -61,7 +60,7 @@ import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.PanelShape
-import dev.agentbayu.app.ui.theme.ScrimBlack
+
 
 @Stable
 class GlassOverlayController {
@@ -238,9 +237,6 @@ private fun GlassOverlayPanel(
                         }
                     },
                     highlight = { Highlight.Plain },
-                    shadow = {
-                        Shadow(radius = 28.dp, color = ScrimBlack.copy(alpha = 0.3f))
-                    },
                     layerBlock = {
                         val progress = animation.value
                         alpha = progress

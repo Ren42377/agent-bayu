@@ -43,7 +43,6 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
@@ -189,9 +188,6 @@ fun GlassToggle(
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
                             alpha = dampedDragAnimation.pressProgress
                         )
-                    },
-                    shadow = {
-                        Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.05f))
                     },
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress

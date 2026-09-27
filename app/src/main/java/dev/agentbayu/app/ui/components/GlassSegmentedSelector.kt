@@ -53,7 +53,6 @@ import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
@@ -240,9 +239,6 @@ internal fun GlassSegmentedSelector(
                     },
                     highlight = {
                         Highlight.Default.copy(alpha = dragAnimation.pressProgress)
-                    },
-                    shadow = {
-                        Shadow(alpha = dragAnimation.pressProgress)
                     },
                     innerShadow = {
                         val progress = dragAnimation.pressProgress

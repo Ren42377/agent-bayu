@@ -45,7 +45,6 @@ import androidx.compose.ui.util.fastRoundToInt
 import com.kyant.backdrop.drawBackdrop
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ui.components.DampedDragAnimation
 import dev.agentbayu.app.ui.theme.AppleGreenLight
@@ -297,9 +296,6 @@ private fun EffortSlider(
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
                             alpha = dragAnimation.pressProgress
                         )
-                    },
-                    shadow = {
-                        Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.05f))
                     },
                     innerShadow = {
                         val progress = dragAnimation.pressProgress

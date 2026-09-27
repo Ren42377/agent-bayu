@@ -9,7 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
@@ -30,14 +29,12 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.highlight.HighlightStyle
-import com.kyant.backdrop.shadow.Shadow
 
 @Immutable
 data class GlassStyle(
     val fill: Color,
     val highlight: Color,
     val strokeWidth: Dp = 1.dp,
-    val elevation: Dp = 4.dp,
     val refractionHeightRatio: Float = 0.5f,
     val refractionAmountRatio: Float = 1f,
     val highlightAlpha: Float = 0.6f,
@@ -45,8 +42,7 @@ data class GlassStyle(
     val saturation: Float = 1f,
     val vibrant: Boolean = true,
     val surface: Color = fill,
-    val surfaceEdge: Color = highlight,
-    val surfaceElevation: Dp = elevation
+    val surfaceEdge: Color = highlight
 )
 
 val LocalGlassStyle = compositionLocalOf {
@@ -64,24 +60,20 @@ val lightGlassStyle = GlassStyle(
     fill = GlassFillLight,
     highlight = GlassHighlightLight,
     strokeWidth = 1.dp,
-    elevation = 4.dp,
     highlightAlpha = 0.7f,
     brightness = 0.12f,
     surface = GlassSurfaceLight,
-    surfaceEdge = GlassEdgeLight,
-    surfaceElevation = 5.dp
+    surfaceEdge = GlassEdgeLight
 )
 
 val darkGlassStyle = GlassStyle(
     fill = GlassFillDark,
     highlight = GlassHighlightDark,
     strokeWidth = 1.dp,
-    elevation = 6.dp,
     highlightAlpha = 0.7f,
     brightness = 0f,
     surface = GlassSurfaceDark,
-    surfaceEdge = GlassEdgeDark,
-    surfaceElevation = 0.dp
+    surfaceEdge = GlassEdgeDark
 )
 
 @Composable
@@ -93,12 +85,10 @@ internal fun GlassStyle.blend(other: GlassStyle, fraction: Float): GlassStyle = 
     fill = lerp(fill, other.fill, fraction),
     highlight = lerp(highlight, other.highlight, fraction),
     strokeWidth = lerp(strokeWidth, other.strokeWidth, fraction),
-    elevation = lerp(elevation, other.elevation, fraction),
     brightness = lerp(brightness, other.brightness, fraction),
     saturation = lerp(saturation, other.saturation, fraction),
     surface = lerp(surface, other.surface, fraction),
-    surfaceEdge = lerp(surfaceEdge, other.surfaceEdge, fraction),
-    surfaceElevation = lerp(surfaceElevation, other.surfaceElevation, fraction)
+    surfaceEdge = lerp(surfaceEdge, other.surfaceEdge, fraction)
 )
 
 @Composable
@@ -129,14 +119,12 @@ fun Modifier.glassSurface(
     shape: Shape = GlassCardShape,
     style: GlassStyle = LocalGlassStyle.current,
     tint: Color = Color.Unspecified,
-    elevation: Dp = style.surfaceElevation,
     bordered: Boolean = true
 ): Modifier {
     val edgeColor = remember(style.surfaceEdge, style.highlightAlpha) {
         style.surfaceEdge.copy(alpha = style.surfaceEdge.alpha * style.highlightAlpha)
     }
     return this
-        .shadow(elevation = elevation, shape = shape, clip = true)
         .drawBehind {
             drawRect(color = style.surface)
             if (tint.isSpecified) drawRect(color = tint)
@@ -193,12 +181,6 @@ fun Modifier.liquidGlass(
                 width = style.strokeWidth,
                 alpha = style.highlightAlpha,
                 style = HighlightStyle.Default(color = style.highlight)
-            )
-        },
-        shadow = {
-            Shadow(
-                radius = style.elevation * 2f,
-                color = ScrimBlack.copy(alpha = 0.2f)
             )
         },
         onDrawSurface = {
