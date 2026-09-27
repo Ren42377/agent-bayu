@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -122,7 +123,7 @@ private fun WaitingCard(state: BrowserLoginUiState.Waiting, actions: BrowserLogi
                     Text(
                         text = stringResource(R.string.browser_open),
                         style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onPrimary
+                        color = LocalContentColor.current
                     )
                 }
             }
@@ -185,7 +186,7 @@ private fun FailedCard(state: BrowserLoginUiState.Failed, actions: BrowserLoginA
                 Text(
                     text = stringResource(R.string.browser_retry),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = LocalContentColor.current
                 )
             }
         }

@@ -34,6 +34,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.notes.NoteItem
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
+import dev.agentbayu.app.ui.components.pressScaleFeedback
 import dev.agentbayu.app.ui.tasks.dayLabel
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
@@ -182,6 +183,7 @@ private fun NoteRowItem(
             .glassSurface(shape = GlassCardShape)
             .clip(GlassCardShape)
             .clickable(onClick = onOpen)
+            .pressScaleFeedback()
             .padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

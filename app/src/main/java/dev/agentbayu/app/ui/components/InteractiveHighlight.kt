@@ -77,7 +77,7 @@ internal fun Modifier.pressScaleFeedback(enabled: Boolean = true): Modifier {
     }
     return this
         .graphicsLayer {
-            val scale = 1f - PRESS_SCALE_DELTA * highlight.pressProgress
+            val scale = 1f + PRESS_SCALE_DELTA * highlight.pressProgress
             scaleX = scale
             scaleY = scale
         }

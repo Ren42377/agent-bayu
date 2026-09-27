@@ -48,6 +48,7 @@ fun SuggestionRows(
                     .fillMaxWidth()
                     .clip(CapsuleShape)
                     .clickable { onSelect(suggestion.label) }
+                    .pressScaleFeedback()
                     .padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(14.dp)

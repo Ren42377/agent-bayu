@@ -33,6 +33,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -415,7 +416,7 @@ private fun AssistantInputBar(
                 ),
                 tint = when {
                     isResponding -> Color.White
-                    canSend -> MaterialTheme.colorScheme.onPrimary
+                    canSend -> LocalContentColor.current
                     else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 },
                 modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)

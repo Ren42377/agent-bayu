@@ -25,6 +25,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -212,13 +213,13 @@ fun ProvidersScreen(
                 Icon(
                     painter = painterResource(R.drawable.ic_add),
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = LocalContentColor.current,
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
                     text = stringResource(R.string.providers_add),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = LocalContentColor.current
                 )
             }
         }

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -167,7 +168,7 @@ private fun CustomPromptActions(
             onClick = onSave,
             modifier = Modifier.weight(1f),
             tint = MaterialTheme.colorScheme.primary,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = LocalContentColor.current
         )
     }
 }

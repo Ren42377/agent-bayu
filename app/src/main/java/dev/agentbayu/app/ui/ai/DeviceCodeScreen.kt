@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -148,7 +149,7 @@ private fun WaitingCard(state: DeviceCodeUiState.Waiting, actions: DeviceCodeAct
                         Text(
                             text = stringResource(R.string.device_open_browser),
                             style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.onPrimary
+                            color = LocalContentColor.current
                         )
                     }
                 }
@@ -193,7 +194,7 @@ private fun FailedCard(state: DeviceCodeUiState.Failed, actions: DeviceCodeActio
                 Text(
                     text = stringResource(R.string.device_retry),
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = LocalContentColor.current
                 )
             }
         }
