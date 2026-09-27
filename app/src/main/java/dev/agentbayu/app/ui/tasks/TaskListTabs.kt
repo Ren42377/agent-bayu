@@ -1,9 +1,12 @@
 package dev.agentbayu.app.ui.tasks
 
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.AnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -43,6 +46,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskList
@@ -66,17 +70,17 @@ internal fun TaskListTabs(
     val targetBounds = tabBounds[selectedKey]
     val indicatorX by animateDpAsState(
         targetValue = with(density) { (targetBounds?.left ?: 0f).toDp() } + INDICATOR_INSET,
-        animationSpec = AgentBayuMotion.snappySpring,
+        animationSpec = indicatorSpring,
         label = "tabIndicatorX"
     )
     val indicatorY by animateDpAsState(
         targetValue = with(density) { (targetBounds?.bottom ?: 0f).toDp() } - INDICATOR_HEIGHT,
-        animationSpec = AgentBayuMotion.snappySpring,
+        animationSpec = indicatorSpring,
         label = "tabIndicatorY"
     )
     val indicatorWidth by animateDpAsState(
         targetValue = with(density) { (targetBounds?.width ?: 0f).toDp() } - INDICATOR_INSET * 2,
-        animationSpec = AgentBayuMotion.snappySpring,
+        animationSpec = indicatorSpring,
         label = "tabIndicatorWidth"
     )
     val indicatorAlpha by animateFloatAsState(
@@ -97,7 +101,6 @@ internal fun TaskListTabs(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TaskTab(
-                    tabKey = STARRED_KEY,
                     selected = starredOpen,
                     onClick = onSelectStarred,
                     onBounds = { bounds -> tabBounds[STARRED_KEY] = bounds }
@@ -123,7 +126,6 @@ internal fun TaskListTabs(
                 lists.forEach { list ->
                     val selected = !starredOpen && list.id == activeListId
                     TaskTab(
-                        tabKey = list.id,
                         selected = selected,
                         onClick = { onSelectList(list.id) },
                         onBounds = { bounds -> tabBounds[list.id] = bounds }
@@ -174,7 +176,6 @@ internal fun TaskListTabs(
 
 @Composable
 private fun TaskTab(
-    tabKey: String,
     selected: Boolean,
     onClick: () -> Unit,
     onBounds: (Rect) -> Unit,
@@ -214,5 +215,9 @@ private fun tabColor(selected: Boolean): Color = animateColorAsState(
 
 private val INDICATOR_HEIGHT = 2.dp
 private val INDICATOR_INSET = 8.dp
+private val indicatorSpring: AnimationSpec<Dp> = spring(
+    dampingRatio = 0.75f,
+    stiffness = Spring.StiffnessMedium
+)
 private const val STARRED_KEY = "starred"
 private const val TAB_ICON_ENTER_SCALE = 0.85f

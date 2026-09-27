@@ -173,10 +173,11 @@ fun NotesScreen(
 private fun NoteRowItem(
     note: NoteItem,
     onOpen: () -> Unit,
-    onMenu: () -> Unit
+    onMenu: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .glassSurface(shape = GlassCardShape)
             .clip(GlassCardShape)
