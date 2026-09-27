@@ -84,6 +84,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation("org.jsoup:jsoup:1.23.2")
     implementation("io.github.kyant0:backdrop:2.0.1")
     implementation("com.mikepenz:multiplatform-markdown-renderer-m3:0.43.0")
     implementation("com.mikepenz:multiplatform-markdown-renderer-code:0.43.0")

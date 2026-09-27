@@ -2,3 +2,5 @@
 
 -keep class ru.noties.jlatexmath.** { *; }
 -keep class org.scilab.forge.jlatexmath.** { *; }
+
+-dontwarn java.net.http.**

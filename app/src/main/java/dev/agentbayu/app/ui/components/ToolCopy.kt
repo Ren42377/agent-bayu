@@ -17,6 +17,7 @@ internal fun toolDisplayName(name: String): String = when (name) {
     "create_alarm" -> stringResource(R.string.tool_name_create_alarm)
     "delete_alarm" -> stringResource(R.string.tool_name_delete_alarm)
     "web_search" -> stringResource(R.string.tool_name_web_search)
+    "read_web_page" -> stringResource(R.string.tool_name_read_web_page)
     "list_files" -> stringResource(R.string.tool_name_list_files)
     "read_file" -> stringResource(R.string.tool_name_read_file)
     "search_files" -> stringResource(R.string.tool_name_search_files)

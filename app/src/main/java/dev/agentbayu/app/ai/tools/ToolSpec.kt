@@ -16,7 +16,8 @@ data class ToolField(
     val name: String,
     val type: String,
     val description: String,
-    val required: Boolean = true
+    val required: Boolean = true,
+    val options: List<String> = emptyList()
 )
 
 data class ToolSpec(
@@ -102,6 +103,11 @@ fun toolSchema(vararg fields: ToolField): JsonObject = buildJsonObject {
             putJsonObject(field.name) {
                 put("type", field.type)
                 put("description", field.description)
+                if (field.options.isNotEmpty()) {
+                    putJsonArray("enum") {
+                        field.options.forEach { option -> add(option) }
+                    }
+                }
             }
         }
     }
