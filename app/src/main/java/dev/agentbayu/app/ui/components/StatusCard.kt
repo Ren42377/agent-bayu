@@ -1,5 +1,12 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -15,6 +22,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -22,6 +30,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -39,6 +48,14 @@ fun StatusCard(
     onCheckedChange: ((Boolean) -> Unit)? = null
 ) {
     val activeColor = AppleGreenLight
+    val badgeTint by animateColorAsState(
+        targetValue = if (done) activeColor else Color.Transparent,
+        label = "statusBadgeTint"
+    )
+    val statusColor by animateColorAsState(
+        targetValue = if (done) activeColor else MaterialTheme.colorScheme.onSurfaceVariant,
+        label = "statusLabelColor"
+    )
 
     Box(
         modifier = modifier
@@ -53,25 +70,32 @@ fun StatusCard(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .glassSurface(
-                        shape = CircleShape,
-                        tint = if (done) activeColor else Color.Unspecified,
-                        elevation = 2.dp
-                    ),
+                    .glassSurface(shape = CircleShape, tint = badgeTint, elevation = 2.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(if (done) R.drawable.ic_check else R.drawable.ic_pending),
-                    contentDescription = stringResource(
-                        if (done) R.string.cd_status_ready else R.string.cd_status_pending
-                    ),
-                    tint = if (done) {
-                        Color.White
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                AnimatedContent(
+                    targetState = done,
+                    transitionSpec = {
+                        (fadeIn(AgentBayuMotion.quickFade) + scaleIn(initialScale = STATUS_ICON_ENTER_SCALE)) togetherWith
+                            (fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = STATUS_ICON_ENTER_SCALE))
                     },
-                    modifier = Modifier.size(18.dp)
-                )
+                    label = "statusIcon"
+                ) { ready ->
+                    Icon(
+                        painter = painterResource(
+                            if (ready) R.drawable.ic_check else R.drawable.ic_pending
+                        ),
+                        contentDescription = stringResource(
+                            if (ready) R.string.cd_status_ready else R.string.cd_status_pending
+                        ),
+                        tint = if (ready) {
+                            Color.White
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(14.dp))
@@ -87,11 +111,7 @@ fun StatusCard(
                         if (done) R.string.status_ready else R.string.status_pending
                     ),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (done) {
-                        activeColor
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    }
+                    color = statusColor
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -133,3 +153,5 @@ fun StatusCard(
         }
     }
 }
+
+private const val STATUS_ICON_ENTER_SCALE = 0.85f

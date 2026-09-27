@@ -1,5 +1,11 @@
 package dev.agentbayu.app.ui.tasks
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -25,6 +31,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.GlassOverlay
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -53,6 +60,31 @@ internal fun TaskQuickAddSheet(
     var starred by remember(visible) { mutableStateOf(false) }
     var step by remember(visible) { mutableStateOf(QuickStep.FORM) }
 
+    val detailsTint by animateColorAsState(
+        targetValue = if (detailsOpen) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "detailsTint"
+    )
+    val dueTint by animateColorAsState(
+        targetValue = if (dueAtMillis != null) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "dueTint"
+    )
+    val quickStarTint by animateColorAsState(
+        targetValue = if (starred) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "quickStarTint"
+    )
+
     fun draft(): QuickTask = QuickTask(
         title = title.trim(),
         details = details.trim(),
@@ -68,7 +100,11 @@ internal fun TaskQuickAddSheet(
                 hint = stringResource(R.string.tasks_quick_title_hint),
                 onValueChange = { title = it }
             )
-            if (detailsOpen) {
+            AnimatedVisibility(
+                visible = detailsOpen,
+                enter = expandVertically() + fadeIn(AgentBayuMotion.quickFade),
+                exit = shrinkVertically() + fadeOut(AgentBayuMotion.quickFade)
+            ) {
                 TaskTextField(
                     value = details,
                     hint = stringResource(R.string.tasks_detail_details_hint),
@@ -77,7 +113,11 @@ internal fun TaskQuickAddSheet(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
-            if (dueAtMillis != null) {
+            AnimatedVisibility(
+                visible = dueAtMillis != null,
+                enter = fadeIn(AgentBayuMotion.quickFade),
+                exit = fadeOut(AgentBayuMotion.quickFade)
+            ) {
                 Text(
                     text = quickDueLabel(dueAtMillis, hasTime),
                     style = MaterialTheme.typography.labelMedium,
@@ -93,11 +133,7 @@ internal fun TaskQuickAddSheet(
                     Icon(
                         painter = painterResource(R.drawable.ic_note),
                         contentDescription = stringResource(R.string.tasks_detail_details_hint),
-                        tint = if (detailsOpen) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint = detailsTint,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -110,11 +146,7 @@ internal fun TaskQuickAddSheet(
                     Icon(
                         painter = painterResource(R.drawable.ic_clock),
                         contentDescription = stringResource(R.string.tasks_detail_due),
-                        tint = if (dueAtMillis != null) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint = dueTint,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -124,11 +156,7 @@ internal fun TaskQuickAddSheet(
                             if (starred) R.drawable.ic_star else R.drawable.ic_star_outline
                         ),
                         contentDescription = stringResource(R.string.tasks_star),
-                        tint = if (starred) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
+                        tint = quickStarTint,
                         modifier = Modifier.size(18.dp)
                     )
                 }

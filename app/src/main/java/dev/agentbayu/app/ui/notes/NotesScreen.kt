@@ -1,5 +1,10 @@
 package dev.agentbayu.app.ui.notes
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -30,6 +35,7 @@ import dev.agentbayu.app.domain.notes.NoteItem
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.tasks.dayLabel
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -79,7 +85,13 @@ fun NotesScreen(
                     )
                 },
                 trailingIcon = {
-                    if (query.isNotEmpty()) {
+                    AnimatedVisibility(
+                        visible = query.isNotEmpty(),
+                        enter = fadeIn(AgentBayuMotion.quickFade) +
+                            scaleIn(initialScale = CLEAR_ICON_ENTER_SCALE),
+                        exit = fadeOut(AgentBayuMotion.quickFade) +
+                            scaleOut(targetScale = CLEAR_ICON_ENTER_SCALE)
+                    ) {
                         Icon(
                             painter = painterResource(R.drawable.ic_close),
                             contentDescription = null,
@@ -129,7 +141,8 @@ fun NotesScreen(
                     NoteRowItem(
                         note = note,
                         onOpen = { onOpenNote(note) },
-                        onMenu = { onNoteMenu(note) }
+                        onMenu = { onNoteMenu(note) },
+                        modifier = Modifier.animateItem()
                     )
                 }
             }
@@ -217,3 +230,5 @@ private fun NoteRowItem(
         }
     }
 }
+
+private const val CLEAR_ICON_ENTER_SCALE = 0.85f

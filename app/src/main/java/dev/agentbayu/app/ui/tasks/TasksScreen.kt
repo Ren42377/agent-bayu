@@ -1,8 +1,12 @@
 package dev.agentbayu.app.ui.tasks
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
@@ -122,32 +126,38 @@ fun TasksScreen(
             ) {
                 if (!notificationsAllowed) {
                     item(key = "notice-notifications") {
-                        TaskNotice(
-                            title = stringResource(R.string.tasks_permission_card_title),
-                            body = stringResource(R.string.tasks_permission_card_body),
-                            action = stringResource(R.string.tasks_permission_card_action),
-                            onAction = onRequestNotifications
-                        )
+                        Box(modifier = Modifier.animateItem()) {
+                            TaskNotice(
+                                title = stringResource(R.string.tasks_permission_card_title),
+                                body = stringResource(R.string.tasks_permission_card_body),
+                                action = stringResource(R.string.tasks_permission_card_action),
+                                onAction = onRequestNotifications
+                            )
+                        }
                     }
                 }
                 if (notificationsAllowed && !exactAlarmsAllowed) {
                     item(key = "notice-exact") {
-                        TaskNotice(
-                            title = stringResource(R.string.tasks_exact_card_title),
-                            body = stringResource(R.string.tasks_exact_card_body),
-                            action = stringResource(R.string.tasks_exact_card_action),
-                            onAction = onRequestExactAlarms
-                        )
+                        Box(modifier = Modifier.animateItem()) {
+                            TaskNotice(
+                                title = stringResource(R.string.tasks_exact_card_title),
+                                body = stringResource(R.string.tasks_exact_card_body),
+                                action = stringResource(R.string.tasks_exact_card_action),
+                                onAction = onRequestExactAlarms
+                            )
+                        }
                     }
                 }
                 if (notificationsAllowed && exactAlarmsAllowed && !batteryUnrestricted) {
                     item(key = "notice-battery") {
-                        TaskNotice(
-                            title = stringResource(R.string.tasks_battery_card_title),
-                            body = stringResource(R.string.tasks_battery_card_body),
-                            action = stringResource(R.string.tasks_battery_card_action),
-                            onAction = onRequestBattery
-                        )
+                        Box(modifier = Modifier.animateItem()) {
+                            TaskNotice(
+                                title = stringResource(R.string.tasks_battery_card_title),
+                                body = stringResource(R.string.tasks_battery_card_body),
+                                action = stringResource(R.string.tasks_battery_card_action),
+                                onAction = onRequestBattery
+                            )
+                        }
                     }
                 }
                 item(key = "card") {
@@ -200,7 +210,11 @@ fun TasksScreen(
                                     expanded = completedOpen,
                                     onToggle = { completedOpen = !completedOpen }
                                 )
-                                if (completedOpen) {
+                                AnimatedVisibility(
+                                    visible = completedOpen,
+                                    enter = expandVertically() + fadeIn(AgentBayuMotion.quickFade),
+                                    exit = shrinkVertically() + fadeOut(AgentBayuMotion.quickFade)
+                                ) {
                                     current.completed.forEach { task ->
                                         TaskRowItem(
                                             task = task,
@@ -291,6 +305,11 @@ private fun CompletedHeader(
     expanded: Boolean,
     onToggle: () -> Unit
 ) {
+    val chevronAngle by animateFloatAsState(
+        targetValue = if (expanded) 270f else 90f,
+        animationSpec = AgentBayuMotion.snappySpring,
+        label = "completedChevron"
+    )
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -311,7 +330,7 @@ private fun CompletedHeader(
             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             modifier = Modifier
                 .size(16.dp)
-                .rotate(if (expanded) 270f else 90f)
+                .rotate(chevronAngle)
         )
     }
 }

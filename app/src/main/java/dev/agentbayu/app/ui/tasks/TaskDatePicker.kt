@@ -1,5 +1,12 @@
 package dev.agentbayu.app.ui.tasks
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +43,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassOverlay
 import java.time.DayOfWeek
@@ -85,34 +93,53 @@ internal fun TaskDatePickerDialog(
                     }
                 }
             )
-            when (mode) {
-                DatePickerMode.DAYS -> {
-                    WeekdayHeader()
-                    MonthGrid(
-                        month = month,
-                        selected = initialDate,
-                        today = today,
-                        onSelect = { date ->
-                            onDismiss()
-                            onSelect(date)
+            AnimatedContent(
+                targetState = mode,
+                transitionSpec = {
+                    val direction = targetState.ordinal - initialState.ordinal
+                    (
+                        slideInHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                            direction * width
+                        } + fadeIn(AgentBayuMotion.navFadeSpec)
+                        ) togetherWith (
+                        slideOutHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                            -direction * width
+                        } + fadeOut(AgentBayuMotion.navFadeSpec)
+                        )
+                },
+                label = "datePickerMode"
+            ) { currentMode ->
+                Column {
+                    when (currentMode) {
+                        DatePickerMode.DAYS -> {
+                            WeekdayHeader()
+                            MonthGrid(
+                                month = month,
+                                selected = initialDate,
+                                today = today,
+                                onSelect = { date ->
+                                    onDismiss()
+                                    onSelect(date)
+                                }
+                            )
                         }
-                    )
+                        DatePickerMode.MONTHS -> MonthPicker(
+                            month = month,
+                            onSelect = { value ->
+                                month = month.withMonth(value.value)
+                                mode = DatePickerMode.DAYS
+                            }
+                        )
+                        DatePickerMode.YEARS -> YearPicker(
+                            month = month,
+                            today = today,
+                            onSelect = { year ->
+                                month = month.withYear(year)
+                                mode = DatePickerMode.DAYS
+                            }
+                        )
+                    }
                 }
-                DatePickerMode.MONTHS -> MonthPicker(
-                    month = month,
-                    onSelect = { value ->
-                        month = month.withMonth(value.value)
-                        mode = DatePickerMode.DAYS
-                    }
-                )
-                DatePickerMode.YEARS -> YearPicker(
-                    month = month,
-                    today = today,
-                    onSelect = { year ->
-                        month = month.withYear(year)
-                        mode = DatePickerMode.DAYS
-                    }
-                )
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -260,22 +287,39 @@ private fun MonthGrid(
     today: LocalDate,
     onSelect: (LocalDate) -> Unit
 ) {
-    val cells = remember(month) { monthCells(month) }
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        cells.chunked(DAYS_IN_WEEK).forEach { week ->
-            Row(modifier = Modifier.fillMaxWidth()) {
-                week.forEach { date ->
-                    Box(
-                        modifier = Modifier.weight(1f),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        if (date != null) {
-                            DayCell(
-                                date = date,
-                                selected = date == selected,
-                                today = date == today,
-                                onClick = { onSelect(date) }
-                            )
+    AnimatedContent(
+        targetState = month,
+        transitionSpec = {
+            val direction = if (targetState > initialState) 1 else -1
+            (
+                slideInHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                    direction * width
+                } + fadeIn(AgentBayuMotion.navFadeSpec)
+                ) togetherWith (
+                slideOutHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                    -direction * width
+                } + fadeOut(AgentBayuMotion.navFadeSpec)
+                )
+        },
+        label = "monthGrid"
+    ) { currentMonth ->
+        val cells = remember(currentMonth) { monthCells(currentMonth) }
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            cells.chunked(DAYS_IN_WEEK).forEach { week ->
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    week.forEach { date ->
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (date != null) {
+                                DayCell(
+                                    date = date,
+                                    selected = date == selected,
+                                    today = date == today,
+                                    onClick = { onSelect(date) }
+                                )
+                            }
                         }
                     }
                 }
@@ -292,13 +336,22 @@ private fun DayCell(
     onClick: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) scheme.primary else Color.Transparent,
+        label = "dayCellBackground"
+    )
+    val textColor by animateColorAsState(
+        targetValue = when {
+            selected -> scheme.onPrimary
+            today -> scheme.primary
+            else -> scheme.onSurface
+        },
+        label = "dayCellText"
+    )
     Box(
         modifier = Modifier
             .size(36.dp)
-            .background(
-                color = if (selected) scheme.primary else Color.Transparent,
-                shape = CircleShape
-            )
+            .background(color = backgroundColor, shape = CircleShape)
             .clip(CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -306,11 +359,7 @@ private fun DayCell(
         Text(
             text = date.dayOfMonth.toString(),
             style = MaterialTheme.typography.bodyMedium,
-            color = when {
-                selected -> scheme.onPrimary
-                today -> scheme.primary
-                else -> scheme.onSurface
-            }
+            color = textColor
         )
     }
 }
@@ -389,10 +438,18 @@ private fun PickerCell(
     onClick: () -> Unit
 ) {
     val scheme = MaterialTheme.colorScheme
+    val backgroundColor by animateColorAsState(
+        targetValue = if (selected) scheme.primary else Color.Transparent,
+        label = "pickerCellBackground"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (selected) scheme.onPrimary else scheme.onSurface,
+        label = "pickerCellText"
+    )
     Box(
         modifier = modifier
             .clip(CircleShape)
-            .background(color = if (selected) scheme.primary else Color.Transparent)
+            .background(color = backgroundColor)
             .clickable(onClick = onClick)
             .padding(vertical = 10.dp),
         contentAlignment = Alignment.Center
@@ -400,7 +457,7 @@ private fun PickerCell(
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = if (selected) scheme.onPrimary else scheme.onSurface,
+            color = textColor,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis

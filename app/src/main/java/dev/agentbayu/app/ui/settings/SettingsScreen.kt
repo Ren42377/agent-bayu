@@ -33,6 +33,7 @@ import dev.agentbayu.app.platform.ThemeMode
 import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.GlassToggle
+import dev.agentbayu.app.ui.components.pressScaleFeedback
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -254,6 +255,7 @@ private fun NavigationSettingRow(
             .fillMaxWidth()
             .clip(GlassTileShape)
             .clickable(onClick = onClick)
+            .pressScaleFeedback()
             .padding(horizontal = 4.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

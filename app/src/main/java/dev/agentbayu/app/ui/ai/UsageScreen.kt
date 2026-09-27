@@ -1,5 +1,10 @@
 package dev.agentbayu.app.ui.ai
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -30,6 +36,7 @@ import dev.agentbayu.app.ai.QuotaParser
 import dev.agentbayu.app.ai.QuotaSnapshot
 import dev.agentbayu.app.ai.QuotaWindow
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -109,14 +116,23 @@ fun UsageScreen(
                 enabled = !refreshing,
                 contentPadding = PaddingValues(vertical = 12.dp)
             ) {
-                if (refreshing) {
-                    CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_refresh),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp)
-                    )
+                AnimatedContent(
+                    targetState = refreshing,
+                    transitionSpec = {
+                        fadeIn(AgentBayuMotion.quickFade) togetherWith
+                            fadeOut(AgentBayuMotion.quickFade)
+                    },
+                    label = "usageRefreshIcon"
+                ) { active ->
+                    if (active) {
+                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_refresh),
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
                 Text(
                     text = stringResource(
@@ -241,6 +257,15 @@ private fun QuotaBar(window: QuotaWindow, resetText: (Long) -> String) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
+        val fillFraction by animateFloatAsState(
+            targetValue = if (percent == null) {
+                0f
+            } else {
+                (percent / 100.0).coerceIn(0.0, 1.0).toFloat()
+            },
+            animationSpec = AgentBayuMotion.snappySpring,
+            label = "quotaFill"
+        )
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -251,7 +276,7 @@ private fun QuotaBar(window: QuotaWindow, resetText: (Long) -> String) {
             if (percent != null) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(((percent / 100.0).coerceIn(0.0, 1.0)).toFloat())
+                        .fillMaxWidth(fillFraction)
                         .height(6.dp)
                         .background(MaterialTheme.colorScheme.primary)
                 )

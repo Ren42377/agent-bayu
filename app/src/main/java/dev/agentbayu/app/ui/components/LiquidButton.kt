@@ -65,7 +65,8 @@ fun GlassIconButton(
         modifier = modifier
             .size(size)
             .clip(shape)
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .pressScaleFeedback(enabled),
         contentAlignment = Alignment.Center
     ) {
         content()

@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,20 +11,25 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.util.lerp
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -142,8 +148,21 @@ private fun MessageListBody(
         }
     }
 
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val enterProgress by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = AgentBayuMotion.quickFade,
+        label = "sessionEnter"
+    )
     LazyColumn(
-        modifier = modifier.nestedScroll(followGuard),
+        modifier = modifier
+            .nestedScroll(followGuard)
+            .graphicsLayer {
+                alpha = enterProgress
+                scaleX = lerp(SESSION_ENTER_SCALE, 1f, enterProgress)
+                scaleY = lerp(SESSION_ENTER_SCALE, 1f, enterProgress)
+            },
         state = listState,
         contentPadding = contentPadding,
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -196,3 +215,4 @@ private fun LazyListState.bottomOverflow(): Float {
 private const val TYPING_KEY = "typing"
 private const val TYPING_TYPE = "typing"
 private const val FOLLOW_TOLERANCE_PIXELS = 24f
+private const val SESSION_ENTER_SCALE = 0.98f

@@ -1,10 +1,17 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +49,7 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.ChatMessage
 import dev.agentbayu.app.domain.MessageAuthor
 import dev.agentbayu.app.domain.MessageSegment
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.AppleGreenDark
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.FilledControlDark
@@ -82,18 +90,27 @@ fun MessageBubble(
                 is MessageSegment.Thinking -> ThinkingRow(segment = segment)
 
                 is MessageSegment.Prose -> if (segment.text.isNotBlank()) {
-                    if (message.streaming) {
-                        Text(
-                            text = segment.text,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-                    } else {
-                        MarkdownMessage(
-                            content = segment.text,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    AnimatedContent(
+                        targetState = message.streaming,
+                        transitionSpec = {
+                            fadeIn(AgentBayuMotion.quickFade) togetherWith
+                                fadeOut(AgentBayuMotion.quickFade)
+                        },
+                        label = "proseMode"
+                    ) { streaming ->
+                        if (streaming) {
+                            Text(
+                                text = segment.text,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        } else {
+                            MarkdownMessage(
+                                content = segment.text,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
 
@@ -102,7 +119,13 @@ fun MessageBubble(
                 is MessageSegment.LegacyAutoApprove -> Unit
             }
         }
-        if (!message.streaming && (message.text.isNotBlank() || message.detail != null)) {
+        AnimatedVisibility(
+            visible = !message.streaming && (message.text.isNotBlank() || message.detail != null),
+            enter = fadeIn(AgentBayuMotion.quickFade) +
+                slideInVertically(initialOffsetY = { it / 2 }),
+            exit = fadeOut(AgentBayuMotion.quickFade) +
+                slideOutVertically(targetOffsetY = { it / 2 })
+        ) {
             ReplyActions(
                 message = message,
                 onShowDetail = onShowDetail,
@@ -203,6 +226,11 @@ private fun UserMessage(
 @Composable
 private fun ThinkingRow(segment: MessageSegment.Thinking) {
     var expanded by remember { mutableStateOf(false) }
+    val chevronAngle by animateFloatAsState(
+        targetValue = if (expanded) 270f else 90f,
+        animationSpec = AgentBayuMotion.snappySpring,
+        label = "thinkingChevron"
+    )
 
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -220,7 +248,7 @@ private fun ThinkingRow(segment: MessageSegment.Thinking) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = CHEVRON_ALPHA),
                 modifier = Modifier
                     .size(12.dp)
-                    .rotate(if (expanded) 270f else 90f)
+                    .rotate(chevronAngle)
             )
         }
         AnimatedVisibility(
@@ -307,18 +335,27 @@ private fun ToolRow(segment: MessageSegment.Tool, isDark: Boolean) {
             )
         }
         if (mutating && !segment.running) {
-            Icon(
-                painter = painterResource(if (segment.ok) R.drawable.ic_check else R.drawable.ic_close),
-                contentDescription = stringResource(
-                    if (segment.ok) R.string.tool_run_done else R.string.tool_run_failed
-                ),
-                tint = if (segment.ok) {
-                    if (isDark) AppleGreenDark else AppleGreenLight
-                } else {
-                    MaterialTheme.colorScheme.error
+            AnimatedContent(
+                targetState = segment.ok,
+                transitionSpec = {
+                    (fadeIn(AgentBayuMotion.quickFade) + scaleIn(initialScale = TOOL_ICON_ENTER_SCALE)) togetherWith
+                        (fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = TOOL_ICON_ENTER_SCALE))
                 },
-                modifier = Modifier.size(14.dp)
-            )
+                label = "toolStatus"
+            ) { ok ->
+                Icon(
+                    painter = painterResource(if (ok) R.drawable.ic_check else R.drawable.ic_close),
+                    contentDescription = stringResource(
+                        if (ok) R.string.tool_run_done else R.string.tool_run_failed
+                    ),
+                    tint = if (ok) {
+                        if (isDark) AppleGreenDark else AppleGreenLight
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    },
+                    modifier = Modifier.size(14.dp)
+                )
+            }
         }
     }
 }
@@ -341,3 +378,4 @@ private const val NANOS_PER_MILLI = 1_000_000L
 private const val MILLIS_PER_SECOND = 1_000L
 private const val TICK_MILLIS = 250L
 private const val CHEVRON_ALPHA = 0.6f
+private const val TOOL_ICON_ENTER_SCALE = 0.85f

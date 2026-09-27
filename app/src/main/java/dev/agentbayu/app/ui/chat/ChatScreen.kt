@@ -1,5 +1,13 @@
 package dev.agentbayu.app.ui.chat
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -68,6 +76,7 @@ import dev.agentbayu.app.ui.components.PromptBar
 import dev.agentbayu.app.ui.components.SuggestionRows
 import dev.agentbayu.app.ui.history.HistoryDrawerState
 import dev.agentbayu.app.ui.history.historyDrawerEdge
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -236,29 +245,44 @@ fun ChatScreen(
                     shape = CircleShape,
                     contentPadding = GlassButtonDefaults.IconPadding
                 ) {
-                    Icon(
-                        painter = painterResource(
-                            if (hasConversation) R.drawable.ic_add else R.drawable.ic_incognito
-                        ),
-                        contentDescription = stringResource(
-                            when {
-                                hasConversation -> R.string.chat_new_session
-                                incognito -> R.string.chat_incognito_exit
-                                else -> R.string.chat_incognito_enter
-                            }
-                        ),
-                        tint = if (incognito && !hasConversation) {
-                            MaterialTheme.colorScheme.onPrimary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
+                    AnimatedContent(
+                        targetState = hasConversation,
+                        transitionSpec = {
+                            (fadeIn(AgentBayuMotion.quickFade) + scaleIn(initialScale = SESSION_ICON_ENTER_SCALE)) togetherWith
+                                (fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = SESSION_ICON_ENTER_SCALE))
                         },
-                        modifier = Modifier.size(20.dp)
-                    )
+                        label = "sessionIcon"
+                    ) { has ->
+                        Icon(
+                            painter = painterResource(
+                                if (has) R.drawable.ic_add else R.drawable.ic_incognito
+                            ),
+                            contentDescription = stringResource(
+                                when {
+                                    has -> R.string.chat_new_session
+                                    incognito -> R.string.chat_incognito_exit
+                                    else -> R.string.chat_incognito_enter
+                                }
+                            ),
+                            tint = if (incognito && !has) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
             Column(modifier = footerModifier) {
-                if (messages.isEmpty() && !incognito) {
+                AnimatedVisibility(
+                    visible = messages.isEmpty() && !incognito,
+                    enter = fadeIn(AgentBayuMotion.quickFade) +
+                        scaleIn(initialScale = SUGGESTION_ENTER_SCALE),
+                    exit = fadeOut(AgentBayuMotion.quickFade) +
+                        scaleOut(targetScale = SUGGESTION_ENTER_SCALE)
+                ) {
                     SuggestionRows(
                         suggestions = suggestions,
                         onSelect = onSuggestionClick,
@@ -326,6 +350,14 @@ private fun ProviderCapsule(
     onOpenPicker: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val statusDotColor by animateColorAsState(
+        targetValue = if (isResponding) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        },
+        label = "statusDot"
+    )
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -340,13 +372,7 @@ private fun ProviderCapsule(
                 modifier = Modifier
                     .size(8.dp)
                     .clip(CircleShape)
-                    .background(
-                        if (isResponding) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                        }
-                    )
+                    .background(statusDotColor)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
@@ -407,3 +433,5 @@ private fun AttachmentPreview(
 
 private val HEADER_ACTION_RESERVE = 48.dp
 private const val PREVIEW_HEIGHT_RATIO = 0.8f
+private const val SUGGESTION_ENTER_SCALE = 0.95f
+private const val SESSION_ICON_ENTER_SCALE = 0.85f

@@ -1,5 +1,12 @@
 package dev.agentbayu.app.ui.notes
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -31,6 +38,7 @@ import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.MarkdownMessage
 import dev.agentbayu.app.ui.tasks.TaskTextField
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 
 @Composable
@@ -45,6 +53,14 @@ fun NoteEditorScreen(
 ) {
     val insets = LocalScreenInsets.current
     var preview by rememberSaveable { mutableStateOf(false) }
+    val pinTint by animateColorAsState(
+        targetValue = if (draft.pinned) {
+            MaterialTheme.colorScheme.primary
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "pinTint"
+    )
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -65,11 +81,7 @@ fun NoteEditorScreen(
                     contentDescription = stringResource(
                         if (draft.pinned) R.string.notes_unpin else R.string.notes_pin
                     ),
-                    tint = if (draft.pinned) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
+                    tint = pinTint,
                     modifier = Modifier.size(18.dp)
                 )
             }
@@ -77,17 +89,26 @@ fun NoteEditorScreen(
                 onClick = { preview = !preview },
                 size = 38.dp
             ) {
-                Icon(
-                    painter = painterResource(
-                        if (preview) R.drawable.ic_edit else R.drawable.ic_visibility
-                    ),
-                    contentDescription = stringResource(
-                        if (preview) R.string.notes_editor_write
-                        else R.string.notes_editor_preview
-                    ),
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
+                AnimatedContent(
+                    targetState = preview,
+                    transitionSpec = {
+                        (fadeIn(AgentBayuMotion.quickFade) + scaleIn(initialScale = EDITOR_ICON_ENTER_SCALE)) togetherWith
+                            (fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = EDITOR_ICON_ENTER_SCALE))
+                    },
+                    label = "editorModeIcon"
+                ) { previewMode ->
+                    Icon(
+                        painter = painterResource(
+                            if (previewMode) R.drawable.ic_edit else R.drawable.ic_visibility
+                        ),
+                        contentDescription = stringResource(
+                            if (previewMode) R.string.notes_editor_write
+                            else R.string.notes_editor_preview
+                        ),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
             }
             if (!isNew) {
                 GlassIconButton(
@@ -115,39 +136,48 @@ fun NoteEditorScreen(
                 hint = stringResource(R.string.notes_editor_title_hint),
                 onValueChange = { onDraftChange(draft.copy(title = it)) }
             )
-            if (preview) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 4.dp)
-                ) {
-                    MarkdownMessage(
-                        content = draft.content,
-                        modifier = Modifier.fillMaxWidth()
+            AnimatedContent(
+                targetState = preview,
+                transitionSpec = {
+                    fadeIn(AgentBayuMotion.quickFade) togetherWith
+                        fadeOut(AgentBayuMotion.quickFade)
+                },
+                label = "editorMode",
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+            ) { previewMode ->
+                if (previewMode) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                            .padding(horizontal = 4.dp)
+                    ) {
+                        MarkdownMessage(
+                            content = draft.content,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                } else {
+                    OutlinedTextField(
+                        value = draft.content,
+                        onValueChange = { onDraftChange(draft.copy(content = it)) },
+                        modifier = Modifier.fillMaxSize(),
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.notes_editor_content_hint),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        textStyle = MaterialTheme.typography.bodyMedium,
+                        shape = MaterialTheme.shapes.medium,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                        )
                     )
                 }
-            } else {
-                OutlinedTextField(
-                    value = draft.content,
-                    onValueChange = { onDraftChange(draft.copy(content = it)) },
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.notes_editor_content_hint),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    textStyle = MaterialTheme.typography.bodyMedium,
-                    shape = MaterialTheme.shapes.medium,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                    )
-                )
             }
         }
         EditorActionBar(
@@ -195,3 +225,5 @@ private fun EditorActionBar(
         }
     }
 }
+
+private const val EDITOR_ICON_ENTER_SCALE = 0.85f

@@ -1,6 +1,16 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,7 +104,13 @@ fun PromptBar(
         )
         CompositionLocalProvider(LocalGlassBackdrop provides buttonBackdrop) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                if (attachments.isNotEmpty()) {
+                AnimatedVisibility(
+                    visible = attachments.isNotEmpty(),
+                    enter = expandVertically(expandFrom = Alignment.Top) +
+                        fadeIn(AgentBayuMotion.quickFade),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top) +
+                        fadeOut(AgentBayuMotion.quickFade)
+                ) {
                     AttachmentStrip(
                         attachments = attachments,
                         enabled = enabled && !isResponding,
@@ -197,20 +213,33 @@ fun PromptBar(
                         shape = CircleShape,
                         contentPadding = GlassButtonDefaults.IconPadding
                     ) {
-                        Icon(
-                            painter = painterResource(
-                                if (isResponding) R.drawable.ic_stop else R.drawable.ic_send
-                            ),
-                            contentDescription = stringResource(
-                                if (isResponding) R.string.chat_stop else R.string.chat_send
-                            ),
-                            tint = when {
+                        val sendTint by animateColorAsState(
+                            targetValue = when {
                                 isResponding -> Color.White
                                 canSend -> MaterialTheme.colorScheme.onPrimary
                                 else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                             },
-                            modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
+                            label = "sendTint"
                         )
+                        AnimatedContent(
+                            targetState = isResponding,
+                            transitionSpec = {
+                                (fadeIn(AgentBayuMotion.quickFade) + scaleIn(initialScale = SEND_ICON_ENTER_SCALE)) togetherWith
+                                    (fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = SEND_ICON_ENTER_SCALE))
+                            },
+                            label = "sendIcon"
+                        ) { responding ->
+                            Icon(
+                                painter = painterResource(
+                                    if (responding) R.drawable.ic_stop else R.drawable.ic_send
+                                ),
+                                contentDescription = stringResource(
+                                    if (responding) R.string.chat_stop else R.string.chat_send
+                                ),
+                                tint = sendTint,
+                                modifier = Modifier.size(if (responding) 16.dp else 18.dp)
+                            )
+                        }
                     }
                 }
             }
@@ -254,3 +283,5 @@ private fun AttachmentStrip(
         }
     }
 }
+
+private const val SEND_ICON_ENTER_SCALE = 0.85f

@@ -1,5 +1,11 @@
 package dev.agentbayu.app.ui.tasks
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +40,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.GlassOverlay
@@ -88,14 +95,23 @@ internal fun TaskTimePickerDialog(
                 color = scheme.onSurface,
                 modifier = Modifier.fillMaxWidth()
             )
-            if (keyboardMode) {
-                TimeInput(state = state, colors = colors)
-            } else {
-                TimePicker(
-                    state = state,
-                    colors = colors,
-                    layoutType = TimePickerLayoutType.Vertical
-                )
+            AnimatedContent(
+                targetState = keyboardMode,
+                transitionSpec = {
+                    fadeIn(AgentBayuMotion.quickFade) togetherWith
+                        fadeOut(AgentBayuMotion.quickFade)
+                },
+                label = "timeInputMode"
+            ) { keyboard ->
+                if (keyboard) {
+                    TimeInput(state = state, colors = colors)
+                } else {
+                    TimePicker(
+                        state = state,
+                        colors = colors,
+                        layoutType = TimePickerLayoutType.Vertical
+                    )
+                }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -103,14 +119,23 @@ internal fun TaskTimePickerDialog(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 GlassIconButton(onClick = { keyboardMode = !keyboardMode }, size = 40.dp) {
-                    Icon(
-                        painter = painterResource(
-                            if (keyboardMode) R.drawable.ic_clock else R.drawable.ic_keyboard
-                        ),
-                        contentDescription = stringResource(R.string.tasks_time_input_toggle),
-                        tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    AnimatedContent(
+                        targetState = keyboardMode,
+                        transitionSpec = {
+                            (fadeIn(AgentBayuMotion.quickFade) + scaleIn(initialScale = TOGGLE_ICON_ENTER_SCALE)) togetherWith
+                                (fadeOut(AgentBayuMotion.quickFade) + scaleOut(targetScale = TOGGLE_ICON_ENTER_SCALE))
+                        },
+                        label = "timeInputToggleIcon"
+                    ) { keyboard ->
+                        Icon(
+                            painter = painterResource(
+                                if (keyboard) R.drawable.ic_clock else R.drawable.ic_keyboard
+                            ),
+                            contentDescription = stringResource(R.string.tasks_time_input_toggle),
+                            tint = scheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 GlassButton(
@@ -159,3 +184,4 @@ internal fun TaskTimePickerDialog(
 }
 
 private const val DIAL_ALPHA = 0.06f
+private const val TOGGLE_ICON_ENTER_SCALE = 0.85f

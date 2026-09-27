@@ -1,5 +1,13 @@
 package dev.agentbayu.app.ui.ai
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -34,6 +43,8 @@ import dev.agentbayu.app.ai.RiskLevel
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.GlassPill
+import dev.agentbayu.app.ui.components.pressScaleFeedback
+import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
@@ -165,17 +176,26 @@ fun ProvidersScreen(
                     enabled = !catalogRefreshing,
                     contentPadding = PaddingValues(vertical = 12.dp)
                 ) {
-                    if (catalogRefreshing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(14.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_refresh),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
-                        )
+                    AnimatedContent(
+                        targetState = catalogRefreshing,
+                        transitionSpec = {
+                            fadeIn(AgentBayuMotion.quickFade) togetherWith
+                                fadeOut(AgentBayuMotion.quickFade)
+                        },
+                        label = "catalogRefreshIcon"
+                    ) { refreshing ->
+                        if (refreshing) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(14.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_refresh),
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
                     }
                     Text(
                         text = stringResource(R.string.providers_update_catalog),
@@ -218,6 +238,7 @@ private fun ConnectionCard(
             .fillMaxWidth()
             .glassSurface(shape = GlassCardShape)
             .clickable { onEdit(connection.id) }
+            .pressScaleFeedback()
             .padding(16.dp)
     ) {
         Column(
@@ -234,7 +255,13 @@ private fun ConnectionCard(
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.weight(1f)
                 )
-                if (row.isActive) {
+                AnimatedVisibility(
+                    visible = row.isActive,
+                    enter = fadeIn(AgentBayuMotion.quickFade) +
+                        scaleIn(initialScale = ACTIVE_BADGE_ENTER_SCALE),
+                    exit = fadeOut(AgentBayuMotion.quickFade) +
+                        scaleOut(targetScale = ACTIVE_BADGE_ENTER_SCALE)
+                ) {
                     GlassPill(
                         text = stringResource(R.string.providers_active),
                         containerColor = AppleGreenLight.copy(alpha = 0.18f),
@@ -326,14 +353,18 @@ private fun credentialSummary(row: ProviderRowState): String {
 private fun StatusLines(row: ProviderRowState) {
     val connection = row.connection
     val attention = connection.health == ConnectionHealth.NEEDS_ATTENTION
-    Text(
-        text = healthLabel(connection.health),
-        style = MaterialTheme.typography.labelMedium,
-        color = if (attention) {
+    val healthColor by animateColorAsState(
+        targetValue = if (attention) {
             AppleRedLight
         } else {
             MaterialTheme.colorScheme.primary
-        }
+        },
+        label = "healthColor"
+    )
+    Text(
+        text = healthLabel(connection.health),
+        style = MaterialTheme.typography.labelMedium,
+        color = healthColor
     )
     connection.healthDetail?.let { detail ->
         Text(
@@ -350,3 +381,5 @@ private fun StatusLines(row: ProviderRowState) {
         )
     }
 }
+
+private const val ACTIVE_BADGE_ENTER_SCALE = 0.85f
