@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -87,6 +88,7 @@ internal fun ContextWindowSlider(
     val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
     val dotOnFillColor = MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
     val thumbColor = MaterialTheme.colorScheme.onPrimary
+    val thumbRimColor = MaterialTheme.colorScheme.primary
     val animationScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
@@ -246,7 +248,14 @@ internal fun ContextWindowSlider(
                             scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
                             scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                         },
-                        onDrawSurface = { drawRect(thumbColor) }
+                        onDrawSurface = {
+                        drawRect(thumbColor)
+                        drawCircle(
+                            color = thumbRimColor,
+                            radius = size.minDimension / 2f - THUMB_RIM_WIDTH.toPx() / 2f,
+                            style = Stroke(width = THUMB_RIM_WIDTH.toPx())
+                        )
+                    }
                     )
             )
             Box(
@@ -298,5 +307,6 @@ private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
 private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
+private val THUMB_RIM_WIDTH = 1.5.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
 private val SLIDER_LABEL_HEIGHT = 18.dp

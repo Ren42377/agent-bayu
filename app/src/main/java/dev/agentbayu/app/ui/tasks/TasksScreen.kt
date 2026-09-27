@@ -41,6 +41,7 @@ import dev.agentbayu.app.domain.tasks.TaskItem
 import dev.agentbayu.app.domain.tasks.TaskList
 import dev.agentbayu.app.domain.tasks.TaskRow
 import dev.agentbayu.app.ui.components.GlassButton
+import dev.agentbayu.app.ui.components.pressScaleFeedback
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
@@ -215,15 +216,17 @@ fun TasksScreen(
                                     enter = expandVertically() + fadeIn(AgentBayuMotion.quickFade),
                                     exit = shrinkVertically() + fadeOut(AgentBayuMotion.quickFade)
                                 ) {
-                                    current.completed.forEach { task ->
-                                        TaskRowItem(
-                                            task = task,
-                                            subtask = task.parentId != null,
-                                            onOpen = { onOpenTask(task) },
-                                            onToggleCompleted = { onToggleCompleted(task) },
-                                            onToggleStarred = { onToggleStarred(task) },
-                                            onMenu = { onRowMenu(task) }
-                                        )
+                                    Column {
+                                        current.completed.forEach { task ->
+                                            TaskRowItem(
+                                                task = task,
+                                                subtask = task.parentId != null,
+                                                onOpen = { onOpenTask(task) },
+                                                onToggleCompleted = { onToggleCompleted(task) },
+                                                onToggleStarred = { onToggleStarred(task) },
+                                                onMenu = { onRowMenu(task) }
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -315,6 +318,7 @@ private fun CompletedHeader(
             .fillMaxWidth()
             .clip(GlassTileShape)
             .clickable(onClick = onToggle)
+            .pressScaleFeedback()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -122,7 +123,7 @@ private fun DecisionButtons(onDecision: (ToolApprovalDecision) -> Unit) {
             Text(
                 text = stringResource(R.string.tool_approval_allow_once),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = LocalContentColor.current
             )
         }
     }

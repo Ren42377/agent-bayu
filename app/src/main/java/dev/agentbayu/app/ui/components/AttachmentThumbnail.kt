@@ -70,7 +70,13 @@ fun AttachmentThumbnail(
             .size(size)
             .glassSurface(shape = shape)
             .clip(shape)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(
+                if (onClick != null) {
+                    Modifier.clickable(onClick = onClick).pressScaleFeedback()
+                } else {
+                    Modifier
+                }
+            )
     ) {
         bitmap?.let { image ->
             Image(

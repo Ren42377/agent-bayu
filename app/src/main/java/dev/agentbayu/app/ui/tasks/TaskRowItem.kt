@@ -39,6 +39,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tasks.TaskItem
+import dev.agentbayu.app.ui.components.pressScaleFeedback
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 
 @Composable
@@ -58,6 +59,7 @@ internal fun TaskRowItem(
             .fillMaxWidth()
             .clip(GlassTileShape)
             .combinedClickable(onLongClick = onMenu, onClick = onOpen)
+            .pressScaleFeedback()
             .padding(
                 start = if (subtask) 44.dp else 16.dp,
                 end = 8.dp,

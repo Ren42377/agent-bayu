@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -34,6 +35,7 @@ import dev.agentbayu.app.ai.MIN_EFFORT_FAMILY_SIZE
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassOverlay
+import dev.agentbayu.app.ui.components.pressScaleFeedback
 import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.CapsuleShape
@@ -139,7 +141,7 @@ private fun PickerContent(
                 Text(
                     text = stringResource(R.string.picker_manage),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = LocalContentColor.current
                 )
             }
             GlassButton(
@@ -164,6 +166,7 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
             .fillMaxWidth()
             .clip(MaterialTheme.shapes.medium)
             .clickable(enabled = option.ready, onClick = onSelect)
+            .pressScaleFeedback(option.ready)
             .padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -289,6 +292,7 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                             elevation = 0.dp
                         )
                         .clickable(onClick = { onSelectModel(modelId) })
+                        .pressScaleFeedback()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {

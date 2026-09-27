@@ -233,7 +233,7 @@ private fun WeekdayPicker(selected: List<Int>, onToggle: (Int) -> Unit) {
                 Text(
                     text = day.getDisplayName(TextStyle.NARROW, locale),
                     style = MaterialTheme.typography.labelMedium,
-                    color = if (active) Color.White else MaterialTheme.colorScheme.onSurface
+                    color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
                 )
             }
         }

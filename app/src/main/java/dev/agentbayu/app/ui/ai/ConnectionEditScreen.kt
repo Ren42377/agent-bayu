@@ -15,6 +15,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -233,7 +234,7 @@ private fun LoginFields(
                 loginLabel
             },
             style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onPrimary
+            color = LocalContentColor.current
         )
     }
 }
@@ -499,7 +500,7 @@ private fun ActionBar(
             Text(
                 text = stringResource(R.string.connection_save),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimary
+                color = LocalContentColor.current
             )
         }
     }
