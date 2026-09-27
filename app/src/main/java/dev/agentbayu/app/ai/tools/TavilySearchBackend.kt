@@ -99,7 +99,8 @@ private const val MAX_SUMMARY_CHARS = 400
 private val DATE_TIME_PATTERNS = listOf(
     DateTimeFormatter.ISO_INSTANT,
     DateTimeFormatter.ISO_OFFSET_DATE_TIME,
-    DateTimeFormatter.ISO_LOCAL_DATE_TIME
+    DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+    DateTimeFormatter.RFC_1123_DATE_TIME
 )
 
 internal fun parseTavilyResponse(payload: String): List<SearchResult> {
@@ -110,7 +111,7 @@ internal fun parseTavilyResponse(payload: String): List<SearchResult> {
     }
     val items = root["results"]?.jsonArray ?: return emptyList()
     return items.mapNotNull { element ->
-        val item: JsonObject = element.jsonObject
+        val item = element as? JsonObject ?: return@mapNotNull null
         val title = item.stringOf("title")
         val link = item.stringOf("url")
         if (title.isEmpty() || link.isEmpty()) {

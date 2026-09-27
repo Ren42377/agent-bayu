@@ -4,7 +4,6 @@ import dev.agentbayu.app.ai.FakeClock
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.runBlocking
-import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -174,11 +173,10 @@ class WebSearchToolTest {
     }
 
     private fun tool(primary: SearchBackend, fallback: SearchBackend) = WebSearchTool(
-        client = OkHttpClient(),
-        clock = FakeClock(Instant.parse("2026-09-27T12:00:00Z").toEpochMilli()),
-        zone = ZoneId.of("UTC"),
         primary = primary,
-        fallback = fallback
+        fallback = fallback,
+        clock = FakeClock(Instant.parse("2026-09-27T12:00:00Z").toEpochMilli()),
+        zone = ZoneId.of("UTC")
     )
 
     private fun query(text: String) =
