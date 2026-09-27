@@ -216,8 +216,7 @@ private fun OptionRow(option: ProviderOption, onSelect: () -> Unit) {
                     .size(24.dp)
                     .glassSurface(
                         shape = CircleShape,
-                        tint = AppleGreenLight,
-                        elevation = 2.dp
+                        tint = AppleGreenLight
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -288,8 +287,7 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                                 MaterialTheme.colorScheme.primary
                             } else {
                                 Color.Unspecified
-                            },
-                            elevation = 0.dp
+                            }
                         )
                         .clickable(onClick = { onSelectModel(modelId) })
                         .pressScaleFeedback()

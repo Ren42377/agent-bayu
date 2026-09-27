@@ -58,7 +58,6 @@ import com.kyant.backdrop.effects.lens
 import com.kyant.backdrop.effects.vibrancy
 import com.kyant.backdrop.highlight.Highlight
 import com.kyant.backdrop.shadow.InnerShadow
-import com.kyant.backdrop.shadow.Shadow
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
@@ -279,9 +278,6 @@ fun GlassBottomTabs(
                     },
                     highlight = {
                         Highlight.Default.copy(alpha = dampedDragAnimation.pressProgress)
-                    },
-                    shadow = {
-                        Shadow(alpha = dampedDragAnimation.pressProgress)
                     },
                     innerShadow = {
                         val progress = dampedDragAnimation.pressProgress

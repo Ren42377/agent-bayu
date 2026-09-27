@@ -71,7 +71,7 @@ fun StatusCard(
             Box(
                 modifier = Modifier
                     .size(32.dp)
-                    .glassSurface(shape = CircleShape, tint = badgeTint, elevation = 2.dp),
+                    .glassSurface(shape = CircleShape, tint = badgeTint),
                 contentAlignment = Alignment.Center
             ) {
                 AnimatedContent(
