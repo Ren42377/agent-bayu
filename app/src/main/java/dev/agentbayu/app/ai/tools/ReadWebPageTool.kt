@@ -216,7 +216,6 @@ internal fun readablePage(html: String, url: String): ReadablePage {
     val root = document.selectFirst("article")
         ?: document.selectFirst("main")
         ?: document.body()
-        ?: return ReadablePage(title, url, "")
     return ReadablePage(title, url, blockText(root))
 }
 
