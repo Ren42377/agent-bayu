@@ -8,6 +8,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.isSpecified
 import androidx.compose.ui.graphics.BlendMode
@@ -125,6 +126,7 @@ fun Modifier.glassSurface(
         style.surfaceEdge.copy(alpha = style.surfaceEdge.alpha * style.highlightAlpha)
     }
     return this
+        .clip(shape)
         .drawBehind {
             drawRect(color = style.surface)
             if (tint.isSpecified) drawRect(color = tint)
