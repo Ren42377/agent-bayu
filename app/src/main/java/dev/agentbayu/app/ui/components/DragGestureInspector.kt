@@ -55,11 +55,11 @@ private suspend inline fun AwaitPointerEventScope.awaitDrag(
     var totalY = 0f
     while (true) {
         val change = awaitDragOrUp(pointer) ?: return null
-        if (change.changedToUpIgnoreConsumed()) {
-            return change
-        }
         if (change.isConsumed) {
             return null
+        }
+        if (change.changedToUpIgnoreConsumed()) {
+            return change
         }
         val delta = change.positionChange()
         if (!claimed) {

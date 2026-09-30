@@ -3,6 +3,7 @@ package dev.agentbayu.app.ui.components
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -40,7 +41,6 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -153,11 +153,7 @@ internal fun GlassSegmentedSelector(
             withFrameNanos { }
             dragAnimation.prewarm()
         }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .layerBackdrop(containerBackdrop)
-        ) {
+        Box(modifier = Modifier.matchParentSize()) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -174,6 +170,7 @@ internal fun GlassSegmentedSelector(
                 modifier = Modifier
                     .clearAndSetSemantics {}
                     .alpha(0f)
+                    .layerBackdrop(containerBackdrop)
                     .fillMaxSize()
             ) {
                 labels.forEach { label ->
@@ -186,7 +183,7 @@ internal fun GlassSegmentedSelector(
                         Text(
                             text = label,
                             style = MaterialTheme.typography.labelMedium,
-                            color = tint
+                            color = labelColor
                         )
                     }
                 }
@@ -202,15 +199,19 @@ internal fun GlassSegmentedSelector(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxHeight()
-                        .semantics(mergeDescendants = true) {
-                            role = Role.Tab
-                            selected = index == currentIndex
-                            onClick {
+                        .clickable(
+                            interactionSource = null,
+                            indication = null,
+                            role = Role.Tab,
+                            onClick = {
                                 currentIndex = index
                                 dragAnimation.animateToValue(index.toFloat(), pressed = false)
                                 currentOnSelect(index)
-                                true
                             }
+                        )
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Tab
+                            selected = index == currentIndex
                         },
                     contentAlignment = Alignment.Center
                 ) {
@@ -232,10 +233,11 @@ internal fun GlassSegmentedSelector(
                     shape = { CapsuleShape },
                     effects = {
                         if (supportsRefraction) {
-                            val progress = dragAnimation.pressProgress
+                            val strength = SELECTOR_LENS_BASE +
+                                (1f - SELECTOR_LENS_BASE) * dragAnimation.pressProgress
                             lens(
-                                SELECTOR_LENS_HEIGHT.toPx() * progress,
-                                SELECTOR_LENS_AMOUNT.toPx() * progress,
+                                SELECTOR_LENS_HEIGHT.toPx() * strength,
+                                SELECTOR_LENS_AMOUNT.toPx() * strength,
                                 chromaticAberration = true
                             )
                         }
@@ -350,14 +352,15 @@ private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
-private const val SELECTOR_TINT_ALPHA = 0.92f
+private const val SELECTOR_TINT_ALPHA = 0.3f
+private const val SELECTOR_LENS_BASE = 0.4f
 private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f
 private val SELECTOR_HEIGHT = 36.dp
 private val SELECTOR_WITH_ICONS_HEIGHT = 52.dp
-private val SELECTOR_LENS_HEIGHT = 20.dp
-private val SELECTOR_LENS_AMOUNT = 26.dp
+private val SELECTOR_LENS_HEIGHT = 16.dp
+private val SELECTOR_LENS_AMOUNT = 24.dp
 private val SELECTOR_INNER_SHADOW = 8.dp
 
 private val supportsRefraction = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
