@@ -3,7 +3,6 @@ package dev.agentbayu.app.ui.components
 import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -41,12 +40,14 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceIn
 import androidx.compose.ui.util.fastRoundToInt
+import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
@@ -189,40 +190,6 @@ internal fun GlassSegmentedSelector(
                 }
             }
         }
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .selectableGroup()
-        ) {
-            labels.forEachIndexed { index, label ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(
-                            interactionSource = null,
-                            indication = null,
-                            role = Role.Tab,
-                            onClick = {
-                                currentIndex = index
-                                dragAnimation.animateToValue(index.toFloat(), pressed = false)
-                                currentOnSelect(index)
-                            }
-                        )
-                        .semantics(mergeDescendants = true) {
-                            role = Role.Tab
-                            selected = index == currentIndex
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    SelectorLabel(
-                        label = label,
-                        icon = icons.getOrNull(index),
-                        color = labelColor
-                    )
-                }
-            }
-        }
         Box(
             modifier = Modifier
                 .width(segmentWidth)
@@ -283,24 +250,32 @@ internal fun GlassSegmentedSelector(
         )
         Row(
             modifier = Modifier
-                .clearAndSetSemantics {}
                 .fillMaxSize()
+                .selectableGroup()
         ) {
             labels.forEachIndexed { index, label ->
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .fillMaxHeight(),
+                        .fillMaxHeight()
+                        .semantics(mergeDescendants = true) {
+                            role = Role.Tab
+                            selected = index == currentIndex
+                            onClick {
+                                currentIndex = index
+                                dragAnimation.animateToValue(index.toFloat(), pressed = false)
+                                currentOnSelect(index)
+                                true
+                            }
+                        },
                     contentAlignment = Alignment.Center
                 ) {
+                    val proximity = (1f - abs(index - dragAnimation.value))
+                        .fastCoerceIn(0f, 1f)
                     SelectorLabel(
                         label = label,
                         icon = icons.getOrNull(index),
-                        color = selectedLabelColor,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = (1f - abs(index - dragAnimation.value))
-                                .fastCoerceIn(0f, 1f)
-                        }
+                        color = lerp(labelColor, selectedLabelColor, proximity)
                     )
                 }
             }
@@ -352,7 +327,7 @@ private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
-private const val SELECTOR_TINT_ALPHA = 0.3f
+private const val SELECTOR_TINT_ALPHA = 0.55f
 private const val SELECTOR_LENS_BASE = 0.4f
 private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_VELOCITY_SCALE = 10f
