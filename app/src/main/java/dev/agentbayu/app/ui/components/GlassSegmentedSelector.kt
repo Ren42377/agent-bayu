@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.components
 
+import android.os.Build
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -230,12 +231,14 @@ internal fun GlassSegmentedSelector(
                     backdrop = indicatorBackdrop,
                     shape = { CapsuleShape },
                     effects = {
-                        val progress = dragAnimation.pressProgress
-                        lens(
-                            SELECTOR_LENS_HEIGHT.toPx() * progress,
-                            SELECTOR_LENS_AMOUNT.toPx() * progress,
-                            chromaticAberration = true
-                        )
+                        if (supportsRefraction) {
+                            val progress = dragAnimation.pressProgress
+                            lens(
+                                SELECTOR_LENS_HEIGHT.toPx() * progress,
+                                SELECTOR_LENS_AMOUNT.toPx() * progress,
+                                chromaticAberration = true
+                            )
+                        }
                     },
                     highlight = {
                         Highlight.Default.copy(alpha = dragAnimation.pressProgress)
@@ -353,6 +356,8 @@ private const val SELECTOR_VELOCITY_SCALE = 10f
 private const val SELECTOR_SQUISH = 0.2f
 private val SELECTOR_HEIGHT = 36.dp
 private val SELECTOR_WITH_ICONS_HEIGHT = 52.dp
-private val SELECTOR_LENS_HEIGHT = 10.dp
-private val SELECTOR_LENS_AMOUNT = 14.dp
+private val SELECTOR_LENS_HEIGHT = 20.dp
+private val SELECTOR_LENS_AMOUNT = 26.dp
 private val SELECTOR_INNER_SHADOW = 8.dp
+
+private val supportsRefraction = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU

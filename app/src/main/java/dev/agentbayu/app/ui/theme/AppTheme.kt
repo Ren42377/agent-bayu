@@ -19,5 +19,7 @@ fun AgentBayuAppTheme(content: @Composable () -> Unit) {
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    AgentBayuTheme(darkTheme = darkTheme, content = content)
+    AgentBayuTheme(darkTheme = darkTheme) {
+        ThemeCrossfade(darkTheme = darkTheme, content = content)
+    }
 }

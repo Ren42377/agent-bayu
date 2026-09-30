@@ -16,11 +16,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.GraphicsLayerScope
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.isSpecified
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
-import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
 import com.kyant.backdrop.backdrops.emptyBackdrop
@@ -81,16 +78,6 @@ val darkGlassStyle = GlassStyle(
 fun currentGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     return if (darkTheme) darkGlassStyle else lightGlassStyle
 }
-
-internal fun GlassStyle.blend(other: GlassStyle, fraction: Float): GlassStyle = copy(
-    fill = lerp(fill, other.fill, fraction),
-    highlight = lerp(highlight, other.highlight, fraction),
-    strokeWidth = lerp(strokeWidth, other.strokeWidth, fraction),
-    brightness = lerp(brightness, other.brightness, fraction),
-    saturation = lerp(saturation, other.saturation, fraction),
-    surface = lerp(surface, other.surface, fraction),
-    surfaceEdge = lerp(surfaceEdge, other.surfaceEdge, fraction)
-)
 
 @Composable
 fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
