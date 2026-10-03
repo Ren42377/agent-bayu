@@ -12,13 +12,15 @@ class CreateNoteTool(
     override val spec: ToolSpec = ToolSpec(
         name = NAME,
         description = "Create a markdown note in the owner notes. It shows up in the Notes " +
-            "tab right away. The content is markdown text.",
+            "tab right away. The content is markdown text. Images can be embedded with " +
+            "![alt](source), where source is an https URL or an absolute file path such " +
+            "as /storage/emulated/0/Pictures/photo.jpg.",
         parameters = toolSchema(
             ToolField("title", "string", "Title of the note"),
             ToolField(
                 name = "content",
                 type = "string",
-                description = "Markdown body of the note",
+                description = "Markdown body of the note. Image syntax is ![alt](https url or absolute file path)",
                 required = false
             ),
             ToolField(

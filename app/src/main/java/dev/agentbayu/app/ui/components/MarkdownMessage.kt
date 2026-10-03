@@ -28,9 +28,13 @@ import dev.agentbayu.app.ui.theme.LocalDarkTheme
 @Composable
 fun MarkdownMessage(
     content: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    autoEmbedImages: Boolean = false
 ) {
-    val source = remember(content) { sanitiseMarkdown(normaliseMarkdownFences(content)) }
+    val source = remember(content, autoEmbedImages) {
+        val prepared = sanitiseMarkdown(normaliseMarkdownFences(content))
+        if (autoEmbedImages) embedImageReferences(prepared) else prepared
+    }
     val blocks = remember(source) { splitMarkup(source) }
     if (blocks.size == 1 && blocks.first() is MarkupBlock.Markdown) {
         MarkdownBody(source = source, modifier = modifier)

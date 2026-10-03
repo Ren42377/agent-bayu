@@ -24,13 +24,17 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
@@ -38,6 +42,7 @@ import dev.agentbayu.app.ui.ai.AiScreenHeader
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.MarkdownMessage
+import dev.agentbayu.app.ui.components.insertImageBlock
 import dev.agentbayu.app.ui.tasks.TaskTextField
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
@@ -50,10 +55,34 @@ fun NoteEditorScreen(
     onSave: () -> Unit,
     onDelete: () -> Unit,
     onBack: () -> Unit,
+    onAddImage: () -> Unit,
+    snippet: String?,
+    onSnippetConsumed: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
     var preview by rememberSaveable { mutableStateOf(false) }
+    var contentValue by remember {
+        mutableStateOf(TextFieldValue(draft.content, TextRange(draft.content.length)))
+    }
+    LaunchedEffect(draft.content) {
+        if (draft.content != contentValue.text) {
+            contentValue = TextFieldValue(draft.content, TextRange(draft.content.length))
+        }
+    }
+    LaunchedEffect(snippet) {
+        val pending = snippet ?: return@LaunchedEffect
+        val selection = contentValue.selection
+        val inserted = insertImageBlock(
+            text = contentValue.text,
+            selectionStart = selection.min,
+            selectionEnd = selection.max,
+            snippet = pending
+        )
+        contentValue = TextFieldValue(inserted.text, TextRange(inserted.cursor))
+        onDraftChange(draft.copy(content = inserted.text))
+        onSnippetConsumed()
+    }
     val pinTint by animateColorAsState(
         targetValue = if (draft.pinned) {
             MaterialTheme.colorScheme.primary
@@ -73,6 +102,17 @@ fun NoteEditorScreen(
             ),
             onBack = onBack
         ) {
+            GlassIconButton(
+                onClick = onAddImage,
+                size = 38.dp
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_image),
+                    contentDescription = stringResource(R.string.notes_image_add),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
             GlassIconButton(
                 onClick = { onDraftChange(draft.copy(pinned = !draft.pinned)) },
                 size = 38.dp
@@ -157,13 +197,19 @@ fun NoteEditorScreen(
                     ) {
                         MarkdownMessage(
                             content = draft.content,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            autoEmbedImages = true
                         )
                     }
                 } else {
                     OutlinedTextField(
-                        value = draft.content,
-                        onValueChange = { onDraftChange(draft.copy(content = it)) },
+                        value = contentValue,
+                        onValueChange = { value ->
+                            contentValue = value
+                            if (value.text != draft.content) {
+                                onDraftChange(draft.copy(content = value.text))
+                            }
+                        },
                         modifier = Modifier.fillMaxSize(),
                         placeholder = {
                             Text(

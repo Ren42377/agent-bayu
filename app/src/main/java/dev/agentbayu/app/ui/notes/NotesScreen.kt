@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -17,24 +18,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.notes.NoteItem
 import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
+import dev.agentbayu.app.ui.components.firstImageReference
+import dev.agentbayu.app.ui.components.imageModelFor
 import dev.agentbayu.app.ui.components.pressScaleFeedback
+import dev.agentbayu.app.ui.components.stripImageReferences
 import dev.agentbayu.app.ui.tasks.dayLabel
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
@@ -177,6 +185,8 @@ private fun NoteRowItem(
     onMenu: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val imageReference = remember(note.content) { firstImageReference(note.content) }
+    val snippet = remember(note.content) { stripImageReferences(note.content) }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -206,9 +216,9 @@ private fun NoteRowItem(
                     modifier = Modifier.padding(start = if (note.pinned) 6.dp else 0.dp)
                 )
             }
-            if (note.content.isNotBlank()) {
+            if (snippet.isNotBlank()) {
                 Text(
-                    text = note.content.trim(),
+                    text = snippet,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
@@ -223,6 +233,9 @@ private fun NoteRowItem(
                 modifier = Modifier.padding(top = 4.dp)
             )
         }
+        if (imageReference != null) {
+            NoteThumbnail(reference = imageReference)
+        }
         GlassIconButton(onClick = onMenu, size = 34.dp) {
             Icon(
                 painter = painterResource(R.drawable.ic_more_vert),
@@ -234,4 +247,20 @@ private fun NoteRowItem(
     }
 }
 
+@Composable
+private fun NoteThumbnail(reference: String) {
+    val model = remember(reference) { imageModelFor(reference) }
+    AsyncImage(
+        model = model,
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .padding(start = 8.dp, end = 4.dp)
+            .size(NOTE_THUMBNAIL_SIZE)
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f))
+    )
+}
+
+private val NOTE_THUMBNAIL_SIZE = 56.dp
 private const val CLEAR_ICON_ENTER_SCALE = 0.85f

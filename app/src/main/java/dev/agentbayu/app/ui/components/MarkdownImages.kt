@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -33,6 +34,7 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,6 +50,7 @@ import com.mikepenz.markdown.compose.components.MarkdownComponentModel
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
 import dev.agentbayu.app.R
+import dev.agentbayu.app.platform.files.AllFilesAccess
 import org.intellij.markdown.MarkdownElementTypes
 import org.intellij.markdown.ast.ASTNode
 import java.io.File
@@ -78,11 +81,6 @@ internal object NetworkImageTransformer : ImageTransformer {
         }
         return size
     }
-}
-
-internal fun imageModelFor(destination: String): Any {
-    val trimmed = destination.trim()
-    return if (trimmed.startsWith("/") && !trimmed.startsWith("//")) File(trimmed) else trimmed
 }
 
 private class StatefulImagePainter(
@@ -133,10 +131,18 @@ private class StatefulImagePainter(
 internal fun MarkdownImageContent(model: MarkdownComponentModel) {
     val destination = model.node.imageDestination(model.content) ?: return
     val alt = model.node.imageAltText(model.content)
-    val failedLabel = stringResource(R.string.markdown_image_failed)
+    val context = LocalContext.current
+    val source = remember(destination) { imageModelFor(destination) }
+    val failedLabel = stringResource(
+        if (needsStorageAccess(context, source)) {
+            R.string.markdown_image_storage_denied
+        } else {
+            R.string.markdown_image_failed
+        }
+    )
     SubcomposeAsyncImage(
         model = ImageRequest.Builder(LocalPlatformContext.current)
-            .data(imageModelFor(destination))
+            .data(source)
             .size(CoilSize.ORIGINAL)
             .crossfade(true)
             .build(),
@@ -194,7 +200,7 @@ private fun MarkdownImageError(label: String, alt: String?) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            if (alt != null) {
+            if (!alt.isNullOrBlank()) {
                 Text(
                     text = alt,
                     style = MaterialTheme.typography.bodySmall,
@@ -205,6 +211,13 @@ private fun MarkdownImageError(label: String, alt: String?) {
             }
         }
     }
+}
+
+private fun needsStorageAccess(context: Context, source: Any): Boolean {
+    val file = source as? File ?: return false
+    if (AllFilesAccess.granted(context)) return false
+    val ownRoots = listOfNotNull(context.filesDir, context.getExternalFilesDir(null))
+    return ownRoots.none { root -> file.path.startsWith(root.path) }
 }
 
 private fun ASTNode.imageDestination(content: String): String? =

@@ -399,12 +399,19 @@
     <string name="notes_editor_new">New note</string>
     <string name="notes_editor_title">Edit note</string>
     <string name="notes_editor_title_hint">Title</string>
-    <string name="notes_editor_content_hint">Write markdown here</string>
+    <string name="notes_editor_content_hint">Write markdown here. Put an image URL or file path on its own line to show it.</string>
     <string name="notes_editor_write">Edit</string>
     <string name="notes_editor_preview">Preview</string>
     <string name="notes_editor_empty">The note is empty.</string>
     <string name="notes_untitled">Untitled note</string>
+    <string name="notes_image_add">Add image</string>
+    <string name="notes_image_gallery">From gallery</string>
+    <string name="notes_image_link">From URL or file path</string>
+    <string name="notes_image_link_hint">https://... or /storage/emulated/0/...</string>
+    <string name="notes_image_insert">Insert</string>
+    <string name="notes_image_failed">Could not add the image.</string>
     <string name="markdown_image_failed">Image failed to load</string>
+    <string name="markdown_image_storage_denied">Image failed to load. Allow all files access in Settings to read local images.</string>
 
     <string name="settings_tools">Tools and files</string>
     <string name="settings_tool_approval_title">Skip tool approval</string>

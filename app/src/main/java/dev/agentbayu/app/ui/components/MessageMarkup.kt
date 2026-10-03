@@ -116,10 +116,11 @@ internal fun sanitiseMarkdown(source: String): String {
     var text = transformOutsideFences(source, ::stripHtml)
     text = transformOutsideFences(text, ::liftFootnoteDefinitions)
     text = transformOutsideFences(text, ::separateThematicBreaks)
+    text = encodeImageDestinations(text)
     return text
 }
 
-private fun transformOutsideFences(source: String, transform: (String) -> String): String {
+internal fun transformOutsideFences(source: String, transform: (String) -> String): String {
     if (!source.contains("```") && !source.contains("~~~")) return transform(source)
     val ranges = fencedRanges(source)
     if (ranges.isEmpty()) return transform(source)
