@@ -41,6 +41,8 @@ import dev.agentbayu.app.ui.theme.AppleGreenLight
 import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.liftShadow
 
 data class ProviderOption(
     val connectionId: String,
@@ -281,12 +283,13 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .then(if (selected) Modifier else Modifier.liftShadow(CapsuleShape))
                         .clip(CapsuleShape)
                         .background(
                             if (selected) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.primaryContainer
+                                LocalAppSurfaces.current.control
                             }
                         )
                         .clickable(onClick = { onSelectModel(modelId) })

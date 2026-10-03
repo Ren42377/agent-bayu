@@ -60,6 +60,8 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.liftShadow
 
 @Composable
 fun PromptBar(
@@ -118,8 +120,9 @@ fun PromptBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .liftShadow(ComposerShape)
             .clip(ComposerShape)
-            .background(scheme.secondaryContainer)
+            .background(LocalAppSurfaces.current.composer)
             .animateContentSize()
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {

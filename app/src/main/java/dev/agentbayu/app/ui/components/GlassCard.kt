@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.theme.CapsuleShape
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
 
 @Composable
 fun GlassBadge(
@@ -52,7 +53,7 @@ fun GlassBadge(
 fun GlassPill(
     text: String,
     modifier: Modifier = Modifier,
-    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    containerColor: Color = LocalAppSurfaces.current.control,
     contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
     leadingIcon: (@Composable RowScope.() -> Unit)? = null
 ) {

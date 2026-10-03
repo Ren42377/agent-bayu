@@ -75,6 +75,10 @@ import dev.agentbayu.app.ui.theme.PanelStartShape
 import dev.agentbayu.app.ui.theme.glassSurface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.height
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
 
 @Stable
 class HistoryDrawerState internal constructor(private val scope: CoroutineScope) {
@@ -219,7 +223,11 @@ fun HistoryDrawer(
                 .onSizeChanged { size -> state.panelWidth = size.width.toFloat() }
                 .graphicsLayer { translationX = -size.width * (1f - state.value()) }
                 .drawWithContent { if (state.value() > 0f) drawContent() }
-                .glassSurface(shape = PanelStartShape)
+                .glassSurface(
+                    shape = PanelStartShape,
+                    tint = LocalAppSurfaces.current.drawer,
+                    bordered = false
+                )
                 .padding(top = systemInsets.calculateTopPadding())
         ) {
             HistoryDrawerContent(
@@ -323,6 +331,8 @@ private const val RECENT_HEADER_KEY = "recent-header"
 private const val HISTORY_SECTION_TYPE = "section-header"
 private val EDGE_WIDTH = 88.dp
 private val SESSION_MENU_WIDTH = 180.dp
+private val FLOATING_BUTTON_CLEARANCE = 72.dp
+private val FADE_HEIGHT = 96.dp
 
 @Composable
 private fun ColumnScope.HistoryDrawerContent(
@@ -342,32 +352,55 @@ private fun ColumnScope.HistoryDrawerContent(
     )
     val pinnedSessions = sessions.filter { it.pinned }
     val recentSessions = sessions.filterNot { it.pinned }
-    LazyColumn(
+    val drawerColor = LocalAppSurfaces.current.drawer
+    val bottomInset = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    Box(
         modifier = Modifier
             .weight(1f)
-            .fillMaxWidth(),
-        contentPadding = PaddingValues(
-            horizontal = 12.dp,
-            vertical = 4.dp
-        ),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+            .fillMaxWidth()
     ) {
-        if (sessions.isEmpty()) {
-            item(key = EMPTY_HISTORY_KEY, contentType = EMPTY_HISTORY_TYPE) {
-                Text(
-                    text = stringResource(R.string.history_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp)
-                )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 12.dp,
+                end = 12.dp,
+                top = 4.dp,
+                bottom = FLOATING_BUTTON_CLEARANCE + bottomInset
+            ),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (sessions.isEmpty()) {
+                item(key = EMPTY_HISTORY_KEY, contentType = EMPTY_HISTORY_TYPE) {
+                    Text(
+                        text = stringResource(R.string.history_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp)
+                    )
+                }
             }
-        }
-        if (pinnedSessions.isNotEmpty()) {
-            item(key = PINNED_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
-                HistorySectionLabel(text = stringResource(R.string.history_pinned))
+            if (pinnedSessions.isNotEmpty()) {
+                item(key = PINNED_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
+                    HistorySectionLabel(text = stringResource(R.string.history_pinned))
+                }
+                items(
+                    items = pinnedSessions,
+                    key = { session -> session.id },
+                    contentType = { HISTORY_SESSION_TYPE }
+                ) { session ->
+                    SessionRow(
+                        session = session,
+                        isActive = session.id == activeSessionId,
+                        onOpen = { onOpen(session.id) },
+                        onMenu = onMenu
+                    )
+                }
+                item(key = RECENT_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
+                    HistorySectionLabel(text = stringResource(R.string.history_recent))
+                }
             }
             items(
-                items = pinnedSessions,
+                items = recentSessions,
                 key = { session -> session.id },
                 contentType = { HISTORY_SESSION_TYPE }
             ) { session ->
@@ -378,36 +411,25 @@ private fun ColumnScope.HistoryDrawerContent(
                     onMenu = onMenu
                 )
             }
-            item(key = RECENT_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
-                HistorySectionLabel(text = stringResource(R.string.history_recent))
-            }
         }
-        items(
-            items = recentSessions,
-            key = { session -> session.id },
-            contentType = { HISTORY_SESSION_TYPE }
-        ) { session ->
-            SessionRow(
-                session = session,
-                isActive = session.id == activeSessionId,
-                onOpen = { onOpen(session.id) },
-                onMenu = onMenu
-            )
-        }
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(
-                start = 12.dp,
-                end = 12.dp,
-                top = 4.dp,
-                bottom = 12.dp + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
-            )
-    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(FADE_HEIGHT + bottomInset)
+                .drawBehind {
+                    drawRect(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, drawerColor)
+                        )
+                    )
+                }
+        )
         GlassButton(
             onClick = onNew,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 12.dp, bottom = 12.dp + bottomInset)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_chat_add),

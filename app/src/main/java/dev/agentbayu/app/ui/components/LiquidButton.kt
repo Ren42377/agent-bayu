@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.liftShadow
 
 object GlassButtonDefaults {
 
@@ -80,7 +82,7 @@ fun GlassButton(
         InteractiveHighlight(animationScope = animationScope, claimDrag = false)
     }
     val tinted = tint.isSpecified
-    val containerColor = if (tinted) tint else scheme.primaryContainer
+    val containerColor = if (tinted) tint else LocalAppSurfaces.current.control
     val contentColor = when {
         !tinted -> scheme.onSurface
         tint == scheme.primary -> scheme.onPrimary
@@ -95,6 +97,7 @@ fun GlassButton(
                 scaleX = scale
                 scaleY = scale
             }
+            .then(if (tinted) Modifier else Modifier.liftShadow(shape))
             .clip(shape)
             .background(containerColor)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)

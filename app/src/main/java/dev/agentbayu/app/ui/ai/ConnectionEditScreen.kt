@@ -49,6 +49,8 @@ import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.liftShadow
 
 data class ConnectionEditState(
     val providers: List<ProviderEntry>,
@@ -522,8 +524,9 @@ fun AiDropdown(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .liftShadow(GlassTileShape)
                     .clip(GlassTileShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .background(LocalAppSurfaces.current.control)
                     .clickable(
                         interactionSource = null,
                         indication = null,

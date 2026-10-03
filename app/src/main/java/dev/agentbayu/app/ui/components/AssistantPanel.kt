@@ -77,6 +77,8 @@ import dev.agentbayu.app.ui.theme.glassSurface
 import dev.agentbayu.app.ui.theme.panelGlassStyle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.liftShadow
 
 @Composable
 fun AssistantPanel(
@@ -348,8 +350,9 @@ private fun AssistantInputBar(
     }
     Column(
         modifier = modifier
+            .liftShadow(CapsuleShape)
             .clip(CapsuleShape)
-            .glassSurface(shape = CapsuleShape)
+            .background(LocalAppSurfaces.current.composer)
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, amount ->

@@ -38,8 +38,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
@@ -52,14 +50,13 @@ import dev.agentbayu.app.domain.MessageSegment
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.AppleGreenDark
 import dev.agentbayu.app.ui.theme.AppleGreenLight
-import dev.agentbayu.app.ui.theme.FilledControlDark
-import dev.agentbayu.app.ui.theme.FilledControlLight
-import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 import dev.agentbayu.app.ui.theme.GlassBadgeShape
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.UserBubbleShape
-import dev.agentbayu.app.ui.theme.glassSurface
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.background
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.liftShadow
 
 @Composable
 fun MessageBubble(
@@ -179,7 +176,6 @@ private fun UserMessage(
     onEdit: ((ChatMessage) -> Unit)? = null,
     onOpenAttachment: ((dev.agentbayu.app.domain.MessageAttachment) -> Unit)? = null
 ) {
-    val userTint = lerp(FilledControlLight, FilledControlDark, LocalThemeDarkFraction.current)
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.End
@@ -203,13 +199,15 @@ private fun UserMessage(
             Box(
                 modifier = Modifier
                     .widthIn(max = 300.dp)
-                    .glassSurface(shape = UserBubbleShape, tint = userTint, bordered = false)
+                    .liftShadow(UserBubbleShape)
+                    .clip(UserBubbleShape)
+                    .background(LocalAppSurfaces.current.userBubble)
                     .padding(horizontal = 16.dp, vertical = 10.dp)
             ) {
                 Text(
                     text = message.text,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }

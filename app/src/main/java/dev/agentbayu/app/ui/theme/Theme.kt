@@ -113,8 +113,14 @@ fun AgentBayuTheme(
         fraction >= 1f - MORPH_EPSILON -> darkGlassStyle
         else -> lerpGlassStyle(lightGlassStyle, darkGlassStyle, fraction)
     }
+    val surfaces = when {
+        fraction <= MORPH_EPSILON -> lightSurfaces
+        fraction >= 1f - MORPH_EPSILON -> darkSurfaces
+        else -> lerpSurfaces(lightSurfaces, darkSurfaces, fraction)
+    }
     CompositionLocalProvider(
         LocalIndication provides NoIndication,
+        LocalAppSurfaces provides surfaces,
         LocalDarkTheme provides (fraction >= DARK_SWITCH_POINT),
         LocalThemeDarkFraction provides fraction,
         LocalGlassStyle provides glassStyle,

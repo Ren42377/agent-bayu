@@ -2,27 +2,25 @@ package dev.agentbayu.app.ui.settings
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import dev.agentbayu.app.ui.theme.GlassTileShape
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -30,11 +28,9 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import dev.agentbayu.app.platform.ThemeMode
-import dev.agentbayu.app.ui.components.GlassBadge
 import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.components.pressScaleFeedback
-import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.LocalThemeScrub
 import dev.agentbayu.app.ui.theme.glassSurface
@@ -67,7 +63,7 @@ fun SettingsScreen(
                 top = 16.dp,
                 bottom = 16.dp + insets.calculateBottomPadding()
             ),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         Text(
             text = stringResource(R.string.tab_settings),
@@ -77,53 +73,26 @@ fun SettingsScreen(
         )
 
         SectionGroup(title = stringResource(R.string.settings_appearance)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                GlassBadge(
-                    icon = painterResource(R.drawable.ic_theme),
-                    containerColor = MaterialTheme.colorScheme.inverseSurface,
-                    contentColor = MaterialTheme.colorScheme.inverseOnSurface
-                )
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.settings_theme_title),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Text(
-                        text = stringResource(R.string.settings_theme_body),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-            ThemeModeSelector(mode = themeMode, onModeChange = onThemeModeChange)
+            ThemeSettingRow(mode = themeMode, onModeChange = onThemeModeChange)
         }
 
         SectionGroup(title = stringResource(R.string.settings_ai)) {
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_package),
                 title = stringResource(R.string.settings_providers_title),
-                subtitle = stringResource(R.string.settings_providers_body),
+                shape = groupShape(index = 0, count = 3),
                 onClick = onOpenProviders
             )
-            SettingDivider()
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_edit),
                 title = stringResource(R.string.settings_custom_prompt_title),
-                subtitle = stringResource(R.string.settings_custom_prompt_body),
+                shape = groupShape(index = 1, count = 3),
                 onClick = onOpenCustomPrompt
             )
-            SettingDivider()
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_pending),
                 title = stringResource(R.string.settings_logs_title),
-                subtitle = stringResource(R.string.settings_logs_body),
+                shape = groupShape(index = 2, count = 3),
                 onClick = onOpenLogs
             )
         }
@@ -132,7 +101,7 @@ fun SettingsScreen(
             ToggleSettingRow(
                 icon = painterResource(R.drawable.ic_check),
                 title = stringResource(R.string.settings_tool_approval_title),
-                subtitle = stringResource(R.string.settings_tool_approval_body),
+                shape = groupShape(index = 0, count = 2),
                 checked = toolApprovalMode == ToolApprovalMode.BYPASS,
                 onCheckedChange = { enabled ->
                     onToolApprovalModeChange(
@@ -140,15 +109,11 @@ fun SettingsScreen(
                     )
                 }
             )
-            SettingDivider()
             NavigationSettingRow(
                 icon = painterResource(R.drawable.ic_open_in_app),
                 title = stringResource(R.string.settings_storage_title),
-                subtitle = if (storageGranted) {
-                    stringResource(R.string.status_ready)
-                } else {
-                    stringResource(R.string.settings_storage_body)
-                },
+                value = if (storageGranted) stringResource(R.string.status_ready) else null,
+                shape = groupShape(index = 1, count = 2),
                 onClick = onOpenStorageSettings
             )
         }
@@ -157,28 +122,48 @@ fun SettingsScreen(
             ToggleSettingRow(
                 icon = painterResource(R.drawable.ic_settings),
                 title = stringResource(R.string.setup_context_title),
-                subtitle = stringResource(R.string.setup_context_body),
+                shape = groupShape(index = 0, count = 1),
                 checked = useScreenContext,
                 onCheckedChange = onScreenContextChange
             )
         }
 
         SectionGroup(title = stringResource(R.string.settings_about)) {
-            Column(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .glassSurface(shape = groupShape(index = 0, count = 1), bordered = false)
+                    .padding(horizontal = 18.dp, vertical = 16.dp)
+            ) {
                 Text(
                     text = stringResource(R.string.settings_about_body),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.size(10.dp))
                 Text(
                     text = stringResource(R.string.settings_version, versionName),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
     }
+}
+
+private val GroupOuterRadius = 28.dp
+private val GroupInnerRadius = 6.dp
+private val GroupRowGap = 3.dp
+
+private fun groupShape(index: Int, count: Int): Shape {
+    val top = if (index == 0) GroupOuterRadius else GroupInnerRadius
+    val bottom = if (index == count - 1) GroupOuterRadius else GroupInnerRadius
+    return RoundedCornerShape(
+        topStart = top,
+        topEnd = top,
+        bottomStart = bottom,
+        bottomEnd = bottom
+    )
 }
 
 @Composable
@@ -188,29 +173,22 @@ private fun SectionGroup(
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(6.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Text(
-            text = title.uppercase(),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            text = title,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 8.dp)
         )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .glassSurface(shape = GlassCardShape)
-                .padding(16.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                content()
-            }
+        Column(verticalArrangement = Arrangement.spacedBy(GroupRowGap)) {
+            content()
         }
     }
 }
 
 @Composable
-private fun ThemeModeSelector(
+private fun ThemeSettingRow(
     mode: ThemeMode,
     onModeChange: (ThemeMode) -> Unit
 ) {
@@ -230,59 +208,86 @@ private fun ThemeModeSelector(
         }
     }
     val scrub = LocalThemeScrub.current
-    GlassSegmentedSelector(
-        labels = labels,
-        icons = icons.map { painterResource(it) },
-        selectedIndex = options.indexOf(mode).coerceAtLeast(0),
-        onSelect = { index -> onModeChange(options[index]) },
-        onScrub = { reader ->
-            if (reader != null) {
-                scrub.bind(reader)
-            } else {
-                scrub.unbind()
-            }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .glassSurface(shape = groupShape(index = 0, count = 1), bordered = false)
+            .padding(horizontal = 18.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                painter = painterResource(R.drawable.ic_theme),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(SettingIconSize)
+            )
+            Spacer(modifier = Modifier.width(SettingIconGap))
+            Text(
+                text = stringResource(R.string.settings_theme_title),
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurface
+            )
         }
-    )
+        GlassSegmentedSelector(
+            labels = labels,
+            icons = icons.map { painterResource(it) },
+            selectedIndex = options.indexOf(mode).coerceAtLeast(0),
+            onSelect = { index -> onModeChange(options[index]) },
+            onScrub = { reader ->
+                if (reader != null) {
+                    scrub.bind(reader)
+                } else {
+                    scrub.unbind()
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun NavigationSettingRow(
     icon: Painter,
     title: String,
-    subtitle: String,
-    onClick: () -> Unit
+    shape: Shape,
+    onClick: () -> Unit,
+    value: String? = null
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(GlassTileShape)
+            .glassSurface(shape = shape, bordered = false)
             .clickable(onClick = onClick)
             .pressScaleFeedback()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .heightIn(min = SettingRowMinHeight)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        GlassBadge(
-            icon = icon,
-            containerColor = MaterialTheme.colorScheme.inverseSurface,
-            contentColor = MaterialTheme.colorScheme.inverseOnSurface
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(SettingIconSize)
         )
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Spacer(modifier = Modifier.width(SettingIconGap))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        if (value != null) {
             Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            Spacer(modifier = Modifier.width(8.dp))
         }
         Icon(
             painter = painterResource(R.drawable.ic_chevron),
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(16.dp)
         )
     }
@@ -292,34 +297,31 @@ private fun NavigationSettingRow(
 private fun ToggleSettingRow(
     icon: Painter,
     title: String,
-    subtitle: String,
+    shape: Shape,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 4.dp),
+            .glassSurface(shape = shape, bordered = false)
+            .heightIn(min = SettingRowMinHeight)
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        GlassBadge(
-            icon = icon,
-            containerColor = MaterialTheme.colorScheme.inverseSurface,
-            contentColor = MaterialTheme.colorScheme.inverseOnSurface
+        Icon(
+            painter = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(SettingIconSize)
         )
-        Spacer(modifier = Modifier.width(14.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
+        Spacer(modifier = Modifier.width(SettingIconGap))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
         Spacer(modifier = Modifier.width(8.dp))
         GlassToggle(
             checked = checked,
@@ -328,11 +330,6 @@ private fun ToggleSettingRow(
     }
 }
 
-@Composable
-private fun SettingDivider() {
-    HorizontalDivider(
-        modifier = Modifier.padding(start = 46.dp),
-        thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
-    )
-}
+private val SettingIconSize = 22.dp
+private val SettingIconGap = 16.dp
+private val SettingRowMinHeight = 56.dp
