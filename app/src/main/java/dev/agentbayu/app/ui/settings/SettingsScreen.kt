@@ -36,8 +36,8 @@ import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.components.pressScaleFeedback
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
+import dev.agentbayu.app.ui.theme.LocalThemeScrub
 import dev.agentbayu.app.ui.theme.glassSurface
-import kotlin.math.roundToInt
 
 @Composable
 fun SettingsScreen(
@@ -229,15 +229,17 @@ private fun ThemeModeSelector(
             ThemeMode.DARK -> R.drawable.ic_theme_dark
         }
     }
+    val scrub = LocalThemeScrub.current
     GlassSegmentedSelector(
         labels = labels,
         icons = icons.map { painterResource(it) },
         selectedIndex = options.indexOf(mode).coerceAtLeast(0),
         onSelect = { index -> onModeChange(options[index]) },
-        onValueChange = { value ->
-            val index = value.roundToInt().coerceIn(0, options.lastIndex)
-            if (index != options.indexOf(mode)) {
-                onModeChange(options[index])
+        onScrub = { reader ->
+            if (reader != null) {
+                scrub.bind(reader)
+            } else {
+                scrub.unbind()
             }
         }
     )

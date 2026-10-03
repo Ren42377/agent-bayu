@@ -1,13 +1,9 @@
 package dev.agentbayu.app.ui.theme
 
 import android.os.Build
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.core.updateTransition
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.InteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -18,15 +14,12 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.platform.LocalContext
 
-val LocalDarkTheme = staticCompositionLocalOf { false }
+val LocalDarkTheme = compositionLocalOf { false }
 
 val LocalThemeDarkFraction = compositionLocalOf { 0f }
 
@@ -94,40 +87,36 @@ private val darkColors: ColorScheme = darkColorScheme(
 
 @Composable
 fun AgentBayuTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkFraction: Float,
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val context = LocalContext.current
-    val lightScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            dynamicLightColorScheme(context)
-        }
-
-        else -> lightColors
+    val fraction = darkFraction.coerceIn(0f, 1f)
+    val lightScheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        dynamicLightColorScheme(context)
+    } else {
+        lightColors
     }
-    val darkScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            dynamicDarkColorScheme(context)
-        }
-
-        else -> darkColors
+    val darkScheme = if (dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        dynamicDarkColorScheme(context)
+    } else {
+        darkColors
     }
-    val transition = updateTransition(targetState = darkTheme, label = THEME_TRANSITION_LABEL)
-    val darkFraction by transition.animateFloat(
-        transitionSpec = { tween(durationMillis = THEME_CROSSFADE_MILLIS) },
-        label = THEME_FRACTION_LABEL
-    ) { target -> if (target) 1f else 0f }
-    val colorScheme = remember(lightScheme, darkScheme, darkFraction) {
-        lightScheme.blend(darkScheme, darkFraction)
+    val colorScheme = when {
+        fraction <= MORPH_EPSILON -> lightScheme
+        fraction >= 1f - MORPH_EPSILON -> darkScheme
+        else -> lerpColorScheme(lightScheme, darkScheme, fraction)
     }
-    val glassStyle = remember(darkFraction) {
-        lightGlassStyle.blend(darkGlassStyle, darkFraction)
+    val glassStyle = when {
+        fraction <= MORPH_EPSILON -> lightGlassStyle
+        fraction >= 1f - MORPH_EPSILON -> darkGlassStyle
+        else -> lerpGlassStyle(lightGlassStyle, darkGlassStyle, fraction)
     }
     CompositionLocalProvider(
         LocalIndication provides NoIndication,
-        LocalDarkTheme provides darkTheme,
-        LocalThemeDarkFraction provides darkFraction,
+        LocalDarkTheme provides (fraction >= DARK_SWITCH_POINT),
+        LocalThemeDarkFraction provides fraction,
         LocalGlassStyle provides glassStyle,
         LocalContentColor provides colorScheme.onSurface
     ) {
@@ -140,6 +129,51 @@ fun AgentBayuTheme(
     }
 }
 
+private const val MORPH_EPSILON = 0.001f
+private const val DARK_SWITCH_POINT = 0.5f
+
+private fun lerpColorScheme(start: ColorScheme, stop: ColorScheme, fraction: Float): ColorScheme {
+    fun mix(from: Color, to: Color): Color = lerp(from, to, fraction)
+    return start.copy(
+        primary = mix(start.primary, stop.primary),
+        onPrimary = mix(start.onPrimary, stop.onPrimary),
+        primaryContainer = mix(start.primaryContainer, stop.primaryContainer),
+        onPrimaryContainer = mix(start.onPrimaryContainer, stop.onPrimaryContainer),
+        inversePrimary = mix(start.inversePrimary, stop.inversePrimary),
+        secondary = mix(start.secondary, stop.secondary),
+        onSecondary = mix(start.onSecondary, stop.onSecondary),
+        secondaryContainer = mix(start.secondaryContainer, stop.secondaryContainer),
+        onSecondaryContainer = mix(start.onSecondaryContainer, stop.onSecondaryContainer),
+        tertiary = mix(start.tertiary, stop.tertiary),
+        onTertiary = mix(start.onTertiary, stop.onTertiary),
+        tertiaryContainer = mix(start.tertiaryContainer, stop.tertiaryContainer),
+        onTertiaryContainer = mix(start.onTertiaryContainer, stop.onTertiaryContainer),
+        background = mix(start.background, stop.background),
+        onBackground = mix(start.onBackground, stop.onBackground),
+        surface = mix(start.surface, stop.surface),
+        onSurface = mix(start.onSurface, stop.onSurface),
+        surfaceVariant = mix(start.surfaceVariant, stop.surfaceVariant),
+        onSurfaceVariant = mix(start.onSurfaceVariant, stop.onSurfaceVariant),
+        surfaceTint = mix(start.surfaceTint, stop.surfaceTint),
+        inverseSurface = mix(start.inverseSurface, stop.inverseSurface),
+        inverseOnSurface = mix(start.inverseOnSurface, stop.inverseOnSurface),
+        error = mix(start.error, stop.error),
+        onError = mix(start.onError, stop.onError),
+        errorContainer = mix(start.errorContainer, stop.errorContainer),
+        onErrorContainer = mix(start.onErrorContainer, stop.onErrorContainer),
+        outline = mix(start.outline, stop.outline),
+        outlineVariant = mix(start.outlineVariant, stop.outlineVariant),
+        scrim = mix(start.scrim, stop.scrim),
+        surfaceBright = mix(start.surfaceBright, stop.surfaceBright),
+        surfaceDim = mix(start.surfaceDim, stop.surfaceDim),
+        surfaceContainer = mix(start.surfaceContainer, stop.surfaceContainer),
+        surfaceContainerHigh = mix(start.surfaceContainerHigh, stop.surfaceContainerHigh),
+        surfaceContainerHighest = mix(start.surfaceContainerHighest, stop.surfaceContainerHighest),
+        surfaceContainerLow = mix(start.surfaceContainerLow, stop.surfaceContainerLow),
+        surfaceContainerLowest = mix(start.surfaceContainerLowest, stop.surfaceContainerLowest)
+    )
+}
+
 private val NoIndication: IndicationNodeFactory = object : IndicationNodeFactory {
 
     override fun create(interactionSource: InteractionSource): Modifier.Node = EmptyIndicationNode()
@@ -150,39 +184,3 @@ private val NoIndication: IndicationNodeFactory = object : IndicationNodeFactory
 }
 
 private class EmptyIndicationNode : Modifier.Node()
-
-private fun ColorScheme.blend(other: ColorScheme, fraction: Float): ColorScheme = copy(
-    primary = lerp(primary, other.primary, fraction),
-    onPrimary = lerp(onPrimary, other.onPrimary, fraction),
-    primaryContainer = lerp(primaryContainer, other.primaryContainer, fraction),
-    onPrimaryContainer = lerp(onPrimaryContainer, other.onPrimaryContainer, fraction),
-    inversePrimary = lerp(inversePrimary, other.inversePrimary, fraction),
-    secondary = lerp(secondary, other.secondary, fraction),
-    onSecondary = lerp(onSecondary, other.onSecondary, fraction),
-    secondaryContainer = lerp(secondaryContainer, other.secondaryContainer, fraction),
-    onSecondaryContainer = lerp(onSecondaryContainer, other.onSecondaryContainer, fraction),
-    tertiary = lerp(tertiary, other.tertiary, fraction),
-    onTertiary = lerp(onTertiary, other.onTertiary, fraction),
-    tertiaryContainer = lerp(tertiaryContainer, other.tertiaryContainer, fraction),
-    onTertiaryContainer = lerp(onTertiaryContainer, other.onTertiaryContainer, fraction),
-    background = lerp(background, other.background, fraction),
-    onBackground = lerp(onBackground, other.onBackground, fraction),
-    surface = lerp(surface, other.surface, fraction),
-    onSurface = lerp(onSurface, other.onSurface, fraction),
-    surfaceVariant = lerp(surfaceVariant, other.surfaceVariant, fraction),
-    onSurfaceVariant = lerp(onSurfaceVariant, other.onSurfaceVariant, fraction),
-    surfaceTint = lerp(surfaceTint, other.surfaceTint, fraction),
-    inverseSurface = lerp(inverseSurface, other.inverseSurface, fraction),
-    inverseOnSurface = lerp(inverseOnSurface, other.inverseOnSurface, fraction),
-    error = lerp(error, other.error, fraction),
-    onError = lerp(onError, other.onError, fraction),
-    errorContainer = lerp(errorContainer, other.errorContainer, fraction),
-    onErrorContainer = lerp(onErrorContainer, other.onErrorContainer, fraction),
-    outline = lerp(outline, other.outline, fraction),
-    outlineVariant = lerp(outlineVariant, other.outlineVariant, fraction),
-    scrim = lerp(scrim, other.scrim, fraction)
-)
-
-private const val THEME_CROSSFADE_MILLIS = 250
-private const val THEME_TRANSITION_LABEL = "themeMode"
-private const val THEME_FRACTION_LABEL = "darkFraction"

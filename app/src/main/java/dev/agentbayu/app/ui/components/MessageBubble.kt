@@ -366,10 +366,12 @@ private val READ_ONLY_TOOLS = setOf(
     "search_files",
     "view_image",
     "list_tasks",
-    "web_search"
+    "web_search",
+    "read_web_page"
 )
 
-private val ARGUMENT_PATTERN = Regex("\"(path|from|title|query|time|task_id|alarm_title)\"\\s*:\\s*\"([^\"]*)\"")
+private val ARGUMENT_PATTERN =
+    Regex("\"(path|from|title|query|url|time|task_id|alarm_title)\"\\s*:\\s*\"([^\"]*)\"")
 
 private fun argumentOf(label: String): String =
     ARGUMENT_PATTERN.find(label)?.groupValues?.get(2).orEmpty()

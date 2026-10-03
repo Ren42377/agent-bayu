@@ -4,15 +4,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.graphicsLayer
+import dev.agentbayu.app.ui.theme.AgentBayuTheme
+import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
+import dev.agentbayu.app.ui.theme.LocalThemeTargetDarkness
 import kotlin.math.abs
 
 @Composable
@@ -28,9 +33,15 @@ fun CardPager(
         withFrameNanos { }
         prewarming = false
     }
+    val liveFraction = LocalThemeDarkFraction.current
+    val targetFraction = LocalThemeTargetDarkness.current
+    val currentProgress by rememberUpdatedState(progress)
     Box(modifier = modifier) {
         repeat(pageCount) { page ->
             key(page) {
+                val isNear by remember(page) {
+                    derivedStateOf { abs(page - currentProgress()) < PAGE_VISIBLE_DISTANCE }
+                }
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -45,7 +56,9 @@ fun CardPager(
                             }
                         }
                 ) {
-                    pageContent(page)
+                    AgentBayuTheme(darkFraction = if (isNear) liveFraction else targetFraction) {
+                        pageContent(page)
+                    }
                 }
             }
         }

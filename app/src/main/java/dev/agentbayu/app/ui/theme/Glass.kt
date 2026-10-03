@@ -19,7 +19,6 @@ import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.lerp
 import androidx.compose.ui.util.lerp
 import com.kyant.backdrop.Backdrop
 import com.kyant.backdrop.backdrops.LayerBackdrop
@@ -77,20 +76,22 @@ val darkGlassStyle = GlassStyle(
     surfaceEdge = GlassEdgeDark
 )
 
+internal fun lerpGlassStyle(start: GlassStyle, stop: GlassStyle, fraction: Float): GlassStyle {
+    return start.copy(
+        fill = lerp(start.fill, stop.fill, fraction),
+        highlight = lerp(start.highlight, stop.highlight, fraction),
+        highlightAlpha = lerp(start.highlightAlpha, stop.highlightAlpha, fraction),
+        brightness = lerp(start.brightness, stop.brightness, fraction),
+        saturation = lerp(start.saturation, stop.saturation, fraction),
+        surface = lerp(start.surface, stop.surface, fraction),
+        surfaceEdge = lerp(start.surfaceEdge, stop.surfaceEdge, fraction)
+    )
+}
+
 @Composable
 fun currentGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {
     return if (darkTheme) darkGlassStyle else lightGlassStyle
 }
-
-internal fun GlassStyle.blend(other: GlassStyle, fraction: Float): GlassStyle = copy(
-    fill = lerp(fill, other.fill, fraction),
-    highlight = lerp(highlight, other.highlight, fraction),
-    strokeWidth = lerp(strokeWidth, other.strokeWidth, fraction),
-    brightness = lerp(brightness, other.brightness, fraction),
-    saturation = lerp(saturation, other.saturation, fraction),
-    surface = lerp(surface, other.surface, fraction),
-    surfaceEdge = lerp(surfaceEdge, other.surfaceEdge, fraction)
-)
 
 @Composable
 fun chromeGlassStyle(darkTheme: Boolean = LocalDarkTheme.current): GlassStyle {

@@ -52,6 +52,7 @@ import dev.agentbayu.app.ai.tools.MoveFileTool
 import dev.agentbayu.app.ai.tools.ReadFileTool
 import dev.agentbayu.app.ai.tools.ReadNoteTool
 import dev.agentbayu.app.ai.tools.ReadTaskTool
+import dev.agentbayu.app.ai.tools.ReadWebPageTool
 import dev.agentbayu.app.ai.tools.RequestPermissionTool
 import dev.agentbayu.app.ai.tools.SearchFilesTool
 import dev.agentbayu.app.ai.tools.SetTaskDeadlineTool
@@ -480,7 +481,8 @@ object AppGraph {
                     DeleteNoteTool { notes(context) },
                     CreateAlarmTool(context),
                     DeleteAlarmTool(context),
-                    WebSearchTool(client),
+                    WebSearchTool(client, clock),
+                    ReadWebPageTool(client),
                     ListFilesTool { files.value },
                     ReadFileTool { files.value },
                     SearchFilesTool { files.value },
