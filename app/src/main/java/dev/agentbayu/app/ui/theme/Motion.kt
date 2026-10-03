@@ -47,5 +47,5 @@ object AgentBayuMotion {
 
     val quickFade: FiniteAnimationSpec<Float> = tween(durationMillis = 180)
 
-    val themeCrossfade: FiniteAnimationSpec<Float> = tween(durationMillis = 220)
+    val themeMorph: FiniteAnimationSpec<Float> = tween(durationMillis = 300)
 }
