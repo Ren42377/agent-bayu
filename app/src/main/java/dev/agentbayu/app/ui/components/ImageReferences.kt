@@ -5,7 +5,7 @@ import java.net.URI
 import java.net.URISyntaxException
 
 internal val IMAGE_EXTENSIONS = setOf(
-    "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif"
+    "jpg", "jpeg", "png", "gif", "webp", "bmp", "heic", "heif", "avif", "svg"
 )
 
 private const val FILE_SCHEME = "file://"

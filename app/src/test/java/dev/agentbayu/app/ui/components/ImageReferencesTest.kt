@@ -69,6 +69,8 @@ class ImageReferencesTest {
         assertTrue(isImageReference("/storage/emulated/0/My Pics/a.webp"))
         assertTrue(isImageReference("file:///sdcard/a.png"))
         assertTrue(isImageReference("content://media/external/images/media/12"))
+        assertTrue(isImageReference("https://example.com/diagram.svg"))
+        assertTrue(isImageReference("/storage/emulated/0/My Pics/chart.svg"))
     }
 
     @Test
