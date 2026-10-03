@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.ai
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -281,12 +282,11 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(CapsuleShape)
-                        .glassSurface(
-                            shape = CapsuleShape,
-                            tint = if (selected) {
+                        .background(
+                            if (selected) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                Color.Unspecified
+                                MaterialTheme.colorScheme.primaryContainer
                             }
                         )
                         .clickable(onClick = { onSelectModel(modelId) })

@@ -399,10 +399,10 @@ private fun AssistantInputBar(
             onClick = if (isResponding) onStop else submit,
             modifier = Modifier.size(40.dp),
             enabled = isResponding || canSend,
-            tint = when {
-                isResponding -> MaterialTheme.colorScheme.error
-                canSend -> MaterialTheme.colorScheme.primary
-                else -> Color.Unspecified
+            tint = if (isResponding || canSend) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                Color.Unspecified
             },
             shape = CircleShape,
             contentPadding = GlassButtonDefaults.IconPadding
@@ -414,10 +414,10 @@ private fun AssistantInputBar(
                 contentDescription = stringResource(
                     if (isResponding) R.string.chat_stop else R.string.chat_send
                 ),
-                tint = when {
-                    isResponding -> Color.White
-                    canSend -> LocalContentColor.current
-                    else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                tint = if (isResponding || canSend) {
+                    LocalContentColor.current
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 },
                 modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
             )

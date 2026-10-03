@@ -90,6 +90,7 @@ dependencies {
     implementation("com.mikepenz:multiplatform-markdown-renderer-code:0.43.0")
     implementation("com.mikepenz:multiplatform-markdown-renderer-coil3:0.43.0")
     implementation("io.coil-kt.coil3:coil-network-okhttp:3.5.0")
+    implementation("io.coil-kt.coil3:coil-svg:3.5.0")
     implementation("ru.noties:jlatexmath-android:0.2.0")
     implementation(platform("androidx.compose:compose-bom:2026.08.00"))
     implementation("androidx.compose.ui:ui")

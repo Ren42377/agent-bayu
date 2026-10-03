@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,33 +14,20 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastCoerceAtMost
-import androidx.compose.ui.util.lerp
-import androidx.compose.ui.zIndex
 import dev.agentbayu.app.ui.theme.CapsuleShape
-import dev.agentbayu.app.ui.theme.FilledControlDark
-import dev.agentbayu.app.ui.theme.FilledControlLight
-import dev.agentbayu.app.ui.theme.liquidGlass
-import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
-import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.tanh
 
 object GlassButtonDefaults {
 
@@ -50,7 +38,8 @@ object GlassButtonDefaults {
     val IconButtonSize: Dp = 40.dp
 }
 
-private const val RAISED_Z_INDEX = 1f
+private const val BUTTON_PRESS_SCALE_DELTA = 0.04f
+private const val BUTTON_DISABLED_ALPHA = 0.5f
 
 @Composable
 fun GlassIconButton(
@@ -85,69 +74,31 @@ fun GlassButton(
         Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
     content: @Composable RowScope.() -> Unit
 ) {
+    val scheme = MaterialTheme.colorScheme
     val animationScope = rememberCoroutineScope()
-    val interactiveHighlight = remember(animationScope) { InteractiveHighlight(animationScope) }
-    val raised by remember(interactiveHighlight) {
-        derivedStateOf { interactiveHighlight.pressProgress > 0f }
+    val highlight = remember(animationScope) {
+        InteractiveHighlight(animationScope = animationScope, claimDrag = false)
     }
-    val darkFraction = LocalThemeDarkFraction.current
-    val effectiveTint = if (tint.isSpecified && tint == MaterialTheme.colorScheme.primary) {
-        lerp(FilledControlLight, FilledControlDark, darkFraction)
-    } else {
-        tint
-    }
-    val contentColor = if (tint.isSpecified) {
-        Color.White
-    } else {
-        MaterialTheme.colorScheme.onSurface
+    val tinted = tint.isSpecified
+    val containerColor = if (tinted) tint else scheme.primaryContainer
+    val contentColor = when {
+        !tinted -> scheme.onSurface
+        tint == scheme.primary -> scheme.onPrimary
+        else -> Color.White
     }
 
     Row(
         modifier = modifier
-            .zIndex(if (raised) RAISED_Z_INDEX else 0f)
-            .liquidGlass(
-                shape = shape,
-                tint = effectiveTint,
-                layerBlock = if (enabled) {
-                    {
-                        val width = size.width
-                        val height = size.height
-                        val progress = interactiveHighlight.pressProgress
-                        val scale = lerp(1f, 1f + 4.dp.toPx() / height, progress)
-
-                        val maxOffset = size.minDimension
-                        val offset = interactiveHighlight.offset
-                        translationX = maxOffset * tanh(0.05f * offset.x / maxOffset)
-                        translationY = maxOffset * tanh(0.05f * offset.y / maxOffset)
-
-                        val maxDragScale = 4.dp.toPx() / height
-                        val offsetAngle = atan2(offset.y, offset.x)
-                        scaleX = scale +
-                            maxDragScale * abs(cos(offsetAngle) * offset.x / size.maxDimension) *
-                            (width / height).fastCoerceAtMost(1f)
-                        scaleY = scale +
-                            maxDragScale * abs(sin(offsetAngle) * offset.y / size.maxDimension) *
-                            (height / width).fastCoerceAtMost(1f)
-                    }
-                } else {
-                    null
-                }
-            )
-            .clickable(
-                interactionSource = null,
-                indication = null,
-                enabled = enabled,
-                role = Role.Button,
-                onClick = onClick
-            )
-            .then(
-                if (enabled) {
-                    Modifier
-                        .then(interactiveHighlight.gestureModifier)
-                } else {
-                    Modifier
-                }
-            )
+            .alpha(if (enabled) 1f else BUTTON_DISABLED_ALPHA)
+            .graphicsLayer {
+                val scale = 1f + BUTTON_PRESS_SCALE_DELTA * highlight.pressProgress
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(shape)
+            .background(containerColor)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .then(if (enabled) highlight.gestureModifier else Modifier)
             .padding(contentPadding),
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.CenterVertically

@@ -407,8 +407,7 @@ private fun ColumnScope.HistoryDrawerContent(
     ) {
         GlassButton(
             onClick = onNew,
-            modifier = Modifier.fillMaxWidth(),
-            tint = MaterialTheme.colorScheme.primary
+            modifier = Modifier.fillMaxWidth()
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_chat_add),
