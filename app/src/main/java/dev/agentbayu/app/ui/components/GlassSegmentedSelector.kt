@@ -90,7 +90,6 @@ internal fun GlassSegmentedSelector(
     val touchSlop = LocalViewConfiguration.current.touchSlop
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
     var scrubbing by remember { mutableStateOf(false) }
-    val pressedFill = MaterialTheme.colorScheme.primary
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -219,7 +218,7 @@ internal fun GlassSegmentedSelector(
                     },
                     onDrawSurface = {
                         drawRect(
-                            pressedFill.copy(alpha = SELECTOR_PRESSED_FILL_ALPHA * dragAnimation.pressProgress)
+                            Color.Black.copy(alpha = SELECTOR_PRESSED_SHADE_ALPHA * dragAnimation.pressProgress)
                         )
                     }
                 )
@@ -288,7 +287,7 @@ private fun SelectorMirror(
                 )
                 val press = dragAnimation.pressProgress
                 drawRoundRect(
-                    color = trackColor.copy(alpha = trackAlpha * (1f + MIRROR_TRACK_BOOST * press)),
+                    color = trackColor.copy(alpha = trackAlpha),
                     cornerRadius = CornerRadius(size.height / 2f)
                 )
                 val rimWidth = MIRROR_RIM_WIDTH.toPx()
@@ -437,8 +436,7 @@ private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
 private const val SELECTOR_TINT_ALPHA = 0.92f
-private const val SELECTOR_PRESSED_FILL_ALPHA = 0.1f
-private const val MIRROR_TRACK_BOOST = 2f
+private const val SELECTOR_PRESSED_SHADE_ALPHA = 0.03f
 private const val MIRROR_RIM_PRESSED_ALPHA = 0.3f
 private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_CONTENT_PRESS_SCALE = 1.12f
