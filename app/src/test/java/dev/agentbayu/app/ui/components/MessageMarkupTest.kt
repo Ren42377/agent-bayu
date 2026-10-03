@@ -196,8 +196,8 @@ class MessageMarkupTest {
     fun imageModelMapsAbsolutePathsToFiles() {
         assertTrue(imageModelFor("/storage/emulated/0/Pictures/a.png") is java.io.File)
         assertEquals("https://example.com/a.png", imageModelFor("https://example.com/a.png"))
-        assertEquals("//cdn.example.com/a.png", imageModelFor("//cdn.example.com/a.png"))
+        assertEquals("https://cdn.example.com/a.png", imageModelFor("//cdn.example.com/a.png"))
         assertEquals("content://media/1", imageModelFor("content://media/1"))
-        assertEquals("file:///sdcard/a.png", imageModelFor("file:///sdcard/a.png"))
+        assertEquals(java.io.File("/sdcard/a.png"), imageModelFor("file:///sdcard/a.png"))
     }
 }
