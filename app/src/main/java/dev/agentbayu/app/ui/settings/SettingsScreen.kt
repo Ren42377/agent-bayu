@@ -235,7 +235,7 @@ private fun ThemeModeSelector(
         icons = icons.map { painterResource(it) },
         selectedIndex = options.indexOf(mode).coerceAtLeast(0),
         onSelect = { index -> onModeChange(options[index]) },
-        onPositionReader = { reader ->
+        onScrub = { reader ->
             if (reader != null) {
                 scrub.bind(reader)
             } else {

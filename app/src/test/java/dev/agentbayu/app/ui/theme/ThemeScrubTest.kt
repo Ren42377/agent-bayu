@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.theme
 
+import dev.agentbayu.app.platform.ThemeMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -69,5 +70,27 @@ class ThemeScrubTest {
         scrub.unbind()
 
         assertNull(scrub.read())
+    }
+
+    @Test
+    fun targetDarknessIgnoresTheSystemUnlessModeIsSystem() {
+        assertEquals(1f, themeTargetDarkness(ThemeMode.DARK, systemDark = false), 0f)
+        assertEquals(1f, themeTargetDarkness(ThemeMode.DARK, systemDark = true), 0f)
+        assertEquals(0f, themeTargetDarkness(ThemeMode.LIGHT, systemDark = true), 0f)
+        assertEquals(0f, themeTargetDarkness(ThemeMode.LIGHT, systemDark = false), 0f)
+    }
+
+    @Test
+    fun systemModeFollowsTheSystemTheme() {
+        assertEquals(1f, themeTargetDarkness(ThemeMode.SYSTEM, systemDark = true), 0f)
+        assertEquals(0f, themeTargetDarkness(ThemeMode.SYSTEM, systemDark = false), 0f)
+    }
+
+    @Test
+    fun switchingFromSystemToDarkOnADarkDeviceKeepsTheSameTarget() {
+        val before = themeTargetDarkness(ThemeMode.SYSTEM, systemDark = true)
+        val after = themeTargetDarkness(ThemeMode.DARK, systemDark = true)
+
+        assertEquals(before, after, 0f)
     }
 }

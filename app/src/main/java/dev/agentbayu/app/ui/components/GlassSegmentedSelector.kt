@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -36,6 +37,7 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
@@ -72,7 +74,7 @@ internal fun GlassSegmentedSelector(
     onSelect: (Int) -> Unit,
     modifier: Modifier = Modifier,
     icons: List<Painter> = emptyList(),
-    onPositionReader: (reader: (() -> Float)?) -> Unit = {}
+    onScrub: (reader: (() -> Float)?) -> Unit = {}
 ) {
     if (labels.isEmpty()) {
         return
@@ -84,9 +86,11 @@ internal fun GlassSegmentedSelector(
     val indicatorBackdrop = rememberCombinedBackdrop(backdrop, containerBackdrop)
     val animationScope = rememberCoroutineScope()
     val currentOnSelect by rememberUpdatedState(onSelect)
-    val currentOnPositionReader by rememberUpdatedState(onPositionReader)
+    val currentOnScrub by rememberUpdatedState(onScrub)
     val touchSlop = LocalViewConfiguration.current.touchSlop
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
+    var scrubbing by remember { mutableStateOf(false) }
+    val pressedFill = MaterialTheme.colorScheme.primary
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -108,11 +112,13 @@ internal fun GlassSegmentedSelector(
                 pressedScale = SELECTOR_PRESSED_SCALE,
                 onDragStarted = { dragPosition ->
                     travel = 0f
+                    scrubbing = false
                     downIndex = (dragPosition.x / segmentWidthPx).toInt().fastCoerceIn(0, lastIndex)
                     dragAnchor = value
                     dragDistance = 0f
                 },
                 onDragStopped = {
+                    scrubbing = false
                     val selected = if (travel < touchSlop) {
                         downIndex
                     } else {
@@ -125,11 +131,15 @@ internal fun GlassSegmentedSelector(
                 onDrag = { _, dragAmount ->
                     travel += abs(dragAmount.x)
                     dragDistance += dragAmount.x
+                    if (!scrubbing && travel >= touchSlop) {
+                        scrubbing = true
+                    }
                     val target = (dragAnchor + dragDistance / segmentWidthPx)
                         .fastCoerceIn(0f, lastIndex.toFloat())
                     updateValue(target)
                 },
                 onDragCanceled = {
+                    scrubbing = false
                     animateToValue(currentIndex.toFloat(), pressed = false)
                 }
             )
@@ -146,9 +156,16 @@ internal fun GlassSegmentedSelector(
             dragAnimation.prewarm()
         }
         val positionReader: () -> Float = remember(dragAnimation) { { dragAnimation.value } }
-        DisposableEffect(positionReader) {
-            currentOnPositionReader(positionReader)
-            onDispose { currentOnPositionReader(null) }
+        val scrubActive = scrubbing
+        DisposableEffect(positionReader, scrubActive) {
+            if (scrubActive) {
+                currentOnScrub(positionReader)
+            }
+            onDispose {
+                if (scrubActive) {
+                    currentOnScrub(null)
+                }
+            }
         }
 
         SelectorTrack(modifier = Modifier.matchParentSize())
@@ -200,7 +217,11 @@ internal fun GlassSegmentedSelector(
                         scaleX = indicatorScaleX(dragAnimation)
                         scaleY = indicatorScaleY(dragAnimation)
                     },
-                    onDrawSurface = { }
+                    onDrawSurface = {
+                        drawRect(
+                            pressedFill.copy(alpha = SELECTOR_PRESSED_FILL_ALPHA * dragAnimation.pressProgress)
+                        )
+                    }
                 )
         )
         Box(
@@ -245,9 +266,10 @@ private fun SelectorMirror(
     val colors = MaterialTheme.colorScheme
     val darkFraction = LocalThemeDarkFraction.current
     val surfaceColor = LocalGlassStyle.current.surface
-    val trackColor = colors.onSurface.copy(
-        alpha = lerp(TRACK_ALPHA, DARK_TRACK_ALPHA, darkFraction)
-    )
+    val trackAlpha = lerp(TRACK_ALPHA, DARK_TRACK_ALPHA, darkFraction)
+    val rimAlpha = lerp(BORDER_ALPHA, DARK_BORDER_ALPHA, darkFraction)
+    val rimColor = colors.onSurface
+    val trackColor = colors.onSurface
     val tintColor = colors.primary
     val flip = ((dragAnimation.pressProgress - CONTENT_FLIP_START) / CONTENT_FLIP_SPAN)
         .fastCoerceIn(0f, 1f)
@@ -264,11 +286,20 @@ private fun SelectorMirror(
                     topLeft = Offset(-overflow, -overflow),
                     size = Size(size.width + overflow * 2f, size.height + overflow * 2f)
                 )
+                val press = dragAnimation.pressProgress
                 drawRoundRect(
-                    color = trackColor,
+                    color = trackColor.copy(alpha = trackAlpha * (1f + MIRROR_TRACK_BOOST * press)),
                     cornerRadius = CornerRadius(size.height / 2f)
                 )
-                val tintAlpha = SELECTOR_TINT_ALPHA * (1f - dragAnimation.pressProgress)
+                val rimWidth = MIRROR_RIM_WIDTH.toPx()
+                drawRoundRect(
+                    color = rimColor.copy(alpha = lerp(rimAlpha, MIRROR_RIM_PRESSED_ALPHA, press)),
+                    topLeft = Offset(rimWidth / 2f, rimWidth / 2f),
+                    size = Size(size.width - rimWidth, size.height - rimWidth),
+                    cornerRadius = CornerRadius((size.height - rimWidth) / 2f),
+                    style = Stroke(width = rimWidth)
+                )
+                val tintAlpha = lerp(SELECTOR_TINT_ALPHA, 0f, press)
                 if (tintAlpha > 0f) {
                     val left = dragAnimation.value * segmentWidthPx
                     scale(
@@ -405,7 +436,10 @@ private const val TRACK_ALPHA = 0.06f
 private const val DARK_TRACK_ALPHA = 0.035f
 private const val BORDER_ALPHA = 0.08f
 private const val DARK_BORDER_ALPHA = 0.06f
-private const val SELECTOR_TINT_ALPHA = 0.55f
+private const val SELECTOR_TINT_ALPHA = 0.92f
+private const val SELECTOR_PRESSED_FILL_ALPHA = 0.1f
+private const val MIRROR_TRACK_BOOST = 2f
+private const val MIRROR_RIM_PRESSED_ALPHA = 0.3f
 private const val SELECTOR_PRESSED_SCALE = 78f / 56f
 private const val SELECTOR_CONTENT_PRESS_SCALE = 1.12f
 private const val SELECTOR_VELOCITY_SCALE = 10f
@@ -414,8 +448,9 @@ private const val CONTENT_FLIP_START = 0.2f
 private const val CONTENT_FLIP_SPAN = 0.5f
 private val SELECTOR_HEIGHT = 36.dp
 private val SELECTOR_WITH_ICONS_HEIGHT = 52.dp
-private val SELECTOR_LENS_HEIGHT = 16.dp
-private val SELECTOR_LENS_AMOUNT = 24.dp
+private val SELECTOR_LENS_HEIGHT = 10.dp
+private val SELECTOR_LENS_AMOUNT = 14.dp
+private val MIRROR_RIM_WIDTH = 1.5.dp
 private val SELECTOR_INNER_SHADOW = 8.dp
 private val MIRROR_OVERFLOW = 24.dp
 
