@@ -55,7 +55,6 @@ import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.AppleYellowLight
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
-import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 import kotlin.math.abs
 import kotlin.math.ceil
 import kotlin.math.floor
@@ -126,8 +125,7 @@ private fun EffortSlider(
     val lastIndex = stopCount - 1
     val safeSelectedIndex = selectedIndex.fastCoerceIn(0, lastIndex)
     val darkTheme = LocalDarkTheme.current
-    val darkFraction = LocalThemeDarkFraction.current
-    val thumbColor = lerp(Color.White, Color.Black, darkFraction)
+    val thumbColor = Color.White
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(
         alpha = if (darkTheme) SLIDER_TRACK_ALPHA_DARK else SLIDER_TRACK_ALPHA_LIGHT
     )
@@ -228,8 +226,17 @@ private fun EffortSlider(
                 .layerBackdrop(trackBackdrop)
                 .drawBehind {
                     val trackRadius = size.height / 2f
+                    val isInteracting = dragAnimation.isGestureActive || dragAnimation.pressProgress > 0.05f
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
-                    val fillRight = thumbRadiusPx + fillFraction * travelPx
+                    val fillRight = if (isInteracting) {
+                        thumbRadiusPx + fillFraction * travelPx
+                    } else {
+                        when {
+                            currentIndex == 0 -> 0f
+                            currentIndex == lastIndex -> size.width
+                            else -> thumbRadiusPx + (currentIndex.toFloat() / lastIndex) * travelPx
+                        }
+                    }
                     val maxBlend = ((dragAnimation.value - (lastIndex - 1)).fastCoerceIn(0f, 1f))
                     drawRoundRect(
                         color = trackColor,
@@ -310,11 +317,7 @@ private fun EffortSlider(
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
                             blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                            alpha = if (darkTheme) {
-                                0.35f + 0.65f * dragAnimation.pressProgress
-                            } else {
-                                dragAnimation.pressProgress
-                            }
+                            alpha = dragAnimation.pressProgress
                         )
                     },
                     innerShadow = {

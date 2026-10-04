@@ -48,11 +48,9 @@ import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
-import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 
 val CONTEXT_WINDOW_STOPS = listOf(131_072, 262_144, 524_288, 1_048_576)
 
@@ -85,14 +83,19 @@ internal fun ContextWindowSlider(
     val lastIndex = stopCount - 1
     val safeSelectedIndex = selectedIndex.fastCoerceIn(0, lastIndex)
     val darkTheme = LocalDarkTheme.current
-    val darkFraction = LocalThemeDarkFraction.current
-    val thumbColor = lerp(Color.White, Color.Black, darkFraction)
-    val trackColor = MaterialTheme.colorScheme.onSurface.copy(
-        alpha = if (darkTheme) SLIDER_TRACK_ALPHA_DARK else SLIDER_TRACK_ALPHA_LIGHT
-    )
-    val fillColor = MaterialTheme.colorScheme.onSurface
+    val thumbColor = Color.White
+    val trackColor = if (darkTheme) {
+        Color(0xFF141418)
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_TRACK_ALPHA_LIGHT)
+    }
+    val fillColor = if (darkTheme) Color(0xFF24242A) else MaterialTheme.colorScheme.onSurface
     val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
-    val dotOnFillColor = MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+    val dotOnFillColor = if (darkTheme) {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+    } else {
+        MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+    }
     val animationScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
@@ -192,8 +195,17 @@ internal fun ContextWindowSlider(
                     .layerBackdrop(trackBackdrop)
                     .drawBehind {
                         val trackRadius = size.height / 2f
+                        val isInteracting = dragAnimation.isGestureActive || dragAnimation.pressProgress > 0.05f
                         val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
-                        val fillRight = thumbRadiusPx + fillFraction * travelPx
+                        val fillRight = if (isInteracting) {
+                            thumbRadiusPx + fillFraction * travelPx
+                        } else {
+                            when {
+                                currentIndex == 0 -> 0f
+                                currentIndex == lastIndex -> size.width
+                                else -> thumbRadiusPx + (currentIndex.toFloat() / lastIndex) * travelPx
+                            }
+                        }
                         drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
                         val fill = Path().apply {
                             addRoundRect(
@@ -244,11 +256,7 @@ internal fun ContextWindowSlider(
                             Highlight.Ambient.copy(
                                 width = Highlight.Ambient.width / 1.5f,
                                 blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                                alpha = if (darkTheme) {
-                                    0.35f + 0.65f * dragAnimation.pressProgress
-                                } else {
-                                    dragAnimation.pressProgress
-                                }
+                                alpha = dragAnimation.pressProgress
                             )
                         },
                         innerShadow = {
