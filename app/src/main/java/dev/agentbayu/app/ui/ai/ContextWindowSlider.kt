@@ -7,12 +7,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.kyant.backdrop.effects.lens
+import dev.agentbayu.app.ui.theme.CapsuleShape
+import dev.agentbayu.app.ui.theme.FilledControlDark
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -86,18 +87,22 @@ internal fun ContextWindowSlider(
     val darkTheme = LocalDarkTheme.current
     val thumbColor = Color.White
     val trackColor = if (darkTheme) {
-        dev.agentbayu.app.ui.theme.FilledControlDark
+        Color.Black
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_TRACK_ALPHA_LIGHT)
     }
-    val fillColor = if (darkTheme) Color.Black else MaterialTheme.colorScheme.onSurface
+    val fillColor = if (darkTheme) {
+        FilledControlDark
+    } else {
+        MaterialTheme.colorScheme.onSurface
+    }
     val dotColor = if (darkTheme) {
         Color.White.copy(alpha = 0.35f)
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
     }
     val dotOnFillColor = if (darkTheme) {
-        Color.White.copy(alpha = 0.35f)
+        Color.White.copy(alpha = 0.65f)
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
     }
@@ -128,14 +133,13 @@ internal fun ContextWindowSlider(
                 }
         ) {
             val density = LocalDensity.current
-            val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
+            val thumbWidthPx = with(density) { SLIDER_THUMB_WIDTH.toPx() }
             val trackWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             fun stopCenterPx(index: Int): Float {
                 val progress = index.toFloat() / lastIndex
-                val thumbW = thumbRadiusPx * 2f
-                val tx = (-thumbW / 2f + trackWidthPx * progress)
-                    .fastCoerceIn(-thumbW / 4f, trackWidthPx - thumbW * 3f / 4f)
-                return tx + thumbW / 2f
+                val tx = (-thumbWidthPx / 2f + trackWidthPx * progress)
+                    .fastCoerceIn(-thumbWidthPx / 4f, trackWidthPx - thumbWidthPx * 3f / 4f)
+                return tx + thumbWidthPx / 2f
             }
 
             val dragAnimation = remember(animationScope, lastIndex) {
@@ -245,7 +249,7 @@ internal fun ContextWindowSlider(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .size(SLIDER_THUMB_DIAMETER)
+                    .size(width = SLIDER_THUMB_WIDTH, height = SLIDER_THUMB_HEIGHT)
                     .graphicsLayer {
                         val thumbW = size.width
                         val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
@@ -254,7 +258,7 @@ internal fun ContextWindowSlider(
                     }
                     .drawBackdrop(
                         backdrop = thumbBackdrop,
-                        shape = { CircleShape },
+                        shape = { CapsuleShape },
                         effects = {
                             val progress = dragAnimation.pressProgress
                             lens(
@@ -298,9 +302,9 @@ internal fun ContextWindowSlider(
                 .fillMaxWidth()
                 .heightIn(min = SLIDER_LABEL_HEIGHT)
         ) {
-            val labelThumbRadiusPx = with(LocalDensity.current) {
-                SLIDER_THUMB_DIAMETER.toPx()
-            } / 2f
+            val labelThumbWidthPx = with(LocalDensity.current) {
+                SLIDER_THUMB_WIDTH.toPx()
+            }
             val labelTrackWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             (0..lastIndex).forEach { index ->
                 var labelWidth by remember { mutableFloatStateOf(0f) }
@@ -318,10 +322,9 @@ internal fun ContextWindowSlider(
                         .onSizeChanged { size -> labelWidth = size.width.toFloat() }
                         .graphicsLayer {
                             val progress = index.toFloat() / lastIndex
-                            val thumbW = labelThumbRadiusPx * 2f
-                            val tx = (-thumbW / 2f + labelTrackWidthPx * progress)
-                                .fastCoerceIn(-thumbW / 4f, labelTrackWidthPx - thumbW * 3f / 4f)
-                            val centerPx = tx + thumbW / 2f
+                            val tx = (-labelThumbWidthPx / 2f + labelTrackWidthPx * progress)
+                                .fastCoerceIn(-labelThumbWidthPx / 4f, labelTrackWidthPx - labelThumbWidthPx * 3f / 4f)
+                            val centerPx = tx + labelThumbWidthPx / 2f
                             translationX = (centerPx - labelWidth / 2f)
                                 .coerceIn(0f, (constraints.maxWidth - labelWidth).coerceAtLeast(0f))
                         }
@@ -339,6 +342,7 @@ private const val SLIDER_THUMB_PRESSED_SCALE = 1.25f
 private val SLIDER_LENS_HEIGHT = 6.dp
 private val SLIDER_LENS_AMOUNT = 12.dp
 private val SLIDER_TRACK_HEIGHT = 26.dp
-private val SLIDER_THUMB_DIAMETER = 32.dp
+private val SLIDER_THUMB_WIDTH = 44.dp
+private val SLIDER_THUMB_HEIGHT = 28.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
 private val SLIDER_LABEL_HEIGHT = 18.dp

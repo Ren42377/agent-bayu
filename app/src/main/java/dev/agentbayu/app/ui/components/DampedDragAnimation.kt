@@ -4,6 +4,7 @@ import android.os.SystemClock
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.MutatorMutex
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -12,7 +13,8 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -60,7 +62,7 @@ internal class DampedDragAnimation(
                 onDragStart = { down ->
                     isGestureActive = true
                     onDragStarted(down.position)
-                    press(delayMillis = TAP_TIMEOUT_MILLIS)
+                    press()
                 },
                 onDragEnd = {
                     onDragStopped()
@@ -73,11 +75,6 @@ internal class DampedDragAnimation(
                     isGestureActive = false
                 }
             ) { _, dragAmount ->
-                if (abs(dragAmount.x) > 0f || abs(dragAmount.y) > 0f) {
-                    if (pressProgress < 0.05f) {
-                        press(delayMillis = 0L)
-                    }
-                }
                 onDrag(size, dragAmount)
             }
         } finally {
@@ -85,13 +82,10 @@ internal class DampedDragAnimation(
         }
     }
 
-    fun press(delayMillis: Long = 0L) {
+    fun press() {
         velocityTracker.resetTracking()
         pressJob?.cancel()
         pressJob = animationScope.launch {
-            if (delayMillis > 0L) {
-                delay(delayMillis)
-            }
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
@@ -103,6 +97,12 @@ internal class DampedDragAnimation(
         pressJob = animationScope.launch {
             try {
                 withFrameNanos { }
+                if (value != targetValue) {
+                    val threshold = (valueRange.endInclusive - valueRange.start) * 0.025f
+                    snapshotFlow { valueAnimation.value }
+                        .filter { abs(it - valueAnimation.targetValue) < threshold }
+                        .first()
+                }
             } finally {
                 launch { pressProgressAnimation.animateTo(0f, pressProgressAnimationSpec) }
                 launch { scaleXAnimation.animateTo(initialScale, scaleXAnimationSpec) }
@@ -146,4 +146,3 @@ internal class DampedDragAnimation(
 }
 
 private const val PREWARM_PROGRESS = 0.05f
-private const val TAP_TIMEOUT_MILLIS = 100L

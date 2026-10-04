@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
+import dev.agentbayu.app.ui.theme.CapsuleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import com.kyant.backdrop.effects.lens
@@ -156,14 +156,13 @@ private fun EffortSlider(
             }
     ) {
         val density = LocalDensity.current
-        val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
+        val thumbWidthPx = with(density) { SLIDER_THUMB_WIDTH.toPx() }
         val trackWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
         fun stopCenterPx(index: Int): Float {
             val progress = index.toFloat() / lastIndex
-            val thumbW = thumbRadiusPx * 2f
-            val tx = (-thumbW / 2f + trackWidthPx * progress)
-                .fastCoerceIn(-thumbW / 4f, trackWidthPx - thumbW * 3f / 4f)
-            return tx + thumbW / 2f
+            val tx = (-thumbWidthPx / 2f + trackWidthPx * progress)
+                .fastCoerceIn(-thumbWidthPx / 4f, trackWidthPx - thumbWidthPx * 3f / 4f)
+            return tx + thumbWidthPx / 2f
         }
 
         val dragAnimation = remember(animationScope, lastIndex) {
@@ -302,7 +301,7 @@ private fun EffortSlider(
         Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .size(SLIDER_THUMB_DIAMETER)
+                .size(width = SLIDER_THUMB_WIDTH, height = SLIDER_THUMB_HEIGHT)
                 .graphicsLayer {
                     val thumbW = size.width
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
@@ -311,7 +310,7 @@ private fun EffortSlider(
                 }
                 .drawBackdrop(
                     backdrop = thumbBackdrop,
-                    shape = { CircleShape },
+                    shape = { CapsuleShape },
                     effects = {
                         val progress = dragAnimation.pressProgress
                         lens(
@@ -465,5 +464,6 @@ private val SLIDER_LENS_AMOUNT = 12.dp
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
 private val SLIDER_TRACK_HEIGHT = 26.dp
-private val SLIDER_THUMB_DIAMETER = 32.dp
+private val SLIDER_THUMB_WIDTH = 44.dp
+private val SLIDER_THUMB_HEIGHT = 28.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
