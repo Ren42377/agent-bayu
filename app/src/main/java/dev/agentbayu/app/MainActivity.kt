@@ -14,6 +14,9 @@ import coil3.SingletonImageLoader
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -23,7 +26,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.systemBars
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -62,14 +64,13 @@ import dev.agentbayu.app.ui.components.CardPager
 import dev.agentbayu.app.ui.components.GlassDialog
 import dev.agentbayu.app.ui.components.GlassOverlayController
 import dev.agentbayu.app.ui.components.GlassOverlayHost
-import dev.agentbayu.app.ui.components.GlassTabsProgress
 import dev.agentbayu.app.ui.components.LocalGlassOverlay
 import dev.agentbayu.app.ui.components.PageStackProgress
 import dev.agentbayu.app.ui.components.ToolApprovalSheet
 import dev.agentbayu.app.ui.history.HistoryDrawer
 import dev.agentbayu.app.ui.history.HistoryDrawerState
+import dev.agentbayu.app.ui.history.LocalHistoryDrawer
 import dev.agentbayu.app.ui.history.rememberHistoryDrawerState
-import dev.agentbayu.app.ui.nav.AgentBayuBottomBar
 import dev.agentbayu.app.ui.nav.AgentBayuDestination
 import dev.agentbayu.app.ui.nav.AppPageController
 import dev.agentbayu.app.ui.nav.AppPageHost
@@ -159,10 +160,13 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
     val overlayController = remember { GlassOverlayController() }
     val pageController = remember { AppPageController() }
     val pageProgress = remember { PageStackProgress() }
-    val tabProgress = remember { GlassTabsProgress() }
     val historyDrawer = rememberHistoryDrawerState()
     val destinations = AgentBayuDestination.entries
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    val tabAnimation = remember { Animatable(selectedTab.toFloat()) }
+    LaunchedEffect(selectedTab) {
+        tabAnimation.animateTo(selectedTab.toFloat(), TAB_SPRING)
+    }
     val onMessage: (String) -> Unit = { message -> messages.value = message }
 
     LaunchedEffect(pendingMessage) {
@@ -187,7 +191,10 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
         modifier = Modifier.fillMaxSize(),
         canvasModifier = Modifier.layerBackdrop(ambientBackdrop)
     ) {
-        CompositionLocalProvider(LocalGlassOverlay provides overlayController) {
+        CompositionLocalProvider(
+            LocalGlassOverlay provides overlayController,
+            LocalHistoryDrawer provides historyDrawer
+        ) {
             if (onboardingVisible) {
                 CompositionLocalProvider(
                     LocalGlassBackdrop provides ambientBackdrop,
@@ -211,31 +218,7 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = Color.Transparent,
-                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
-                    bottomBar = {
-                        CompositionLocalProvider(LocalGlassBackdrop provides chromeBackdrop) {
-                            AgentBayuBottomBar(
-                                selectedIndex = selectedTab,
-                                onSelect = { index ->
-                                    pageController.closeAll()
-                                    selectedTab = index
-                                },
-                                progress = tabProgress,
-                                modifier = Modifier
-                                    .graphicsLayer {
-                                        val cover = pageProgress.value().coerceIn(0f, 1f)
-                                        alpha = 1f - cover
-                                        translationY = size.height * cover
-                                    }
-                                    .drawWithContent {
-                                        if (pageProgress.value() < BASE_COVER_LIMIT) {
-                                            drawContent()
-                                        }
-                                    },
-                                windowInsets = NavigationBarDefaults.windowInsets
-                            )
-                        }
-                    }
+                    snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
                 ) { innerPadding ->
                     val pageTopInset = innerPadding.calculateTopPadding()
                     val pageBottomInset =
@@ -269,7 +252,7 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                             ) {
                                 CardPager(
                                     pageCount = destinations.size,
-                                    progress = { tabProgress.value() },
+                                    progress = { tabAnimation.value },
                                     modifier = Modifier.fillMaxSize()
                                 ) { page ->
                                     TabContent(
@@ -294,7 +277,15 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                 }
             }
 
-            HistoryDrawer(state = historyDrawer, onMessage = onMessage)
+            HistoryDrawer(
+                state = historyDrawer,
+                onMessage = onMessage,
+                selectedDestination = destinations[selectedTab],
+                onNavigate = { destination ->
+                    pageController.closeAll()
+                    selectedTab = destinations.indexOf(destination)
+                }
+            )
 
             ToolApprovalHost()
 
@@ -406,5 +397,6 @@ private fun TabContent(
     }
 }
 
+private val TAB_SPRING = spring<Float>(dampingRatio = 1f, stiffness = Spring.StiffnessMedium)
 private const val BASE_PARALLAX = 0.25f
 private const val BASE_COVER_LIMIT = 0.999f

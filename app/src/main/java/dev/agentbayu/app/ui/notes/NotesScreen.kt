@@ -1,5 +1,8 @@
 package dev.agentbayu.app.ui.notes
 
+import dev.agentbayu.app.ui.history.HistoryDrawerButton
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -90,9 +93,11 @@ fun NotesScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
+                    .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                HistoryDrawerButton()
+                Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.notes_title),
                     style = MaterialTheme.typography.headlineMedium,

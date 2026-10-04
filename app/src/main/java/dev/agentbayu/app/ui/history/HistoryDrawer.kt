@@ -79,6 +79,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.height
 import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
+import dev.agentbayu.app.ui.nav.AgentBayuDestination
 
 @Stable
 class HistoryDrawerState internal constructor(private val scope: CoroutineScope) {
@@ -174,6 +179,8 @@ fun Modifier.historyDrawerEdge(state: HistoryDrawerState): Modifier = this.point
 fun HistoryDrawer(
     state: HistoryDrawerState,
     onMessage: (String) -> Unit,
+    selectedDestination: AgentBayuDestination,
+    onNavigate: (AgentBayuDestination) -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (!state.mounted) return
@@ -232,13 +239,24 @@ fun HistoryDrawer(
         ) {
             HistoryDrawerContent(
                 sessions = sessions,
-                activeSessionId = activeId,
+                activeSessionId = if (selectedDestination == AgentBayuDestination.CHAT) {
+                    activeId
+                } else {
+                    null
+                },
+                selectedDestination = selectedDestination,
+                onNavigate = { destination ->
+                    onNavigate(destination)
+                    state.close()
+                },
                 onOpen = { sessionId ->
                     manager.openSession(sessionId)
+                    onNavigate(AgentBayuDestination.CHAT)
                     state.close()
                 },
                 onNew = {
                     manager.newSession()
+                    onNavigate(AgentBayuDestination.CHAT)
                     state.close()
                 },
                 onMenu = { session, anchor ->
@@ -322,36 +340,60 @@ fun HistoryDrawer(
     )
 }
 
-private const val PANEL_FRACTION = 0.84f
+private const val PANEL_FRACTION = 0.8f
 private const val EMPTY_HISTORY_KEY = "empty"
 private const val EMPTY_HISTORY_TYPE = "empty"
 private const val HISTORY_SESSION_TYPE = "session"
 private const val PINNED_HEADER_KEY = "pinned-header"
 private const val RECENT_HEADER_KEY = "recent-header"
 private const val HISTORY_SECTION_TYPE = "section-header"
+private const val DESTINATION_KEY_PREFIX = "destination-"
+private const val DESTINATION_TYPE = "destination"
+private const val SELECTED_ROW_ALPHA = 0.1f
 private val EDGE_WIDTH = 88.dp
 private val SESSION_MENU_WIDTH = 180.dp
 private val FLOATING_BUTTON_CLEARANCE = 72.dp
 private val FADE_HEIGHT = 96.dp
+private val LIST_HORIZONTAL_PADDING = 12.dp
+private val ROW_HORIZONTAL_PADDING = 18.dp
+private val ROW_VERTICAL_PADDING = 12.dp
+private val ROW_ICON_SIZE = 22.dp
+private val ROW_ICON_GAP = 14.dp
+private val ROW_TEXT_SIZE = 17.sp
+private val SECTION_TEXT_SIZE = 16.sp
+private val HEADER_TEXT_SIZE = 24.sp
 
 @Composable
 private fun ColumnScope.HistoryDrawerContent(
     sessions: List<ChatSessionMeta>,
     activeSessionId: String?,
+    selectedDestination: AgentBayuDestination,
+    onNavigate: (AgentBayuDestination) -> Unit,
     onOpen: (String) -> Unit,
     onNew: () -> Unit,
     onMenu: (ChatSessionMeta, IntRect) -> Unit
 ) {
     Text(
-        text = stringResource(R.string.history_title),
-        style = MaterialTheme.typography.titleLarge,
+        text = stringResource(R.string.app_name),
+        style = MaterialTheme.typography.titleLarge.copy(
+            fontSize = HEADER_TEXT_SIZE,
+            fontWeight = FontWeight.SemiBold
+        ),
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 4.dp)
+            .padding(
+                start = LIST_HORIZONTAL_PADDING + ROW_HORIZONTAL_PADDING,
+                end = 18.dp,
+                top = 18.dp,
+                bottom = 12.dp
+            )
     )
     val pinnedSessions = sessions.filter { it.pinned }
     val recentSessions = sessions.filterNot { it.pinned }
+    val destinations = remember {
+        AgentBayuDestination.entries.filter { it != AgentBayuDestination.CHAT }
+    }
     val drawerColor = LocalAppSurfaces.current.drawer
     val bottomInset = WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
     Box(
@@ -362,20 +404,33 @@ private fun ColumnScope.HistoryDrawerContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = 12.dp,
-                end = 12.dp,
+                start = LIST_HORIZONTAL_PADDING,
+                end = LIST_HORIZONTAL_PADDING,
                 top = 4.dp,
                 bottom = FLOATING_BUTTON_CLEARANCE + bottomInset
-            ),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            )
         ) {
+            items(
+                items = destinations,
+                key = { destination -> DESTINATION_KEY_PREFIX + destination.name },
+                contentType = { DESTINATION_TYPE }
+            ) { destination ->
+                DestinationRow(
+                    destination = destination,
+                    selected = destination == selectedDestination,
+                    onClick = { onNavigate(destination) }
+                )
+            }
             if (sessions.isEmpty()) {
                 item(key = EMPTY_HISTORY_KEY, contentType = EMPTY_HISTORY_TYPE) {
                     Text(
                         text = stringResource(R.string.history_empty),
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontSize = ROW_TEXT_SIZE),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 12.dp)
+                        modifier = Modifier.padding(
+                            horizontal = ROW_HORIZONTAL_PADDING,
+                            vertical = 22.dp
+                        )
                     )
                 }
             }
@@ -395,6 +450,10 @@ private fun ColumnScope.HistoryDrawerContent(
                         onMenu = onMenu
                     )
                 }
+                item(key = RECENT_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
+                    HistorySectionLabel(text = stringResource(R.string.history_recent))
+                }
+            } else if (recentSessions.isNotEmpty()) {
                 item(key = RECENT_HEADER_KEY, contentType = HISTORY_SECTION_TYPE) {
                     HistorySectionLabel(text = stringResource(R.string.history_recent))
                 }
@@ -446,6 +505,48 @@ private fun ColumnScope.HistoryDrawerContent(
 }
 
 @Composable
+private fun DestinationRow(
+    destination: AgentBayuDestination,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(GlassTileShape)
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = SELECTED_ROW_ALPHA)
+                } else {
+                    Color.Transparent
+                }
+            )
+            .clickable(interactionSource = null, indication = null, onClick = onClick)
+            .padding(horizontal = ROW_HORIZONTAL_PADDING, vertical = ROW_VERTICAL_PADDING),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            painter = painterResource(destination.iconRes),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.size(ROW_ICON_SIZE)
+        )
+        Spacer(modifier = Modifier.width(ROW_ICON_GAP))
+        Text(
+            text = stringResource(destination.labelRes),
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontSize = ROW_TEXT_SIZE,
+                fontWeight = FontWeight.SemiBold
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
 private fun SessionRow(
     session: ChatSessionMeta,
     isActive: Boolean,
@@ -476,7 +577,7 @@ private fun SessionRow(
                 }
             )
             .then(highlight.gestureModifier)
-            .padding(start = 10.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
+            .padding(horizontal = ROW_HORIZONTAL_PADDING, vertical = ROW_VERTICAL_PADDING),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (session.pinned) {
@@ -486,15 +587,15 @@ private fun SessionRow(
                 tint = if (isActive) {
                     MaterialTheme.colorScheme.primary
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    MaterialTheme.colorScheme.onSurface
                 },
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(ROW_ICON_SIZE)
             )
-            Spacer(modifier = Modifier.width(10.dp))
+            Spacer(modifier = Modifier.width(ROW_ICON_GAP))
         }
         Text(
             text = session.title.ifBlank { stringResource(R.string.history_untitled) },
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = ROW_TEXT_SIZE),
             color = if (isActive) {
                 MaterialTheme.colorScheme.primary
             } else {
@@ -511,8 +612,16 @@ private fun SessionRow(
 private fun HistorySectionLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(start = 10.dp, top = 8.dp, bottom = 2.dp)
+        style = MaterialTheme.typography.titleMedium.copy(
+            fontSize = SECTION_TEXT_SIZE,
+            fontWeight = FontWeight.Bold
+        ),
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(
+            start = ROW_HORIZONTAL_PADDING,
+            end = ROW_HORIZONTAL_PADDING,
+            top = 22.dp,
+            bottom = 6.dp
+        )
     )
 }

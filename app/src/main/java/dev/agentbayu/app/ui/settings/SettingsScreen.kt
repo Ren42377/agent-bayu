@@ -1,5 +1,6 @@
 package dev.agentbayu.app.ui.settings
 
+import dev.agentbayu.app.ui.history.HistoryDrawerButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,12 +66,18 @@ fun SettingsScreen(
             ),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        Text(
-            text = stringResource(R.string.tab_settings),
-            style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
-        )
+        Row(
+            modifier = Modifier.padding(vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            HistoryDrawerButton()
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = stringResource(R.string.tab_settings),
+                style = MaterialTheme.typography.headlineMedium,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
 
         SectionGroup(title = stringResource(R.string.settings_appearance)) {
             ThemeSettingRow(mode = themeMode, onModeChange = onThemeModeChange)

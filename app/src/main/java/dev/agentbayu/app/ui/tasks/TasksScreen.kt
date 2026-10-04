@@ -1,5 +1,8 @@
 package dev.agentbayu.app.ui.tasks
 
+import dev.agentbayu.app.ui.history.HistoryDrawerButton
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
@@ -99,12 +102,20 @@ fun TasksScreen(
                 .fillMaxSize()
                 .padding(top = insets.calculateTopPadding())
         ) {
-            Text(
-                text = stringResource(R.string.tasks_title),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 6.dp)
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                HistoryDrawerButton()
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = stringResource(R.string.tasks_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
             TaskListTabs(
                 lists = lists,
                 activeListId = activeList?.id,
