@@ -48,9 +48,11 @@ import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import com.kyant.backdrop.backdrops.layerBackdrop
 import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
+import dev.agentbayu.app.ui.theme.LocalThemeDarkFraction
 
 val CONTEXT_WINDOW_STOPS = listOf(131_072, 262_144, 524_288, 1_048_576)
 
@@ -83,6 +85,8 @@ internal fun ContextWindowSlider(
     val lastIndex = stopCount - 1
     val safeSelectedIndex = selectedIndex.fastCoerceIn(0, lastIndex)
     val darkTheme = LocalDarkTheme.current
+    val darkFraction = LocalThemeDarkFraction.current
+    val thumbColor = lerp(Color.White, Color.Black, darkFraction)
     val trackColor = MaterialTheme.colorScheme.onSurface.copy(
         alpha = if (darkTheme) SLIDER_TRACK_ALPHA_DARK else SLIDER_TRACK_ALPHA_LIGHT
     )
@@ -240,7 +244,11 @@ internal fun ContextWindowSlider(
                             Highlight.Ambient.copy(
                                 width = Highlight.Ambient.width / 1.5f,
                                 blurRadius = Highlight.Ambient.blurRadius / 1.5f,
-                                alpha = dragAnimation.pressProgress
+                                alpha = if (darkTheme) {
+                                    0.35f + 0.65f * dragAnimation.pressProgress
+                                } else {
+                                    dragAnimation.pressProgress
+                                }
                             )
                         },
                         innerShadow = {
@@ -248,14 +256,12 @@ internal fun ContextWindowSlider(
                             InnerShadow(radius = 4.dp * progress, alpha = progress)
                         },
                         layerBlock = {
-                            scaleX = dragAnimation.scaleX * (1f + SLIDER_THUMB_STRETCH * dragAnimation.pressProgress)
-                            scaleY = dragAnimation.scaleY
-                            val velocity = dragAnimation.velocity / 50f
-                            scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                            scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
+                            val scale = dragAnimation.scaleX
+                            scaleX = scale
+                            scaleY = scale
                         },
                         onDrawSurface = {
-                            drawRect(Color.White.copy(alpha = 1f - dragAnimation.pressProgress))
+                            drawRect(thumbColor.copy(alpha = 1f - dragAnimation.pressProgress))
                         }
                     )
             )
@@ -305,8 +311,7 @@ private const val SLIDER_TRACK_ALPHA_DARK = 0.10f
 private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
-private const val SLIDER_THUMB_PRESSED_SCALE = 1.2f
-private const val SLIDER_THUMB_STRETCH = 0.4f
+private const val SLIDER_THUMB_PRESSED_SCALE = 1.25f
 private val SLIDER_LENS_HEIGHT = 6.dp
 private val SLIDER_LENS_AMOUNT = 12.dp
 private val SLIDER_TRACK_HEIGHT = 26.dp
