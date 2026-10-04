@@ -86,7 +86,7 @@ internal fun ContextWindowSlider(
     val darkTheme = LocalDarkTheme.current
     val thumbColor = Color.White
     val trackColor = if (darkTheme) {
-        Color.Black
+        dev.agentbayu.app.ui.theme.FilledControlDark
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_TRACK_ALPHA_LIGHT)
     }
@@ -129,8 +129,14 @@ internal fun ContextWindowSlider(
         ) {
             val density = LocalDensity.current
             val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
-            val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
-            fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
+            val trackWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+            fun stopCenterPx(index: Int): Float {
+                val progress = index.toFloat() / lastIndex
+                val thumbW = thumbRadiusPx * 2f
+                val tx = (-thumbW / 2f + trackWidthPx * progress)
+                    .fastCoerceIn(-thumbW / 4f, trackWidthPx - thumbW * 3f / 4f)
+                return tx + thumbW / 2f
+            }
 
             val dragAnimation = remember(animationScope, lastIndex) {
                 var travel = 0f
@@ -150,7 +156,7 @@ internal fun ContextWindowSlider(
                         dragAnchor = value
                         dragDistance = 0f
                         lastTickIndex = value.fastRoundToInt().fastCoerceIn(0, lastIndex)
-                        downIndex = ((position.x - thumbRadiusPx) / (travelPx / lastIndex))
+                        downIndex = (position.x / trackWidthPx * lastIndex)
                             .fastRoundToInt()
                             .fastCoerceIn(0, lastIndex)
                     },
@@ -168,7 +174,7 @@ internal fun ContextWindowSlider(
                     onDrag = { _, dragAmount ->
                         travel += abs(dragAmount.x)
                         dragDistance += dragAmount.x
-                        val target = (dragAnchor + dragDistance / (travelPx / lastIndex))
+                        val target = (dragAnchor + dragDistance / (trackWidthPx / lastIndex))
                             .fastCoerceIn(0f, lastIndex.toFloat())
                         val tickIndex = target.fastRoundToInt()
                         if (tickIndex != lastTickIndex) {
@@ -207,11 +213,7 @@ internal fun ContextWindowSlider(
                     .drawBehind {
                         val trackRadius = size.height / 2f
                         val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
-                        val fillRight = if (fillFraction <= 0f) {
-                            0f
-                        } else {
-                            thumbRadiusPx + fillFraction * travelPx
-                        }
+                        val fillRight = trackWidthPx * fillFraction
                         drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
                         val fill = Path().apply {
                             addRoundRect(
@@ -245,7 +247,10 @@ internal fun ContextWindowSlider(
                     .align(Alignment.CenterStart)
                     .size(SLIDER_THUMB_DIAMETER)
                     .graphicsLayer {
-                        translationX = (dragAnimation.value / lastIndex) * travelPx
+                        val thumbW = size.width
+                        val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
+                        translationX = (-thumbW / 2f + trackWidthPx * fillFraction)
+                            .fastCoerceIn(-thumbW / 4f, trackWidthPx - thumbW * 3f / 4f)
                     }
                     .drawBackdrop(
                         backdrop = thumbBackdrop,
@@ -273,6 +278,9 @@ internal fun ContextWindowSlider(
                             val scale = dragAnimation.scaleX
                             scaleX = scale
                             scaleY = scale
+                            val velocity = dragAnimation.velocity / 10f
+                            scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                            scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                         },
                         onDrawSurface = {
                             drawRect(thumbColor.copy(alpha = 1f - dragAnimation.pressProgress))
@@ -293,7 +301,7 @@ internal fun ContextWindowSlider(
             val labelThumbRadiusPx = with(LocalDensity.current) {
                 SLIDER_THUMB_DIAMETER.toPx()
             } / 2f
-            val labelTravelPx = (constraints.maxWidth - 2 * labelThumbRadiusPx).coerceAtLeast(1f)
+            val labelTrackWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
             (0..lastIndex).forEach { index ->
                 var labelWidth by remember { mutableFloatStateOf(0f) }
                 Text(
@@ -309,11 +317,13 @@ internal fun ContextWindowSlider(
                         .align(Alignment.TopStart)
                         .onSizeChanged { size -> labelWidth = size.width.toFloat() }
                         .graphicsLayer {
-                            translationX = (
-                                labelThumbRadiusPx +
-                                    index * labelTravelPx / lastIndex -
-                                    labelWidth / 2f
-                                ).coerceIn(0f, (constraints.maxWidth - labelWidth).coerceAtLeast(0f))
+                            val progress = index.toFloat() / lastIndex
+                            val thumbW = labelThumbRadiusPx * 2f
+                            val tx = (-thumbW / 2f + labelTrackWidthPx * progress)
+                                .fastCoerceIn(-thumbW / 4f, labelTrackWidthPx - thumbW * 3f / 4f)
+                            val centerPx = tx + thumbW / 2f
+                            translationX = (centerPx - labelWidth / 2f)
+                                .coerceIn(0f, (constraints.maxWidth - labelWidth).coerceAtLeast(0f))
                         }
                 )
             }

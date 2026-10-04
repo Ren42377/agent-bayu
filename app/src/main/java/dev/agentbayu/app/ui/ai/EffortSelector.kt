@@ -157,8 +157,14 @@ private fun EffortSlider(
     ) {
         val density = LocalDensity.current
         val thumbRadiusPx = with(density) { SLIDER_THUMB_DIAMETER.toPx() } / 2f
-        val travelPx = (constraints.maxWidth - 2 * thumbRadiusPx).coerceAtLeast(1f)
-        fun stopCenterPx(index: Int): Float = thumbRadiusPx + index * travelPx / lastIndex
+        val trackWidthPx = constraints.maxWidth.toFloat().coerceAtLeast(1f)
+        fun stopCenterPx(index: Int): Float {
+            val progress = index.toFloat() / lastIndex
+            val thumbW = thumbRadiusPx * 2f
+            val tx = (-thumbW / 2f + trackWidthPx * progress)
+                .fastCoerceIn(-thumbW / 4f, trackWidthPx - thumbW * 3f / 4f)
+            return tx + thumbW / 2f
+        }
 
         val dragAnimation = remember(animationScope, lastIndex) {
             var travel = 0f
@@ -178,7 +184,7 @@ private fun EffortSlider(
                     dragAnchor = value
                     dragDistance = 0f
                     lastTickIndex = value.fastRoundToInt().fastCoerceIn(0, lastIndex)
-                    downIndex = ((position.x - thumbRadiusPx) / (travelPx / lastIndex))
+                    downIndex = (position.x / trackWidthPx * lastIndex)
                         .fastRoundToInt()
                         .fastCoerceIn(0, lastIndex)
                 },
@@ -195,7 +201,7 @@ private fun EffortSlider(
                 onDrag = { _, dragAmount ->
                     travel += abs(dragAmount.x)
                     dragDistance += dragAmount.x
-                    val rawTarget = dragAnchor + dragDistance / (travelPx / lastIndex)
+                    val rawTarget = dragAnchor + dragDistance / (trackWidthPx / lastIndex)
                     val target = rawTarget.fastCoerceIn(0f, lastIndex.toFloat())
                     val tickIndex = target.fastRoundToInt()
                     if (tickIndex != lastTickIndex) {
@@ -234,11 +240,7 @@ private fun EffortSlider(
                 .drawBehind {
                     val trackRadius = size.height / 2f
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
-                    val fillRight = if (fillFraction <= 0f) {
-                        0f
-                    } else {
-                        thumbRadiusPx + fillFraction * travelPx
-                    }
+                    val fillRight = trackWidthPx * fillFraction
                     val maxBlend = ((dragAnimation.value - (lastIndex - 1)).fastCoerceIn(0f, 1f))
                     drawRoundRect(
                         color = trackColor,
@@ -302,7 +304,10 @@ private fun EffortSlider(
                 .align(Alignment.CenterStart)
                 .size(SLIDER_THUMB_DIAMETER)
                 .graphicsLayer {
-                    translationX = (dragAnimation.value / lastIndex) * travelPx
+                    val thumbW = size.width
+                    val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
+                    translationX = (-thumbW / 2f + trackWidthPx * fillFraction)
+                        .fastCoerceIn(-thumbW / 4f, trackWidthPx - thumbW * 3f / 4f)
                 }
                 .drawBackdrop(
                     backdrop = thumbBackdrop,
@@ -330,6 +335,9 @@ private fun EffortSlider(
                         val scale = dragAnimation.scaleX
                         scaleX = scale
                         scaleY = scale
+                        val velocity = dragAnimation.velocity / 10f
+                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
+                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
                     onDrawSurface = {
                         drawRect(thumbColor.copy(alpha = 1f - dragAnimation.pressProgress))
