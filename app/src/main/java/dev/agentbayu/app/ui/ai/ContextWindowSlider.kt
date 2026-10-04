@@ -161,7 +161,7 @@ internal fun ContextWindowSlider(
                             targetValue.fastRoundToInt().fastCoerceIn(0, lastIndex)
                         }
                         currentIndex = selected
-                        hasSelection = selected
+                        activeStopIndex = selected
                         animateToValue(selected.toFloat(), pressed = false)
                         currentOnSelect(selected)
                     },
