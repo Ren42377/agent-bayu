@@ -170,73 +170,78 @@ fun NoteEditorScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(
-                        start = 16.dp,
-                        end = 16.dp,
-                        top = 8.dp,
-                        bottom = insets.calculateBottomPadding() + EDITOR_FAB_CLEARANCE
-                    ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                TextField(
-                    value = draft.title,
-                    onValueChange = { onDraftChange(draft.copy(title = it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = {
-                        Text(
-                            text = stringResource(R.string.notes_editor_title_hint),
-                            style = MaterialTheme.typography.bodyMedium
-                        )
-                    },
-                    textStyle = MaterialTheme.typography.bodyLarge,
-                    singleLine = true,
-                    shape = MaterialTheme.shapes.large,
-                    colors = editorFieldColors()
-                )
-                AnimatedContent(
-                    targetState = preview,
-                    transitionSpec = {
-                        fadeIn(AgentBayuMotion.quickFade) togetherWith
-                            fadeOut(AgentBayuMotion.quickFade)
-                    },
-                    label = "editorMode",
+                Column(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxWidth()
-                ) { previewMode ->
-                    if (previewMode) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .verticalScroll(rememberScrollState())
-                                .padding(horizontal = 4.dp)
-                        ) {
-                            MarkdownMessage(
-                                content = draft.content,
-                                modifier = Modifier.fillMaxWidth(),
-                                autoEmbedImages = true
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 8.dp,
+                            bottom = insets.calculateBottomPadding() + 16.dp
+                        ),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    TextField(
+                        value = draft.title,
+                        onValueChange = { onDraftChange(draft.copy(title = it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text(
+                                text = stringResource(R.string.notes_editor_title_hint),
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        },
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        singleLine = true,
+                        shape = MaterialTheme.shapes.large,
+                        colors = editorFieldColors()
+                    )
+                    AnimatedContent(
+                        targetState = preview,
+                        transitionSpec = {
+                            fadeIn(AgentBayuMotion.quickFade) togetherWith
+                                fadeOut(AgentBayuMotion.quickFade)
+                        },
+                        label = "editorMode",
+                        modifier = Modifier.fillMaxWidth()
+                    ) { previewMode ->
+                        if (previewMode) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp)
+                            ) {
+                                MarkdownMessage(
+                                    content = draft.content,
+                                    modifier = Modifier.fillMaxWidth(),
+                                    autoEmbedImages = true
+                                )
+                            }
+                        } else {
+                            TextField(
+                                value = contentValue,
+                                onValueChange = { value ->
+                                    contentValue = value
+                                    if (value.text != draft.content) {
+                                        onDraftChange(draft.copy(content = value.text))
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 320.dp),
+                                placeholder = {
+                                    Text(
+                                        text = stringResource(R.string.notes_editor_content_hint),
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                },
+                                textStyle = MaterialTheme.typography.bodyMedium,
+                                shape = MaterialTheme.shapes.large,
+                                colors = editorFieldColors()
                             )
                         }
-                    } else {
-                        TextField(
-                            value = contentValue,
-                            onValueChange = { value ->
-                                contentValue = value
-                                if (value.text != draft.content) {
-                                    onDraftChange(draft.copy(content = value.text))
-                                }
-                            },
-                            modifier = Modifier.fillMaxSize(),
-                            placeholder = {
-                                Text(
-                                    text = stringResource(R.string.notes_editor_content_hint),
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                            },
-                            textStyle = MaterialTheme.typography.bodyMedium,
-                            shape = MaterialTheme.shapes.large,
-                            colors = editorFieldColors()
-                        )
                     }
                 }
             }
@@ -274,6 +279,5 @@ private fun editorFieldColors(): TextFieldColors {
     )
 }
 
-private val EDITOR_FAB_CLEARANCE = 84.dp
 
 private const val EDITOR_ICON_ENTER_SCALE = 0.85f

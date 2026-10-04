@@ -239,16 +239,15 @@ private fun GlassOverlayPanel(
                     highlight = { Highlight.Plain },
                     layerBlock = {
                         val progress = animation.value
-                        alpha = progress
+                        if (!isMenu) {
+                            alpha = progress
+                        }
                         when {
                             isSheet -> translationY = size.height * (1f - progress)
 
                             isMenu -> {
-                                val scale = OVERLAY_MIN_SCALE +
-                                    (1f - OVERLAY_MIN_SCALE) * progress
-                                scaleX = scale
-                                scaleY = scale
-                                transformOrigin = TransformOrigin(0.5f, 0f)
+                                translationY = -(size.height * 0.2f) * (1f - progress)
+                                alpha = if (progress < 0.05f) 0f else 1f
                             }
 
                             else -> {

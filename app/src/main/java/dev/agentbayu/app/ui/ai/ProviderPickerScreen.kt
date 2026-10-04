@@ -288,6 +288,7 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(if (selected) Modifier else Modifier.liftShadow(CapsuleShape))
+                        .pressScaleFeedback()
                         .clip(CapsuleShape)
                         .background(
                             if (selected) {
@@ -297,7 +298,6 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
                             }
                         )
                         .clickable(onClick = { onSelectModel(modelId) })
-                        .pressScaleFeedback()
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
