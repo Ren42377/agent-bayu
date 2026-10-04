@@ -72,6 +72,19 @@ jobs:
           cache-disabled: false
           cache-read-only: false
 
+      - name: Restore release signing
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p .signing
+          echo "$KEYSTORE_BASE64" | base64 --decode > .signing/release-keystore.jks
+          printf 'storeFile=release-keystore.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > .signing/keystore.properties
+
       - name: Build debug APK
         run: gradle assembleDebug --parallel --build-cache
 
@@ -118,18 +131,6 @@ jobs:
               --prerelease
           fi
 
-      - name: Restore release signing
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: |
-          set -euo pipefail
-          mkdir -p .signing
-          echo "$KEYSTORE_BASE64" | base64 --decode > .signing/release-keystore.jks
-          printf 'storeFile=release-keystore.jks\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
-            "$KEYSTORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD" > .signing/keystore.properties
 
       - name: Validate debug and optimized release
         run: gradle assembleRelease lint testDebugUnitTest --parallel --build-cache
