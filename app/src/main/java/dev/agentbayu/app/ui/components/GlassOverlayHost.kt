@@ -34,7 +34,6 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -239,16 +238,11 @@ private fun GlassOverlayPanel(
                     highlight = { Highlight.Plain },
                     layerBlock = {
                         val progress = animation.value
-                        if (!isMenu) {
-                            alpha = progress
-                        }
+                        alpha = progress.coerceIn(0f, 1f)
                         when {
                             isSheet -> translationY = size.height * (1f - progress)
 
-                            isMenu -> {
-                                translationY = -(size.height * 0.2f) * (1f - progress)
-                                alpha = if (progress < 0.05f) 0f else 1f
-                            }
+                            isMenu -> translationY = -MENU_SLIDE_OFFSET.toPx() * (1f - progress)
 
                             else -> {
                                 val scale = OVERLAY_MIN_SCALE +
@@ -315,6 +309,7 @@ private fun GlassOverlayPanel(
 private val OVERLAY_SHAPE = RoundedCornerShape(36.dp)
 private val MENU_SHAPE = RoundedCornerShape(22.dp)
 private val MENU_GAP = 6.dp
+private val MENU_SLIDE_OFFSET = 20.dp
 private val MENU_MIN_WIDTH = 160.dp
 private val MENU_MAX_WIDTH = 420.dp
 private val MENU_MAX_HEIGHT = 320.dp
