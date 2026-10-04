@@ -20,6 +20,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -105,11 +106,12 @@ internal fun ContextWindowSlider(
     val currentOnSelect by rememberUpdatedState(onSelect)
     val touchSlop = LocalViewConfiguration.current.touchSlop
     var currentIndex by remember { mutableIntStateOf(safeSelectedIndex) }
-    var hasSelection by remember { mutableIntStateOf(selectedIndex) }
+    var activeStopIndex by remember { mutableIntStateOf(safeSelectedIndex) }
 
     LaunchedEffect(selectedIndex) {
-        currentIndex = selectedIndex.fastCoerceIn(0, lastIndex)
-        hasSelection = selectedIndex
+        val safe = selectedIndex.fastCoerceIn(0, lastIndex)
+        currentIndex = safe
+        activeStopIndex = safe
     }
 
     Column(modifier = modifier.fillMaxWidth()) {
@@ -190,6 +192,11 @@ internal fun ContextWindowSlider(
             LaunchedEffect(dragAnimation) {
                 withFrameNanos { }
                 dragAnimation.prewarm()
+            }
+            LaunchedEffect(dragAnimation) {
+                snapshotFlow { dragAnimation.value }.collect { value ->
+                    activeStopIndex = value.fastRoundToInt().fastCoerceIn(0, lastIndex)
+                }
             }
             val trackBackdrop = rememberLayerBackdrop()
             val thumbBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, trackBackdrop)
@@ -287,13 +294,12 @@ internal fun ContextWindowSlider(
                 SLIDER_THUMB_DIAMETER.toPx()
             } / 2f
             val labelTravelPx = (constraints.maxWidth - 2 * labelThumbRadiusPx).coerceAtLeast(1f)
-            val activeIndex = dragAnimation.value.fastRoundToInt().fastCoerceIn(0, lastIndex)
             (0..lastIndex).forEach { index ->
                 var labelWidth by remember { mutableFloatStateOf(0f) }
                 Text(
                     text = labelOf(index),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (index == activeIndex) {
+                    color = if (index == activeStopIndex) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
