@@ -25,11 +25,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,7 +61,11 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
+import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.domain.MessageAttachment
+import dev.agentbayu.app.ui.ai.ProviderOption
+import dev.agentbayu.app.ui.ai.EffortSelector
+import dev.agentbayu.app.ui.ai.effortColor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.LocalAppSurfaces
 import dev.agentbayu.app.ui.theme.liftShadow
@@ -68,7 +75,6 @@ fun PromptBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
-    onMicClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isResponding: Boolean = false,
@@ -77,7 +83,10 @@ fun PromptBar(
     attachments: List<MessageAttachment> = emptyList(),
     canAttach: Boolean = false,
     onAttachClick: () -> Unit = {},
-    onRemoveAttachment: (MessageAttachment) -> Unit = {}
+    onRemoveAttachment: (MessageAttachment) -> Unit = {},
+    providerOptions: List<ProviderOption> = emptyList(),
+    onSelectModel: (String, String) -> Unit = { _, _ -> },
+    onSelectEffort: (String, ReasoningEffort) -> Unit = { _, _ -> }
 ) {
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
@@ -85,25 +94,23 @@ fun PromptBar(
     val controlsEnabled = enabled && !isResponding
     val canSend = controlsEnabled && (value.isNotBlank() || attachments.isNotEmpty())
     val trailingActive = isResponding || canSend
-    var multiline by remember { mutableStateOf(false) }
     var fieldWidth by remember { mutableIntStateOf(0) }
-    val expanded = multiline || attachments.isNotEmpty()
+    var showEffortSlider by remember { mutableStateOf(false) }
+    var showModelPicker by remember { mutableStateOf(false) }
+    
     val sendScale by animateFloatAsState(
         targetValue = if (trailingActive) 1f else 0.85f,
         animationSpec = AgentBayuMotion.snappySpring,
         label = "sendScale"
     )
 
-    LaunchedEffect(value.isEmpty()) {
-        if (value.isEmpty()) {
-            multiline = false
-        }
-    }
+    val activeOption = providerOptions.find { it.isActive }
 
     val submit = {
         if (canSend) {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onSend()
+            showEffortSlider = false
         }
     }
 
@@ -112,10 +119,10 @@ fun PromptBar(
         onStop()
     }
 
-    val compactStart = if (canAttach) COMPACT_START_WITH_ATTACH else COMPACT_START_PLAIN
-    val textStart = if (expanded) EXPANDED_TEXT_INSET else compactStart
-    val textEnd = if (expanded) EXPANDED_TEXT_INSET else COMPACT_END_RESERVE
-    val textVertical = if (expanded) EXPANDED_TEXT_TOP else 0.dp
+    val compactStart = EXPANDED_TEXT_INSET
+    val textStart = EXPANDED_TEXT_INSET
+    val textEnd = EXPANDED_TEXT_INSET
+    val textVertical = EXPANDED_TEXT_TOP
 
     Box(
         modifier = modifier
@@ -139,67 +146,63 @@ fun PromptBar(
                     onRemove = onRemoveAttachment
                 )
             }
+            
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = if (expanded) EXPANDED_TEXT_MIN_HEIGHT else COMPOSER_MIN_HEIGHT)
+                    .heightIn(min = EXPANDED_TEXT_MIN_HEIGHT)
                     .padding(
                         start = textStart,
                         end = textEnd,
                         top = textVertical,
-                        bottom = if (expanded) EXPANDED_TEXT_BOTTOM else 0.dp
+                        bottom = EXPANDED_TEXT_BOTTOM
                     ),
                 contentAlignment = Alignment.CenterStart
             ) {
-                if (value.isEmpty()) {
-                    Text(
-                        text = stringResource(R.string.chat_input_hint),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = scheme.onSurfaceVariant.copy(alpha = 0.7f)
+                if (showEffortSlider && activeOption != null && activeOption.efforts.isNotEmpty()) {
+                    EffortControlRow(
+                        option = activeOption,
+                        onSelectEffort = { effort ->
+                            onSelectEffort(activeOption.connectionId, effort)
+                        }
+                    )
+                } else {
+                    if (value.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.chat_input_hint),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = scheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        )
+                    }
+                    BasicTextField(
+                        value = value,
+                        onValueChange = onValueChange,
+                        enabled = controlsEnabled,
+                        textStyle = MaterialTheme.typography.bodyLarge.copy(
+                            color = scheme.onSurface
+                        ),
+                        cursorBrush = SolidColor(scheme.primary),
+                        keyboardOptions = KeyboardOptions(
+                            capitalization = KeyboardCapitalization.Sentences,
+                            imeAction = ImeAction.Default
+                        ),
+                        maxLines = MAX_INPUT_LINES,
+                        onTextLayout = { layout ->
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onSizeChanged { size -> fieldWidth = size.width }
+                            .then(
+                                if (focusRequester != null) {
+                                    Modifier.focusRequester(focusRequester)
+                                } else {
+                                    Modifier
+                                }
+                            )
                     )
                 }
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    enabled = controlsEnabled,
-                    textStyle = MaterialTheme.typography.bodyLarge.copy(
-                        color = scheme.onSurface
-                    ),
-                    cursorBrush = SolidColor(scheme.primary),
-                    keyboardOptions = KeyboardOptions(
-                        capitalization = KeyboardCapitalization.Sentences,
-                        imeAction = ImeAction.Default
-                    ),
-                    maxLines = MAX_INPUT_LINES,
-                    onTextLayout = { layout ->
-                        if (layout.lineCount > 1) {
-                            multiline = true
-                        } else if (multiline && value.isNotEmpty() && !value.contains('\n')) {
-                            val slack = with(density) {
-                                (compactStart + COMPACT_END_RESERVE -
-                                    EXPANDED_TEXT_INSET - EXPANDED_TEXT_INSET +
-                                    COLLAPSE_MARGIN).toPx()
-                            }
-                            if (layout.getLineRight(0) <= fieldWidth - slack) {
-                                multiline = false
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onSizeChanged { size -> fieldWidth = size.width }
-                        .then(
-                            if (focusRequester != null) {
-                                Modifier.focusRequester(focusRequester)
-                            } else {
-                                Modifier
-                            }
-                        )
-                )
             }
-            if (expanded) {
-                Spacer(modifier = Modifier.height(CONTROLS_ROW_HEIGHT))
-            }
+            Spacer(modifier = Modifier.height(CONTROLS_ROW_HEIGHT))
         }
 
         if (canAttach) {
@@ -209,24 +212,84 @@ fun PromptBar(
                 enabled = controlsEnabled,
                 onClick = onAttachClick,
                 modifier = Modifier
-                    .align(if (expanded) Alignment.BottomStart else Alignment.CenterStart)
+                    .align(Alignment.BottomStart)
                     .padding(CONTROL_EDGE_PADDING)
             )
         }
 
         Row(
             modifier = Modifier
-                .align(if (expanded) Alignment.BottomEnd else Alignment.CenterEnd)
+                .align(Alignment.BottomEnd)
                 .padding(CONTROL_EDGE_PADDING),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP)
         ) {
-            ComposerIconButton(
-                iconRes = R.drawable.ic_mic,
-                description = stringResource(R.string.chat_mic),
-                enabled = controlsEnabled,
-                onClick = onMicClick
-            )
+            Box {
+                ComposerIconButton(
+                    iconRes = R.drawable.ic_package,
+                    description = "Models",
+                    enabled = controlsEnabled,
+                    onClick = { showModelPicker = !showModelPicker }
+                )
+                
+                DropdownMenu(
+                    expanded = showModelPicker,
+                    onDismissRequest = { showModelPicker = false },
+                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant).widthIn(max = 240.dp)
+                ) {
+                    providerOptions.forEach { option ->
+                        DropdownMenuItem(
+                            text = { 
+                                Text(
+                                    option.providerLabel, 
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    style = MaterialTheme.typography.labelMedium
+                                ) 
+                            },
+                            onClick = {},
+                            enabled = false
+                        )
+                        option.models.forEach { model ->
+                            DropdownMenuItem(
+                                text = { Text(model, color = MaterialTheme.colorScheme.onSurface) },
+                                onClick = {
+                                    onSelectModel(option.connectionId, model)
+                                    showModelPicker = false
+                                },
+                                trailingIcon = if (option.isActive && option.model == model) {
+                                    { Icon(painterResource(R.drawable.ic_check), contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface) }
+                                } else null
+                            )
+                        }
+                    }
+                }
+            }
+
+            AnimatedVisibility(visible = activeOption?.efforts?.isNotEmpty() == true) {
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable(enabled = controlsEnabled) { 
+                            showEffortSlider = !showEffortSlider 
+                        }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = activeOption?.effort?.label ?: "",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.size(4.dp))
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
             SendButton(
                 responding = isResponding,
                 active = trailingActive,
@@ -234,6 +297,48 @@ fun PromptBar(
                 modifier = Modifier.scale(sendScale)
             )
         }
+    }
+}
+
+@Composable
+private fun EffortControlRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) -> Unit) {
+    var previewEffort by remember(option.effort) { mutableStateOf(option.effort) }
+    val currentEffort = previewEffort ?: option.effort
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 6.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = stringResource(R.string.picker_effort_title),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.weight(1f)
+            )
+            currentEffort?.let { effort ->
+                Text(
+                    text = effort.label,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = effortColor(effort)
+                )
+            }
+        }
+        EffortSelector(
+            options = option.efforts,
+            selected = option.effort,
+            onSelect = { effort ->
+                previewEffort = effort
+                onSelectEffort(effort)
+            },
+            onPreview = { effort ->
+                previewEffort = effort
+            }
+        )
     }
 }
 
@@ -343,7 +448,7 @@ private fun AttachmentStrip(
 }
 
 private val ComposerShape = RoundedCornerShape(26.dp)
-private val COMPOSER_MIN_HEIGHT = 52.dp
+private val COMPOSER_MIN_HEIGHT = 92.dp
 private val SEND_BUTTON_SIZE = 40.dp
 private val CONTROL_EDGE_PADDING = 6.dp
 private val CONTROL_GAP = 4.dp
@@ -354,7 +459,7 @@ private val COMPACT_END_RESERVE = 96.dp
 private val EXPANDED_TEXT_INSET = 18.dp
 private val EXPANDED_TEXT_TOP = 14.dp
 private val EXPANDED_TEXT_BOTTOM = 4.dp
-private val EXPANDED_TEXT_MIN_HEIGHT = 24.dp
+private val EXPANDED_TEXT_MIN_HEIGHT = 40.dp
 private val COLLAPSE_MARGIN = 12.dp
 private const val MAX_INPUT_LINES = 8
 private const val SEND_ICON_ENTER_SCALE = 0.85f

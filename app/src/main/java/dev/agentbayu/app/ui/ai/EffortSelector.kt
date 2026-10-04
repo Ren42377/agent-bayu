@@ -66,7 +66,7 @@ import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
 import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 @Composable
-internal fun EffortSelector(
+fun EffortSelector(
     options: List<ReasoningEffort>,
     selected: ReasoningEffort?,
     onSelect: (ReasoningEffort) -> Unit,
@@ -388,7 +388,7 @@ private fun paceOf(effort: ReasoningEffort?): StarPace {
     return StarPace(driftSpeed = drift, twinkleSpeed = twinkle)
 }
 
-internal fun effortColor(effort: ReasoningEffort): Color = when (effort) {
+fun effortColor(effort: ReasoningEffort): Color = when (effort) {
     ReasoningEffort.LOW -> AppleGreenLight
     ReasoningEffort.MEDIUM -> AppleYellowLight
     ReasoningEffort.HIGH -> AppleOrangeLight

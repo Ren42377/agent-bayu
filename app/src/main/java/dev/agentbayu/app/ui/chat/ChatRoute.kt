@@ -214,13 +214,6 @@ fun ChatRoute(
                 }
             },
             onSuggestionClick = { text -> if (!switching) chat.send(text) },
-            onMicClick = {
-                if (hasMicrophonePermission(context)) {
-                    onMessage(micPendingMessage)
-                } else {
-                    micPrompt = MicPrompt.REQUEST
-                }
-            },
             onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
             onSelectModel = { connectionId, model ->
                 connectionStore.setModel(connectionId, model)

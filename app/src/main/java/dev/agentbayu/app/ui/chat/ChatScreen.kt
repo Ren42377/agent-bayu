@@ -97,7 +97,6 @@ fun ChatScreen(
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onSuggestionClick: (String) -> Unit,
-    onMicClick: () -> Unit,
     onSelectProvider: (String) -> Unit,
     onSelectModel: (String, String) -> Unit,
     onSelectEffort: (String, ReasoningEffort) -> Unit,
@@ -120,7 +119,6 @@ fun ChatScreen(
 ) {
     var detailMessage by remember { mutableStateOf<ChatMessage?>(null) }
     var previewAttachment by remember { mutableStateOf<MessageAttachment?>(null) }
-    var pickerVisible by remember { mutableStateOf(false) }
     var headerHeight by remember { mutableStateOf(0.dp) }
     var footerHeight by remember { mutableStateOf(0.dp) }
     val density = LocalDensity.current
@@ -216,14 +214,6 @@ fun ChatScreen(
             LocalGlassStyle provides chromeGlassStyle()
         ) {
             Box(modifier = headerModifier) {
-                ProviderCapsule(
-                    hint = providerHint,
-                    isResponding = isResponding,
-                    onOpenPicker = { pickerVisible = true },
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .padding(horizontal = HEADER_ACTION_RESERVE)
-                )
                 GlassButton(
                     onClick = drawer::open,
                     modifier = Modifier
@@ -314,7 +304,6 @@ fun ChatScreen(
                     value = input,
                     onValueChange = onInputChange,
                     onSend = onSend,
-                    onMicClick = onMicClick,
                     isResponding = isResponding,
                     enabled = composerEnabled,
                     onStop = onStop,
@@ -322,6 +311,9 @@ fun ChatScreen(
                     canAttach = canAttach,
                     onAttachClick = onAttachClick,
                     onRemoveAttachment = onRemoveAttachment,
+                    providerOptions = providerOptions,
+                    onSelectModel = onSelectModel,
+                    onSelectEffort = onSelectEffort,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
@@ -346,71 +338,6 @@ fun ChatScreen(
         attachment = previewAttachment,
         onDismiss = { previewAttachment = null }
     )
-
-    if (pickerVisible) {
-        ProviderPickerDialog(
-            options = providerOptions,
-            onSelect = onSelectProvider,
-            onSelectModel = onSelectModel,
-            onSelectEffort = onSelectEffort,
-            onManage = {
-                pickerVisible = false
-                onManageProviders()
-            },
-            onDismiss = { pickerVisible = false }
-        )
-    }
-}
-
-@Composable
-private fun ProviderCapsule(
-    hint: String,
-    isResponding: Boolean,
-    onOpenPicker: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val statusDotColor by animateColorAsState(
-        targetValue = if (isResponding) {
-            MaterialTheme.colorScheme.primary
-        } else {
-            MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-        },
-        label = "statusDot"
-    )
-    Row(
-        modifier = modifier,
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        GlassButton(
-            onClick = onOpenPicker,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .clip(CircleShape)
-                    .background(statusDotColor)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = hint,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false)
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Icon(
-                painter = painterResource(R.drawable.ic_chevron),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(12.dp)
-            )
-        }
-    }
 }
 
 @Composable

@@ -155,7 +155,7 @@ fun Modifier.historyDrawerEdge(state: HistoryDrawerState): Modifier = this.point
     var travel = 0f
     inspectDragGestures(
         onDragStart = { down ->
-            armed = down.position.x <= edgePx || state.isOpen
+            armed = true
             claimed = state.isOpen
             travel = 0f
         },
