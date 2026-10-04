@@ -410,6 +410,15 @@
     <string name="notes_image_link_hint">https://... or /storage/emulated/0/...</string>
     <string name="notes_image_insert">Insert</string>
     <string name="notes_image_failed">Could not add the image.</string>
+    <string name="notes_group_default">Notes</string>
+    <string name="notes_group_new">New group</string>
+    <string name="notes_group_name_hint">Group name</string>
+    <string name="notes_group_rename">Rename group</string>
+    <string name="notes_group_delete">Delete group</string>
+    <string name="notes_group_delete_body">The group and every note in it will be deleted.</string>
+    <string name="notes_tab_pinned">Pinned</string>
+    <string name="notes_tab_new_group">New group</string>
+    <string name="notes_move_to_group">Move to group</string>
     <string name="markdown_image_failed">Image failed to load</string>
     <string name="markdown_image_storage_denied">Image failed to load. Allow all files access in Settings to read local images.</string>
 
@@ -482,4 +491,5 @@
     <string name="tool_name_read_note">Reading a note</string>
     <string name="tool_name_update_note">Updating a note</string>
     <string name="tool_name_delete_note">Deleting a note</string>
+    <string name="tool_name_list_note_groups">Reading note groups</string>
 </resources>

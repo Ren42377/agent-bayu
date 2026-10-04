@@ -3,8 +3,17 @@ package dev.agentbayu.app.domain.notes
 import kotlinx.serialization.Serializable
 
 @Serializable
+data class NoteGroup(
+    val id: String,
+    val title: String,
+    val position: Int = 0,
+    val createdAtMillis: Long = 0L
+)
+
+@Serializable
 data class NoteItem(
     val id: String,
+    val groupId: String = "",
     val title: String = "",
     val content: String = "",
     val pinned: Boolean = false,
@@ -17,6 +26,9 @@ data class NoteItem(
 data class NoteMetadata(
     val version: Int = 1,
     val revision: Long = 0L,
+    val groups: List<NoteGroup> = emptyList(),
+    val activeGroupId: String? = null,
+    val deletedGroupIds: List<String> = emptyList(),
     val noteIds: List<String>? = null,
     val deletedNoteIds: List<String> = emptyList()
 )

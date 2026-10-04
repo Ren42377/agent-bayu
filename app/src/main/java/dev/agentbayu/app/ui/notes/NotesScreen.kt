@@ -49,15 +49,24 @@ import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
 import dev.agentbayu.app.ui.components.GlassFab
+import dev.agentbayu.app.ui.components.GlassIconButton
+import dev.agentbayu.app.domain.notes.NoteGroup
 
 @Composable
 fun NotesScreen(
+    groups: List<NoteGroup>,
+    activeGroup: NoteGroup?,
+    pinnedOpen: Boolean,
     notes: List<NoteItem>,
     query: String,
     onQueryChange: (String) -> Unit,
     onAddNote: () -> Unit,
     onOpenNote: (NoteItem) -> Unit,
     onNoteMenu: (NoteItem) -> Unit,
+    onSelectPinned: () -> Unit,
+    onSelectGroup: (String) -> Unit,
+    onNewGroup: () -> Unit,
+    onGroupMenu: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
@@ -67,11 +76,37 @@ fun NotesScreen(
                 .fillMaxSize()
                 .padding(top = insets.calculateTopPadding())
         ) {
-            Text(
-                text = stringResource(R.string.notes_title),
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(start = 20.dp, end = 16.dp, top = 12.dp, bottom = 6.dp)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.notes_title),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f)
+                )
+                GlassIconButton(onClick = onGroupMenu, size = 42.dp) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_more_vert),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            NoteGroupTabs(
+                groups = groups,
+                activeGroupId = activeGroup?.id,
+                pinnedOpen = pinnedOpen,
+                onSelectPinned = onSelectPinned,
+                onSelectGroup = onSelectGroup,
+                onNewGroup = onNewGroup,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
             )
             OutlinedTextField(
                 value = query,

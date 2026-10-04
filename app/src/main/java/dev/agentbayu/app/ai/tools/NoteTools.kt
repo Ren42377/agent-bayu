@@ -28,6 +28,12 @@ class CreateNoteTool(
                 type = "boolean",
                 description = "Pin the note to the top of the list",
                 required = false
+            ),
+            ToolField(
+                name = "group_id",
+                type = "string",
+                description = "Id of the note group. Omit to use the active group.",
+                required = false
             )
         )
     )
@@ -40,7 +46,8 @@ class CreateNoteTool(
             return@withContext call.problem("A title or content is required")
         }
         val notes = store()
-        val id = notes.createNote(title, content)
+        val groupId = arguments.text("group_id")
+        val id = notes.createNote(title, content, groupId)
         if (id.isEmpty()) return@withContext call.problem("The note was not stored")
         if (arguments.flag("pinned")) notes.setPinned(id, true)
         call.reply("Created " + id + ": " + title.ifEmpty { "(untitled)" })
@@ -57,12 +64,20 @@ class ListNotesTool(private val store: () -> NoteStore) : ToolHandler {
         name = NAME,
         description = "List the owner markdown notes with their ids, so a note can be read " +
             "or updated later.",
-        parameters = toolSchema()
+        parameters = toolSchema(
+            ToolField(
+                name = "group_id",
+                type = "string",
+                description = "Filter notes by group id. Omit to list all notes.",
+                required = false
+            )
+        )
     )
 
     override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
         val notes = store()
-        val all = notes.notes.value
+        val filterGroupId = ToolArguments(call.arguments).text("group_id")
+        val all = notes.notes.value.filter { filterGroupId == null || it.groupId == filterGroupId }
         if (all.isEmpty()) {
             return@withContext call.reply("There are no notes yet")
         }
@@ -78,6 +93,7 @@ class ListNotesTool(private val store: () -> NoteStore) : ToolHandler {
     private fun describe(note: NoteItem): String {
         val marks = ArrayList<String>()
         if (note.pinned) marks += "pinned"
+        if (note.groupId.isNotBlank()) marks += "group: " + note.groupId
         if (note.content.isNotBlank()) marks += note.content.trim().length.toString() + " chars"
         val suffix = if (marks.isEmpty()) "" else "  [" + marks.joinToString(", ") + "]"
         return note.id + "  " + note.title.ifEmpty { "(untitled)" } + suffix
@@ -85,6 +101,30 @@ class ListNotesTool(private val store: () -> NoteStore) : ToolHandler {
 
     private companion object {
         const val NAME = "list_notes"
+    }
+}
+
+class ListNoteGroupsTool(private val store: () -> NoteStore) : ToolHandler {
+
+    override val spec: ToolSpec = ToolSpec(
+        name = NAME,
+        description = "List the available note groups with their ids.",
+        parameters = toolSchema()
+    )
+
+    override suspend fun run(call: ToolCall): ToolResult = withContext(Dispatchers.IO) {
+        val groups = store().groups.value
+        if (groups.isEmpty()) {
+            return@withContext call.reply("There are no note groups yet")
+        }
+        val lines = groups
+            .sortedBy { it.position }
+            .map { group -> group.id + "  " + group.title }
+        call.reply(lines.joinToString("\n"))
+    }
+
+    private companion object {
+        const val NAME = "list_note_groups"
     }
 }
 

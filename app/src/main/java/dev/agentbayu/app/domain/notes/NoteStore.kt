@@ -17,23 +17,104 @@ class NoteStore(
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
     private val restored = load()
     private val notesState = MutableStateFlow(restored.notes)
+    private val groupsState = MutableStateFlow(restored.groups)
+    private val activeGroupState = MutableStateFlow(restored.activeGroupId)
     private var revision = restored.revision
     private var persistedNotes = restored.persistedNotes
     private var deletedNoteIds = restored.deletedNoteIds.toSet()
+    private var deletedGroupIds = restored.deletedGroupIds.toSet()
 
     val notes: StateFlow<List<NoteItem>> = notesState.asStateFlow()
+    val groups: StateFlow<List<NoteGroup>> = groupsState.asStateFlow()
+    val activeGroupId: StateFlow<String?> = activeGroupState.asStateFlow()
 
     @Synchronized
     fun find(noteId: String): NoteItem? = notesState.value.firstOrNull { it.id == noteId }
 
     @Synchronized
-    fun createNote(title: String, content: String = ""): String {
+    fun findGroup(groupId: String): NoteGroup? =
+        groupsState.value.firstOrNull { it.id == groupId }
+
+    @Synchronized
+    fun createGroup(title: String): String {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return ""
+        val now = clock.nowMillis()
+        val id = newGroupId { candidate -> groupsState.value.any { it.id == candidate } }
+        val position = groupsState.value.maxOfOrNull { it.position }?.plus(1) ?: 0
+        groupsState.value = groupsState.value + NoteGroup(
+            id = id,
+            title = trimmed,
+            position = position,
+            createdAtMillis = now
+        )
+        deletedGroupIds -= id
+        if (activeGroupState.value == null) {
+            activeGroupState.value = id
+        }
+        persist()
+        return id
+    }
+
+    @Synchronized
+    fun renameGroup(groupId: String, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        val current = groupsState.value
+        val index = current.indexOfFirst { it.id == groupId }
+        if (index < 0) return
+        groupsState.value = current.toMutableList().apply {
+            set(index, get(index).copy(title = trimmed))
+        }
+        persist()
+    }
+
+    @Synchronized
+    fun removeGroup(groupId: String) {
+        val current = groupsState.value
+        if (current.none { it.id == groupId }) return
+        val removedNoteIds = notesState.value
+            .filter { it.groupId == groupId }
+            .map { it.id }
+        notesState.value = notesState.value.filterNot { it.groupId == groupId }
+        deletedNoteIds += removedNoteIds
+        groupsState.value = current.filterNot { it.id == groupId }
+        deletedGroupIds += groupId
+        if (activeGroupState.value == groupId) {
+            activeGroupState.value = groupsState.value.firstOrNull()?.id
+        }
+        persist()
+    }
+
+    @Synchronized
+    fun setActiveGroup(groupId: String) {
+        activeGroupState.value = groupId
+        persist()
+    }
+
+    @Synchronized
+    fun moveToGroup(noteId: String, groupId: String) {
+        val target = find(noteId) ?: return
+        if (target.groupId == groupId) return
+        val now = clock.nowMillis()
+        val current = notesState.value
+        val index = current.indexOfFirst { it.id == noteId }
+        notesState.value = current.toMutableList().apply {
+            set(index, target.copy(groupId = groupId, updatedAtMillis = now))
+        }
+        persist()
+    }
+
+    @Synchronized
+    fun createNote(title: String, content: String = "", groupId: String? = null): String {
         val trimmed = title.trim()
         if (trimmed.isEmpty() && content.isBlank()) return ""
         val now = clock.nowMillis()
-        val id = newId { candidate -> notesState.value.any { it.id == candidate } }
+        val id = newNoteId { candidate -> notesState.value.any { it.id == candidate } }
+        val resolvedGroupId = groupId ?: activeGroupState.value.orEmpty()
         notesState.value = notesState.value + NoteItem(
             id = id,
+            groupId = resolvedGroupId,
             title = trimmed,
             content = content,
             createdAtMillis = now,
@@ -89,8 +170,16 @@ class NoteStore(
         persist()
     }
 
-    private fun newId(taken: (String) -> Boolean): String {
+    private fun newNoteId(taken: (String) -> Boolean): String {
         val stamp = NOTE_PREFIX + clock.nowMillis().toString(RADIX)
+        if (!taken(stamp)) return stamp
+        var suffix = 1
+        while (taken(stamp + SUFFIX_SEPARATOR + suffix.toString(RADIX))) suffix += 1
+        return stamp + SUFFIX_SEPARATOR + suffix.toString(RADIX)
+    }
+
+    private fun newGroupId(taken: (String) -> Boolean): String {
+        val stamp = GROUP_PREFIX + clock.nowMillis().toString(RADIX)
         if (!taken(stamp)) return stamp
         var suffix = 1
         while (taken(stamp + SUFFIX_SEPARATOR + suffix.toString(RADIX))) suffix += 1
@@ -118,11 +207,33 @@ class NoteStore(
                 note
             }
         }.distinctBy { it.id }
+        val groups = recoverGroups(metadata.groups, notes)
         return Restored(
             metadata = metadata,
             notes = notes,
-            persistedNotes = notes.associateBy { it.id }
+            persistedNotes = notes.associateBy { it.id },
+            groups = groups
         )
+    }
+
+    private fun recoverGroups(
+        stored: List<NoteGroup>,
+        notes: List<NoteItem>
+    ): List<NoteGroup> {
+        val knownIds = stored.map { it.id }.toSet()
+        val orphanGroupIds = notes
+            .map { it.groupId }
+            .filter { it.isNotEmpty() && it !in knownIds }
+            .distinct()
+        if (orphanGroupIds.isEmpty()) return stored
+        val recovered = orphanGroupIds.mapIndexed { index, id ->
+            NoteGroup(
+                id = id,
+                title = RECOVERED_GROUP_TITLE,
+                position = stored.size + index
+            )
+        }
+        return stored + recovered
     }
 
     private fun decodeMetadata(raw: String): NoteMetadata? = try {
@@ -143,6 +254,9 @@ class NoteStore(
         val nextRevision = revision + 1L
         val metadata = NoteMetadata(
             revision = nextRevision,
+            groups = groupsState.value,
+            activeGroupId = activeGroupState.value,
+            deletedGroupIds = deletedGroupIds.sorted(),
             noteIds = byId.keys.sorted(),
             deletedNoteIds = deletedNoteIds.sorted()
         )
@@ -190,10 +304,13 @@ class NoteStore(
     private data class Restored(
         val metadata: NoteMetadata,
         val notes: List<NoteItem>,
-        val persistedNotes: Map<String, NoteItem>
+        val persistedNotes: Map<String, NoteItem>,
+        val groups: List<NoteGroup> = metadata.groups
     ) {
         val revision: Long = metadata.revision
         val deletedNoteIds: List<String> = metadata.deletedNoteIds
+        val deletedGroupIds: List<String> = metadata.deletedGroupIds
+        val activeGroupId: String? = metadata.activeGroupId
     }
 
     companion object {
@@ -201,7 +318,9 @@ class NoteStore(
         private const val JSON_SUFFIX = ".json"
         private val VALID_NOTE_ID = Regex("note-[a-z0-9]+(?:-[a-z0-9]+)*")
         private const val NOTE_PREFIX = "note-"
+        private const val GROUP_PREFIX = "group-"
         private const val SUFFIX_SEPARATOR = "-"
         private const val RADIX = 36
+        private const val RECOVERED_GROUP_TITLE = "Recovered"
     }
 }

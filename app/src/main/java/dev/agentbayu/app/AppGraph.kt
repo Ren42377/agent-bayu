@@ -47,6 +47,7 @@ import dev.agentbayu.app.ai.tools.DeleteFileTool
 import dev.agentbayu.app.ai.tools.EditFileTool
 import dev.agentbayu.app.ai.tools.ListFilesTool
 import dev.agentbayu.app.ai.tools.ListNotesTool
+import dev.agentbayu.app.ai.tools.ListNoteGroupsTool
 import dev.agentbayu.app.ai.tools.ListTasksTool
 import dev.agentbayu.app.ai.tools.MoveFileTool
 import dev.agentbayu.app.ai.tools.ReadFileTool
@@ -476,6 +477,7 @@ object AppGraph {
                     DeleteTaskTool { tasks(context) },
                     CreateNoteTool(store = { notes(context) }),
                     ListNotesTool { notes(context) },
+                    ListNoteGroupsTool { notes(context) },
                     ReadNoteTool { notes(context) },
                     UpdateNoteTool { notes(context) },
                     DeleteNoteTool { notes(context) },
