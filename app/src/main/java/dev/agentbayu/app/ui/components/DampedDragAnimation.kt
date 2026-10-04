@@ -12,6 +12,7 @@ import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.unit.IntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
@@ -59,7 +60,7 @@ internal class DampedDragAnimation(
                 onDragStart = { down ->
                     isGestureActive = true
                     onDragStarted(down.position)
-                    press()
+                    press(delayMillis = TAP_TIMEOUT_MILLIS)
                 },
                 onDragEnd = {
                     onDragStopped()
@@ -72,6 +73,11 @@ internal class DampedDragAnimation(
                     isGestureActive = false
                 }
             ) { _, dragAmount ->
+                if (abs(dragAmount.x) > 0f || abs(dragAmount.y) > 0f) {
+                    if (pressProgress < 0.05f) {
+                        press(delayMillis = 0L)
+                    }
+                }
                 onDrag(size, dragAmount)
             }
         } finally {
@@ -79,10 +85,13 @@ internal class DampedDragAnimation(
         }
     }
 
-    fun press() {
+    fun press(delayMillis: Long = 0L) {
         velocityTracker.resetTracking()
         pressJob?.cancel()
         pressJob = animationScope.launch {
+            if (delayMillis > 0L) {
+                delay(delayMillis)
+            }
             launch { pressProgressAnimation.animateTo(1f, pressProgressAnimationSpec) }
             launch { scaleXAnimation.animateTo(pressedScale, scaleXAnimationSpec) }
             launch { scaleYAnimation.animateTo(pressedScale, scaleYAnimationSpec) }
@@ -137,3 +146,4 @@ internal class DampedDragAnimation(
 }
 
 private const val PREWARM_PROGRESS = 0.05f
+private const val TAP_TIMEOUT_MILLIS = 100L

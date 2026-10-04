@@ -69,6 +69,7 @@ internal fun EffortSelector(
     options: List<ReasoningEffort>,
     selected: ReasoningEffort?,
     onSelect: (ReasoningEffort) -> Unit,
+    onPreview: ((ReasoningEffort) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     if (options.size < MIN_EFFORT_OPTIONS) return
@@ -103,7 +104,13 @@ internal fun EffortSelector(
         modifier = modifier,
         tint = colors[selectedIndex],
         tintProvider = { value -> gradientColor(colors, value) },
-        onValueChange = { value -> previewValue = value },
+        onValueChange = { value ->
+            previewValue = value
+            val nearestIndex = value.fastRoundToInt().fastCoerceIn(0, options.lastIndex)
+            options.getOrNull(nearestIndex)?.let { nearest ->
+                onPreview?.invoke(nearest)
+            }
+        },
         decoration = { value, _ ->
             drawStars(stars, phase.floatValue, value, drift.floatValue)
         }
@@ -226,16 +233,11 @@ private fun EffortSlider(
                 .layerBackdrop(trackBackdrop)
                 .drawBehind {
                     val trackRadius = size.height / 2f
-                    val isInteracting = dragAnimation.isGestureActive || dragAnimation.pressProgress > 0.05f
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
-                    val fillRight = if (isInteracting) {
-                        thumbRadiusPx + fillFraction * travelPx
+                    val fillRight = if (fillFraction <= 0f) {
+                        0f
                     } else {
-                        when {
-                            currentIndex == 0 -> 0f
-                            currentIndex == lastIndex -> size.width
-                            else -> thumbRadiusPx + (currentIndex.toFloat() / lastIndex) * travelPx
-                        }
+                        thumbRadiusPx + fillFraction * travelPx
                     }
                     val maxBlend = ((dragAnimation.value - (lastIndex - 1)).fastCoerceIn(0f, 1f))
                     drawRoundRect(

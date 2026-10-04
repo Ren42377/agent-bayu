@@ -22,7 +22,11 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -324,6 +328,8 @@ private fun ModelList(option: ProviderOption, onSelectModel: (String) -> Unit) {
 @Composable
 private fun EffortRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) -> Unit) {
     if (option.efforts.size < MIN_EFFORT_FAMILY_SIZE) return
+    var previewEffort by remember(option.effort) { mutableStateOf(option.effort) }
+    val currentEffort = previewEffort ?: option.effort
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -340,7 +346,7 @@ private fun EffortRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) 
                 color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.weight(1f)
             )
-            option.effort?.let { effort ->
+            currentEffort?.let { effort ->
                 Text(
                     text = effort.label,
                     style = MaterialTheme.typography.labelSmall,
@@ -351,7 +357,13 @@ private fun EffortRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) 
         EffortSelector(
             options = option.efforts,
             selected = option.effort,
-            onSelect = onSelectEffort
+            onSelect = { effort ->
+                previewEffort = effort
+                onSelectEffort(effort)
+            },
+            onPreview = { effort ->
+                previewEffort = effort
+            }
         )
         Text(
             text = stringResource(R.string.picker_effort_hint),

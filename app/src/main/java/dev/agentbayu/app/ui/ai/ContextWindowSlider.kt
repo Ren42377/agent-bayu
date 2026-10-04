@@ -85,14 +85,18 @@ internal fun ContextWindowSlider(
     val darkTheme = LocalDarkTheme.current
     val thumbColor = Color.White
     val trackColor = if (darkTheme) {
-        Color(0xFF141418)
+        Color.Black
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_TRACK_ALPHA_LIGHT)
     }
-    val fillColor = if (darkTheme) Color(0xFF24242A) else MaterialTheme.colorScheme.onSurface
-    val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
+    val fillColor = if (darkTheme) Color.Black else MaterialTheme.colorScheme.onSurface
+    val dotColor = if (darkTheme) {
+        Color.White.copy(alpha = 0.35f)
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
+    }
     val dotOnFillColor = if (darkTheme) {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
+        Color.White.copy(alpha = 0.35f)
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
     }
@@ -195,16 +199,11 @@ internal fun ContextWindowSlider(
                     .layerBackdrop(trackBackdrop)
                     .drawBehind {
                         val trackRadius = size.height / 2f
-                        val isInteracting = dragAnimation.isGestureActive || dragAnimation.pressProgress > 0.05f
                         val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
-                        val fillRight = if (isInteracting) {
-                            thumbRadiusPx + fillFraction * travelPx
+                        val fillRight = if (fillFraction <= 0f) {
+                            0f
                         } else {
-                            when {
-                                currentIndex == 0 -> 0f
-                                currentIndex == lastIndex -> size.width
-                                else -> thumbRadiusPx + (currentIndex.toFloat() / lastIndex) * travelPx
-                            }
+                            thumbRadiusPx + fillFraction * travelPx
                         }
                         drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
                         val fill = Path().apply {
@@ -288,12 +287,13 @@ internal fun ContextWindowSlider(
                 SLIDER_THUMB_DIAMETER.toPx()
             } / 2f
             val labelTravelPx = (constraints.maxWidth - 2 * labelThumbRadiusPx).coerceAtLeast(1f)
+            val activeIndex = dragAnimation.value.fastRoundToInt().fastCoerceIn(0, lastIndex)
             (0..lastIndex).forEach { index ->
                 var labelWidth by remember { mutableFloatStateOf(0f) }
                 Text(
                     text = labelOf(index),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (index == hasSelection) {
+                    color = if (index == activeIndex) {
                         MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
