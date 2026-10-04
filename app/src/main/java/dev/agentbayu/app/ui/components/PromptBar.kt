@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -242,8 +243,15 @@ fun PromptBar(
                     shape = RoundedCornerShape(20.dp),
                     containerColor = LocalAppSurfaces.current.composer,
                     tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
+                    shadowElevation = 12.dp,
                     modifier = Modifier
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            clip = false,
+                            ambientColor = Color.Black.copy(alpha = 0.4f),
+                            spotColor = Color.Black.copy(alpha = 0.6f)
+                        )
                         .width(210.dp)
                         .heightIn(max = 220.dp)
                 ) {
