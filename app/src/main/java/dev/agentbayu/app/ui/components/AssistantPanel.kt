@@ -422,7 +422,7 @@ private fun AssistantInputBar(
                 } else {
                     MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
                 },
-                modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
+                modifier = Modifier.size(if (isResponding) 22.dp else 18.dp)
             )
         }
         }

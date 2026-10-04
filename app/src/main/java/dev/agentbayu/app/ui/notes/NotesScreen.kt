@@ -37,7 +37,6 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.notes.NoteItem
-import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.firstImageReference
 import dev.agentbayu.app.ui.components.imageModelFor
@@ -49,6 +48,7 @@ import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.components.GlassFab
 
 @Composable
 fun NotesScreen(
@@ -156,7 +156,7 @@ fun NotesScreen(
                 }
             }
         }
-        GlassButton(
+        GlassFab(
             onClick = onAddNote,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -164,10 +164,6 @@ fun NotesScreen(
                     end = 20.dp,
                     bottom = 20.dp + insets.calculateBottomPadding()
                 )
-                .size(56.dp),
-            tint = MaterialTheme.colorScheme.primary,
-            shape = GlassCardShape,
-            contentPadding = PaddingValues(0.dp)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_add),

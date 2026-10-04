@@ -47,6 +47,7 @@ import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.GlassTileShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.components.GlassFab
 
 @Composable
 fun TasksScreen(
@@ -235,7 +236,7 @@ fun TasksScreen(
                 }
             }
         }
-        GlassButton(
+        GlassFab(
             onClick = onAddTask,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
@@ -243,10 +244,6 @@ fun TasksScreen(
                     end = 20.dp,
                     bottom = 20.dp + insets.calculateBottomPadding()
                 )
-                .size(56.dp),
-            tint = MaterialTheme.colorScheme.primary,
-            shape = GlassCardShape,
-            contentPadding = PaddingValues(0.dp)
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_add),

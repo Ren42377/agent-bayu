@@ -9,7 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -35,11 +34,13 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.QuotaParser
 import dev.agentbayu.app.ai.QuotaSnapshot
 import dev.agentbayu.app.ai.QuotaWindow
-import dev.agentbayu.app.ui.components.GlassButton
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.components.GlassFab
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.foundation.layout.Spacer
 
 data class UsageRowState(
     val connectionId: String,
@@ -50,6 +51,8 @@ data class UsageRowState(
     val email: String?,
     val quota: QuotaSnapshot?
 )
+
+private val FAB_CLEARANCE = 88.dp
 
 @Composable
 fun UsageScreen(
@@ -68,53 +71,51 @@ fun UsageScreen(
             .padding(top = insets.calculateTopPadding())
     ) {
         AiScreenHeader(title = stringResource(R.string.usage_title), onBack = onBack)
-        Column(
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (rows.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .glassSurface(shape = GlassCardShape)
-                        .padding(20.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = stringResource(R.string.usage_empty),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (rows.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .glassSurface(shape = GlassCardShape)
+                            .padding(20.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = stringResource(R.string.usage_empty),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
+                rows.forEach { row -> UsageCard(row = row, updatedText = updatedText, resetText = resetText) }
+                Text(
+                    text = stringResource(R.string.usage_probe_note),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                )
+                Spacer(modifier = Modifier.height(FAB_CLEARANCE + insets.calculateBottomPadding()))
             }
-            rows.forEach { row -> UsageCard(row = row, updatedText = updatedText, resetText = resetText) }
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 12.dp,
-                    bottom = 12.dp + insets.calculateBottomPadding()
-                ),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.usage_probe_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.padding(horizontal = 8.dp)
-            )
-            GlassButton(
+            GlassFab(
                 onClick = onRefresh,
-                modifier = Modifier.fillMaxWidth(),
                 enabled = !refreshing,
-                contentPadding = PaddingValues(vertical = 12.dp)
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 20.dp,
+                        bottom = 20.dp + insets.calculateBottomPadding()
+                    )
             ) {
                 AnimatedContent(
                     targetState = refreshing,
@@ -125,21 +126,19 @@ fun UsageScreen(
                     label = "usageRefreshIcon"
                 ) { active ->
                     if (active) {
-                        CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(22.dp),
+                            strokeWidth = 2.dp,
+                            color = LocalContentColor.current
+                        )
                     } else {
                         Icon(
                             painter = painterResource(R.drawable.ic_refresh),
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp)
+                            contentDescription = stringResource(R.string.usage_refresh),
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
-                Text(
-                    text = stringResource(
-                        if (refreshing) R.string.usage_refreshing else R.string.usage_refresh
-                    ),
-                    style = MaterialTheme.typography.labelLarge
-                )
             }
         }
     }

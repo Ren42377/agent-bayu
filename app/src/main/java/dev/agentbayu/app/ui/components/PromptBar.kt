@@ -299,7 +299,7 @@ private fun SendButton(
                     if (isResponding) R.string.chat_stop else R.string.chat_send
                 ),
                 tint = iconColor,
-                modifier = Modifier.size(if (isResponding) 16.dp else 18.dp)
+                modifier = Modifier.size(if (isResponding) 24.dp else 18.dp)
             )
         }
     }

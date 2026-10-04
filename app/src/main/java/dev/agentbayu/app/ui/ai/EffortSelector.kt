@@ -59,6 +59,9 @@ import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.sin
 import kotlin.random.Random
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 @Composable
 internal fun EffortSelector(
@@ -213,9 +216,12 @@ private fun EffortSlider(
             withFrameNanos { }
             dragAnimation.prewarm()
         }
+        val trackBackdrop = rememberLayerBackdrop()
+        val thumbBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, trackBackdrop)
         Box(
             modifier = Modifier
                 .matchParentSize()
+                .layerBackdrop(trackBackdrop)
                 .drawBehind {
                     val trackRadius = size.height / 2f
                     val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
@@ -233,8 +239,7 @@ private fun EffortSlider(
                                     top = 0f,
                                     right = fillRight,
                                     bottom = size.height,
-                                    topLeftCornerRadius = CornerRadius(trackRadius),
-                                    bottomLeftCornerRadius = CornerRadius(trackRadius)
+                                    cornerRadius = CornerRadius(minOf(trackRadius, fillRight / 2f))
                                 )
                             )
                         }
@@ -287,9 +292,16 @@ private fun EffortSlider(
                     translationX = (dragAnimation.value / lastIndex) * travelPx
                 }
                 .drawBackdrop(
-                    backdrop = LocalGlassBackdrop.current,
+                    backdrop = thumbBackdrop,
                     shape = { CircleShape },
-                    effects = { },
+                    effects = {
+                        val progress = dragAnimation.pressProgress
+                        lens(
+                            SLIDER_LENS_HEIGHT.toPx() * progress,
+                            SLIDER_LENS_AMOUNT.toPx() * progress,
+                            chromaticAberration = true
+                        )
+                    },
                     highlight = {
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
@@ -302,13 +314,15 @@ private fun EffortSlider(
                         InnerShadow(radius = 4.dp * progress, alpha = progress)
                     },
                     layerBlock = {
-                        scaleX = dragAnimation.scaleX
+                        scaleX = dragAnimation.scaleX * (1f + SLIDER_THUMB_STRETCH * dragAnimation.pressProgress)
                         scaleY = dragAnimation.scaleY
                         val velocity = dragAnimation.velocity / 50f
                         scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
                         scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                     },
-                    onDrawSurface = { drawRect(Color.White) }
+                    onDrawSurface = {
+                        drawRect(Color.White.copy(alpha = 1f - dragAnimation.pressProgress))
+                    }
                 )
         )
         Box(
@@ -426,7 +440,10 @@ private const val SLIDER_TRACK_ALPHA_DARK = 0.10f
 private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
-private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
+private const val SLIDER_THUMB_PRESSED_SCALE = 1.2f
+private const val SLIDER_THUMB_STRETCH = 0.4f
+private val SLIDER_LENS_HEIGHT = 6.dp
+private val SLIDER_LENS_AMOUNT = 12.dp
 private val SLIDER_GALAXY_START = Color(0xFF5A6CF3)
 private val SLIDER_GALAXY_MID = Color(0xFF9A5CF5)
 private val SLIDER_TRACK_HEIGHT = 26.dp

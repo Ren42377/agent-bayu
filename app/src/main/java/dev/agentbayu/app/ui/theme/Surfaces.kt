@@ -19,6 +19,7 @@ data class AppSurfaces(
     val composer: Color,
     val userBubble: Color,
     val drawer: Color,
+    val fade: Color,
     val lift: Dp
 )
 
@@ -28,6 +29,7 @@ val lightSurfaces = AppSurfaces(
     composer = ComposerLight,
     userBubble = UserBubbleLight,
     drawer = DrawerLight,
+    fade = FadeLight,
     lift = 5.dp
 )
 
@@ -37,6 +39,7 @@ val darkSurfaces = AppSurfaces(
     composer = ComposerDark,
     userBubble = UserBubbleDark,
     drawer = DrawerDark,
+    fade = FadeDark,
     lift = 0.dp
 )
 
@@ -49,6 +52,7 @@ internal fun lerpSurfaces(start: AppSurfaces, stop: AppSurfaces, fraction: Float
         composer = lerp(start.composer, stop.composer, fraction),
         userBubble = lerp(start.userBubble, stop.userBubble, fraction),
         drawer = lerp(start.drawer, stop.drawer, fraction),
+        fade = lerp(start.fade, stop.fade, fraction),
         lift = lerp(start.lift, stop.lift, fraction)
     )
 }

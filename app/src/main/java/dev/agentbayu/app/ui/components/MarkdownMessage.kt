@@ -24,6 +24,11 @@ import com.mikepenz.markdown.model.markdownDimens
 import com.mikepenz.markdown.model.rememberMarkdownState
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
+import androidx.compose.ui.unit.sp
+import com.mikepenz.markdown.m3.markdownTypography
 
 @Composable
 fun MarkdownMessage(
@@ -54,6 +59,27 @@ fun MarkdownMessage(
 }
 
 @Composable
+private fun headingStyle(size: TextUnit, lineHeight: TextUnit): TextStyle =
+    MaterialTheme.typography.titleLarge.copy(
+        fontSize = size,
+        lineHeight = lineHeight,
+        fontWeight = FontWeight.SemiBold
+    )
+
+private val HEADING_1_SIZE = 22.sp
+private val HEADING_1_LINE = 30.sp
+private val HEADING_2_SIZE = 20.sp
+private val HEADING_2_LINE = 28.sp
+private val HEADING_3_SIZE = 18.sp
+private val HEADING_3_LINE = 26.sp
+private val HEADING_4_SIZE = 17.sp
+private val HEADING_4_LINE = 24.sp
+private val HEADING_5_SIZE = 16.sp
+private val HEADING_5_LINE = 24.sp
+private val HEADING_6_SIZE = 15.sp
+private val HEADING_6_LINE = 22.sp
+
+@Composable
 private fun MarkdownBody(
     source: String,
     modifier: Modifier = Modifier,
@@ -65,6 +91,14 @@ private fun MarkdownBody(
     val markdownLabel = stringResource(R.string.code_markdown)
     Markdown(
         markdownState = markdownState,
+        typography = markdownTypography(
+            h1 = headingStyle(HEADING_1_SIZE, HEADING_1_LINE),
+            h2 = headingStyle(HEADING_2_SIZE, HEADING_2_LINE),
+            h3 = headingStyle(HEADING_3_SIZE, HEADING_3_LINE),
+            h4 = headingStyle(HEADING_4_SIZE, HEADING_4_LINE),
+            h5 = headingStyle(HEADING_5_SIZE, HEADING_5_LINE),
+            h6 = headingStyle(HEADING_6_SIZE, HEADING_6_LINE)
+        ),
         colors = markdownColor(
             codeBackground = Color.Transparent,
             inlineCodeBackground = Color.Transparent,

@@ -82,6 +82,9 @@ import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import dev.agentbayu.app.ui.theme.LocalGlassStyle
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.chromeGlassStyle
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.graphics.Brush
+import dev.agentbayu.app.ui.theme.LocalAppSurfaces
 
 @Composable
 fun ChatScreen(
@@ -276,6 +279,21 @@ fun ChatScreen(
                 }
             }
 
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(footerHeight + FOOTER_FADE_EXTRA)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                LocalAppSurfaces.current.fade.copy(alpha = 0f),
+                                LocalAppSurfaces.current.fade
+                            )
+                        )
+                    )
+            )
+
             Column(modifier = footerModifier) {
                 AnimatedVisibility(
                     visible = messages.isEmpty() && !incognito,
@@ -433,6 +451,7 @@ private fun AttachmentPreview(
 }
 
 private val HEADER_ACTION_RESERVE = 48.dp
+private val FOOTER_FADE_EXTRA = 56.dp
 private const val PREVIEW_HEIGHT_RATIO = 0.8f
 private const val SUGGESTION_ENTER_SCALE = 0.95f
 private const val SESSION_ICON_ENTER_SCALE = 0.85f

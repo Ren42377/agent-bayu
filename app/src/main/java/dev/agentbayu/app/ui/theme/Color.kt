@@ -14,7 +14,7 @@ internal val AppleYellowLight = Color(0xFFFFCC00)
 
 internal val AppleMagentaLight = Color(0xFFFF2D95)
 
-internal val BackgroundLight = Color(0xFFFFFFFF)
+internal val BackgroundLight = Color(0xFFFAFAFA)
 internal val SurfaceLight = Color(0xFFFFFFFF)
 internal val SurfaceVariantLight = Color(0xFFD6D6D6)
 internal val TextPrimaryLight = Color(0xFF000000)
@@ -35,7 +35,7 @@ internal val GlassFillLight = Color(0x99FFFFFF)
 internal val GlassFillDark = Color(0x99141418)
 
 internal val GlassChromeLight = Color(0xCCFFFFFF)
-internal val GlassChromeDark = Color(0xC7141418)
+internal val GlassChromeDark = Color(0xCC303030)
 
 internal val GlassSurfaceLight = Color(0xFFE9E9E9)
 internal val GlassSurfaceDark = Color(0xFF303030)
@@ -68,3 +68,6 @@ internal val UserBubbleDark = Color(0xFF303030)
 
 internal val DrawerLight = Color(0xFFFFFFFF)
 internal val DrawerDark = Color(0xFF212121)
+
+internal val FadeLight = Color(0xFFEDEDED)
+internal val FadeDark = Color(0x00000000)

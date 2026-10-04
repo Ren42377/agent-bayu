@@ -51,6 +51,7 @@ import dev.agentbayu.app.ui.theme.AppleRedLight
 import dev.agentbayu.app.ui.theme.GlassCardShape
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.glassSurface
+import dev.agentbayu.app.ui.components.GlassFab
 
 data class ProviderRowState(
     val connection: Connection,
@@ -65,6 +66,8 @@ data class ProviderRowState(
     val accountEmail: String? = null,
     val isActive: Boolean
 )
+
+private val FAB_CLEARANCE = 88.dp
 
 @Composable
 fun ProvidersScreen(
@@ -96,73 +99,102 @@ fun ProvidersScreen(
                 )
             }
         }
-        Column(
+        Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (rows.isEmpty()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .glassSurface(shape = GlassCardShape)
-                        .padding(20.dp)
-                ) {
-                    Column {
-                        Text(
-                            text = stringResource(R.string.providers_empty_title),
-                            style = MaterialTheme.typography.titleMedium,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = stringResource(R.string.providers_empty_body),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-            }
-            AuthKind.entries.forEach { authKind ->
-                val group = rows.filter { it.authKind == authKind }
-                if (group.isNotEmpty()) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (rows.isEmpty()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .glassSurface(shape = GlassCardShape)
+                            .padding(20.dp)
                     ) {
-                        Text(
-                            text = authKindSectionLabel(authKind).uppercase(),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-                        group.forEach { row ->
-                            ConnectionCard(
-                                row = row,
-                                onEdit = onEdit,
-                                onActivate = onActivate,
-                                onDelete = onDelete
+                        Column {
+                            Text(
+                                text = stringResource(R.string.providers_empty_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = stringResource(R.string.providers_empty_body),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
                 }
+                AuthKind.entries.forEach { authKind ->
+                    val group = rows.filter { it.authKind == authKind }
+                    if (group.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = authKindSectionLabel(authKind).uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                modifier = Modifier.padding(horizontal = 8.dp)
+                            )
+                            group.forEach { row ->
+                                ConnectionCard(
+                                    row = row,
+                                    onEdit = onEdit,
+                                    onActivate = onActivate,
+                                    onDelete = onDelete
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(
+                    modifier = Modifier.height(
+                        FAB_CLEARANCE + if (catalogUpdateAvailable) 0.dp else insets.calculateBottomPadding()
+                    )
+                )
+            }
+            GlassFab(
+                onClick = onAdd,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(
+                        end = 20.dp,
+                        bottom = 20.dp + if (catalogUpdateAvailable) {
+                            0.dp
+                        } else {
+                            insets.calculateBottomPadding()
+                        }
+                    )
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_add),
+                    contentDescription = stringResource(R.string.providers_add),
+                    modifier = Modifier.size(24.dp)
+                )
             }
         }
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(
-                    start = 16.dp,
-                    end = 16.dp,
-                    top = 12.dp,
-                    bottom = 12.dp + insets.calculateBottomPadding()
-                ),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            if (catalogUpdateAvailable) {
+        if (catalogUpdateAvailable) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(
+                        start = 16.dp,
+                        end = 16.dp,
+                        top = 12.dp,
+                        bottom = 12.dp + insets.calculateBottomPadding()
+                    ),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 catalogLastUpdated?.let { updated ->
                     Text(
                         text = stringResource(R.string.providers_catalog_updated_at, updated),
@@ -188,7 +220,8 @@ fun ProvidersScreen(
                         if (refreshing) {
                             CircularProgressIndicator(
                                 modifier = Modifier.size(14.dp),
-                                strokeWidth = 2.dp
+                                strokeWidth = 2.dp,
+                                color = LocalContentColor.current
                             )
                         } else {
                             Icon(
@@ -203,24 +236,6 @@ fun ProvidersScreen(
                         style = MaterialTheme.typography.labelLarge
                     )
                 }
-            }
-            GlassButton(
-                onClick = onAdd,
-                modifier = Modifier.fillMaxWidth(),
-                tint = MaterialTheme.colorScheme.primary,
-                contentPadding = PaddingValues(vertical = 14.dp)
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_add),
-                    contentDescription = null,
-                    tint = LocalContentColor.current,
-                    modifier = Modifier.size(18.dp)
-                )
-                Text(
-                    text = stringResource(R.string.providers_add),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = LocalContentColor.current
-                )
             }
         }
     }

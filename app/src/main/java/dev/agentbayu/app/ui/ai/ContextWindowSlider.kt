@@ -26,7 +26,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -47,6 +46,10 @@ import dev.agentbayu.app.ui.components.DampedDragAnimation
 import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalGlassBackdrop
 import kotlin.math.abs
+import androidx.compose.ui.graphics.Color
+import com.kyant.backdrop.backdrops.layerBackdrop
+import com.kyant.backdrop.backdrops.rememberCombinedBackdrop
+import com.kyant.backdrop.backdrops.rememberLayerBackdrop
 
 val CONTEXT_WINDOW_STOPS = listOf(131_072, 262_144, 524_288, 1_048_576)
 
@@ -85,8 +88,6 @@ internal fun ContextWindowSlider(
     val fillColor = MaterialTheme.colorScheme.onSurface
     val dotColor = MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
     val dotOnFillColor = MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
-    val thumbColor = MaterialTheme.colorScheme.onPrimary
-    val thumbRimColor = MaterialTheme.colorScheme.primary
     val animationScope = rememberCoroutineScope()
     val hapticFeedback = LocalHapticFeedback.current
     val currentOnSelect by rememberUpdatedState(onSelect)
@@ -178,9 +179,12 @@ internal fun ContextWindowSlider(
                 withFrameNanos { }
                 dragAnimation.prewarm()
             }
+            val trackBackdrop = rememberLayerBackdrop()
+            val thumbBackdrop = rememberCombinedBackdrop(LocalGlassBackdrop.current, trackBackdrop)
             Box(
                 modifier = Modifier
                     .matchParentSize()
+                    .layerBackdrop(trackBackdrop)
                     .drawBehind {
                         val trackRadius = size.height / 2f
                         val fillFraction = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
@@ -193,8 +197,7 @@ internal fun ContextWindowSlider(
                                     top = 0f,
                                     right = fillRight,
                                     bottom = size.height,
-                                    topLeftCornerRadius = CornerRadius(trackRadius),
-                                    bottomLeftCornerRadius = CornerRadius(trackRadius)
+                                    cornerRadius = CornerRadius(minOf(trackRadius, fillRight / 2f))
                                 )
                             )
                         }
@@ -222,9 +225,16 @@ internal fun ContextWindowSlider(
                         translationX = (dragAnimation.value / lastIndex) * travelPx
                     }
                     .drawBackdrop(
-                        backdrop = LocalGlassBackdrop.current,
+                        backdrop = thumbBackdrop,
                         shape = { CircleShape },
-                        effects = { },
+                        effects = {
+                            val progress = dragAnimation.pressProgress
+                            lens(
+                                SLIDER_LENS_HEIGHT.toPx() * progress,
+                                SLIDER_LENS_AMOUNT.toPx() * progress,
+                                chromaticAberration = true
+                            )
+                        },
                         highlight = {
                             Highlight.Ambient.copy(
                                 width = Highlight.Ambient.width / 1.5f,
@@ -237,20 +247,15 @@ internal fun ContextWindowSlider(
                             InnerShadow(radius = 4.dp * progress, alpha = progress)
                         },
                         layerBlock = {
-                            scaleX = dragAnimation.scaleX
+                            scaleX = dragAnimation.scaleX * (1f + SLIDER_THUMB_STRETCH * dragAnimation.pressProgress)
                             scaleY = dragAnimation.scaleY
                             val velocity = dragAnimation.velocity / 50f
                             scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
                             scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
                         },
                         onDrawSurface = {
-                        drawRect(thumbColor)
-                        drawCircle(
-                            color = thumbRimColor,
-                            radius = size.minDimension / 2f - THUMB_RIM_WIDTH.toPx() / 2f,
-                            style = Stroke(width = THUMB_RIM_WIDTH.toPx())
-                        )
-                    }
+                            drawRect(Color.White.copy(alpha = 1f - dragAnimation.pressProgress))
+                        }
                     )
             )
             Box(
@@ -299,9 +304,11 @@ private const val SLIDER_TRACK_ALPHA_DARK = 0.10f
 private const val SLIDER_TRACK_ALPHA_LIGHT = 0.07f
 private const val SLIDER_DOT_REST_ALPHA = 0.30f
 private const val SLIDER_DOT_ON_FILL_ALPHA = 0.45f
-private const val SLIDER_THUMB_PRESSED_SCALE = 1.15f
+private const val SLIDER_THUMB_PRESSED_SCALE = 1.2f
+private const val SLIDER_THUMB_STRETCH = 0.4f
+private val SLIDER_LENS_HEIGHT = 6.dp
+private val SLIDER_LENS_AMOUNT = 12.dp
 private val SLIDER_TRACK_HEIGHT = 26.dp
 private val SLIDER_THUMB_DIAMETER = 32.dp
-private val THUMB_RIM_WIDTH = 1.5.dp
 private val SLIDER_DOT_DIAMETER = 4.dp
 private val SLIDER_LABEL_HEIGHT = 18.dp
