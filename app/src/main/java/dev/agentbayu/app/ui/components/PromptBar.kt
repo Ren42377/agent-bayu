@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -32,7 +33,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -49,6 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
@@ -59,6 +60,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ReasoningEffort
@@ -232,34 +234,58 @@ fun PromptBar(
                     onClick = { showModelPicker = !showModelPicker }
                 )
                 
+                val modelScrollState = rememberScrollState()
                 DropdownMenu(
                     expanded = showModelPicker,
                     onDismissRequest = { showModelPicker = false },
-                    modifier = Modifier.background(MaterialTheme.colorScheme.surfaceVariant).widthIn(max = 240.dp)
+                    scrollState = modelScrollState,
+                    shape = RoundedCornerShape(20.dp),
+                    containerColor = Color(0xFF2C2C2E),
+                    modifier = Modifier
+                        .width(210.dp)
+                        .heightIn(max = 220.dp)
                 ) {
-                    providerOptions.forEach { option ->
-                        DropdownMenuItem(
-                            text = { 
-                                Text(
-                                    option.providerLabel, 
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.labelMedium
-                                ) 
-                            },
-                            onClick = {},
-                            enabled = false
+                    providerOptions.forEachIndexed { providerIndex, option ->
+                        if (providerIndex > 0) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                        Text(
+                            text = option.providerLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
                         )
                         option.models.forEach { model ->
-                            DropdownMenuItem(
-                                text = { Text(model, color = MaterialTheme.colorScheme.onSurface) },
-                                onClick = {
-                                    onSelectModel(option.connectionId, model)
-                                    showModelPicker = false
-                                },
-                                trailingIcon = if (option.isActive && option.model == model) {
-                                    { Icon(painterResource(R.drawable.ic_check), contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurface) }
-                                } else null
-                            )
+                            val isSelected = option.isActive && option.model == model
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onSelectModel(option.connectionId, model)
+                                        showModelPicker = false
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = model,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false)
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Icon(
+                                        painter = painterResource(R.drawable.ic_check),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
