@@ -1,10 +1,14 @@
 package dev.agentbayu.app.ui.notes
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -70,6 +74,13 @@ fun NotesScreen(
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
+    val pageIndex = if (pinnedOpen) {
+        0
+    } else {
+        groups.indexOfFirst { it.id == activeGroup?.id }.coerceAtLeast(0) + 1
+    }
+    val page = NotePage(index = pageIndex, notes = notes)
+
     Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -156,38 +167,55 @@ fun NotesScreen(
                 ),
                 textStyle = MaterialTheme.typography.bodyMedium
             )
-            LazyColumn(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                contentPadding = PaddingValues(
-                    start = 12.dp,
-                    end = 12.dp,
-                    top = 8.dp,
-                    bottom = 96.dp + insets.calculateBottomPadding()
-                ),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                if (notes.isEmpty()) {
-                    item(key = "empty") {
-                        Text(
-                            text = stringResource(
-                                if (query.isEmpty()) R.string.notes_empty
-                                else R.string.notes_search_empty
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)
+            AnimatedContent(
+                targetState = page,
+                contentKey = { state -> state.index },
+                transitionSpec = {
+                    val direction = if (targetState.index > initialState.index) 1 else -1
+                    (
+                        slideInHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                            direction * width
+                        } + fadeIn(AgentBayuMotion.navFadeSpec)
+                    ) togetherWith (
+                        slideOutHorizontally(AgentBayuMotion.navSlideSpec) { width ->
+                            -direction * width
+                        } + fadeOut(AgentBayuMotion.navFadeSpec)
+                    )
+                },
+                label = "notePage",
+                modifier = Modifier.weight(1f).fillMaxWidth()
+            ) { current ->
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(
+                        start = 12.dp,
+                        end = 12.dp,
+                        top = 8.dp,
+                        bottom = 96.dp + insets.calculateBottomPadding()
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    if (current.notes.isEmpty()) {
+                        item(key = "empty") {
+                            Text(
+                                text = stringResource(
+                                    if (query.isEmpty()) R.string.notes_empty
+                                    else R.string.notes_search_empty
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 18.dp)
+                            )
+                        }
+                    }
+                    items(current.notes, key = { it.id }) { note ->
+                        NoteRowItem(
+                            note = note,
+                            onOpen = { onOpenNote(note) },
+                            onMenu = { onNoteMenu(note) },
+                            modifier = Modifier.animateItem()
                         )
                     }
-                }
-                items(notes, key = { it.id }) { note ->
-                    NoteRowItem(
-                        note = note,
-                        onOpen = { onOpenNote(note) },
-                        onMenu = { onNoteMenu(note) },
-                        modifier = Modifier.animateItem()
-                    )
                 }
             }
         }
@@ -295,3 +323,8 @@ private fun NoteThumbnail(reference: String) {
 
 private val NOTE_THUMBNAIL_SIZE = 56.dp
 private const val CLEAR_ICON_ENTER_SCALE = 0.85f
+
+private data class NotePage(
+    val index: Int,
+    val notes: List<NoteItem>
+)
