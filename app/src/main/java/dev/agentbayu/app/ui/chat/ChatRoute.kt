@@ -216,6 +216,7 @@ fun ChatRoute(
             onSuggestionClick = { text -> if (!switching) chat.send(text) },
             onSelectProvider = { connectionId -> connectionStore.setActive(connectionId) },
             onSelectModel = { connectionId, model ->
+                connectionStore.setActive(connectionId)
                 connectionStore.setModel(connectionId, model)
             },
             onSelectEffort = { connectionId, effort ->

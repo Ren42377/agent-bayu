@@ -240,7 +240,9 @@ fun PromptBar(
                     onDismissRequest = { showModelPicker = false },
                     scrollState = modelScrollState,
                     shape = RoundedCornerShape(20.dp),
-                    containerColor = Color(0xFF2C2C2E),
+                    containerColor = LocalAppSurfaces.current.composer,
+                    tonalElevation = 0.dp,
+                    shadowElevation = 0.dp,
                     modifier = Modifier
                         .width(210.dp)
                         .heightIn(max = 220.dp)
