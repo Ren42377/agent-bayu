@@ -9,7 +9,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.kyant.backdrop.effects.lens
+import androidx.compose.ui.graphics.drawscope.clipRect
+import com.kyant.backdrop.shadow.Shadow
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -262,37 +263,32 @@ private fun EffortSlider(
                             cornerRadius = CornerRadius(trackRadius)
                         )
                         if (fillRight > 0f) {
-                            val fill = Path().apply {
-                                addRoundRect(
-                                    RoundRect(
-                                        left = 0f,
-                                        top = 0f,
-                                        right = fillRight,
-                                        bottom = size.height,
-                                        cornerRadius = CornerRadius(trackRadius)
-                                    )
-                                )
-                            }
                             val fillColor = tintProvider?.invoke(dragAnimation.value) ?: tint
-                            drawPath(fill, fillColor)
-                            if (maxBlend > 0f) {
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        colors = listOf(
-                                            SLIDER_GALAXY_START,
-                                            SLIDER_GALAXY_MID,
-                                            AppleMagentaLight
+                            drawRect(
+                                color = fillColor,
+                                topLeft = Offset.Zero,
+                                size = Size(fillRight, size.height)
+                            )
+                            clipRect(left = 0f, top = 0f, right = fillRight, bottom = size.height) {
+                                if (maxBlend > 0f) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            colors = listOf(
+                                                SLIDER_GALAXY_START,
+                                                SLIDER_GALAXY_MID,
+                                                AppleMagentaLight
+                                            ),
+                                            startX = 0f,
+                                            endX = fillRight
                                         ),
-                                        startX = 0f,
-                                        endX = fillRight
-                                    ),
-                                    topLeft = Offset.Zero,
-                                    size = Size(fillRight, size.height),
-                                    alpha = maxBlend
-                                )
-                            }
-                            decoration?.let {
-                                it(dragAnimation.value, dragAnimation.velocity)
+                                        topLeft = Offset.Zero,
+                                        size = Size(fillRight, size.height),
+                                        alpha = maxBlend
+                                    )
+                                }
+                                decoration?.let {
+                                    it(dragAnimation.value, dragAnimation.velocity)
+                                }
                             }
                         }
                     }
@@ -318,18 +314,14 @@ private fun EffortSlider(
                 .graphicsLayer {
                     val progress = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
                     translationX = progress * travelPx
+                    val scale = dragAnimation.scaleX
+                    scaleX = scale
+                    scaleY = scale
                 }
                 .drawBackdrop(
                     backdrop = thumbBackdrop,
                     shape = { CircleShape },
-                    effects = {
-                        val progress = dragAnimation.pressProgress
-                        lens(
-                            SLIDER_LENS_HEIGHT.toPx() * progress,
-                            SLIDER_LENS_AMOUNT.toPx() * progress,
-                            chromaticAberration = true
-                        )
-                    },
+                    effects = { },
                     highlight = {
                         Highlight.Ambient.copy(
                             width = Highlight.Ambient.width / 1.5f,
@@ -337,20 +329,15 @@ private fun EffortSlider(
                             alpha = dragAnimation.pressProgress
                         )
                     },
+                    shadow = {
+                        Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.15f))
+                    },
                     innerShadow = {
                         val progress = dragAnimation.pressProgress
                         InnerShadow(radius = 4.dp * progress, alpha = progress)
                     },
-                    layerBlock = {
-                        val scale = dragAnimation.scaleX
-                        scaleX = scale
-                        scaleY = scale
-                        val velocity = dragAnimation.velocity / 10f
-                        scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                        scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                    },
                     onDrawSurface = {
-                        drawRect(thumbColor.copy(alpha = 1f - dragAnimation.pressProgress))
+                        drawRect(thumbColor)
                     }
                 )
         )

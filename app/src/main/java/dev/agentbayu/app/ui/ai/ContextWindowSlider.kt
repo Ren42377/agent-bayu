@@ -12,8 +12,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.kyant.backdrop.effects.lens
+import androidx.compose.ui.geometry.Size
+import dev.agentbayu.app.ui.theme.ControlDark
 import dev.agentbayu.app.ui.theme.FilledControlDark
+import com.kyant.backdrop.shadow.Shadow
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -93,7 +95,7 @@ internal fun ContextWindowSlider(
         MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_TRACK_ALPHA_LIGHT)
     }
     val fillColor = if (darkTheme) {
-        Color(0xFF787880)
+        ControlDark
     } else {
         MaterialTheme.colorScheme.onSurface
     }
@@ -103,7 +105,7 @@ internal fun ContextWindowSlider(
         MaterialTheme.colorScheme.onSurface.copy(alpha = SLIDER_DOT_REST_ALPHA)
     }
     val dotOnFillColor = if (darkTheme) {
-        Color.White.copy(alpha = 0.90f)
+        Color.White.copy(alpha = 0.85f)
     } else {
         MaterialTheme.colorScheme.surface.copy(alpha = SLIDER_DOT_ON_FILL_ALPHA)
     }
@@ -237,18 +239,11 @@ internal fun ContextWindowSlider(
                         clipPath(trackPath) {
                             drawRoundRect(color = trackColor, cornerRadius = CornerRadius(trackRadius))
                             if (fillRight > 0f) {
-                                val fill = Path().apply {
-                                    addRoundRect(
-                                        RoundRect(
-                                            left = 0f,
-                                            top = 0f,
-                                            right = fillRight,
-                                            bottom = size.height,
-                                            cornerRadius = CornerRadius(trackRadius)
-                                        )
-                                    )
-                                }
-                                drawPath(fill, fillColor)
+                                drawRect(
+                                    color = fillColor,
+                                    topLeft = Offset.Zero,
+                                    size = Size(fillRight, size.height)
+                                )
                             }
                         }
                         val dotRadius = SLIDER_DOT_DIAMETER.toPx() / 2f
@@ -273,18 +268,14 @@ internal fun ContextWindowSlider(
                     .graphicsLayer {
                         val progress = (dragAnimation.value / lastIndex).fastCoerceIn(0f, 1f)
                         translationX = progress * travelPx
+                        val scale = dragAnimation.scaleX
+                        scaleX = scale
+                        scaleY = scale
                     }
                     .drawBackdrop(
                         backdrop = thumbBackdrop,
                         shape = { CircleShape },
-                        effects = {
-                            val progress = dragAnimation.pressProgress
-                            lens(
-                                SLIDER_LENS_HEIGHT.toPx() * progress,
-                                SLIDER_LENS_AMOUNT.toPx() * progress,
-                                chromaticAberration = true
-                            )
-                        },
+                        effects = { },
                         highlight = {
                             Highlight.Ambient.copy(
                                 width = Highlight.Ambient.width / 1.5f,
@@ -292,20 +283,15 @@ internal fun ContextWindowSlider(
                                 alpha = dragAnimation.pressProgress
                             )
                         },
+                        shadow = {
+                            Shadow(radius = 4.dp, color = Color.Black.copy(alpha = 0.15f))
+                        },
                         innerShadow = {
                             val progress = dragAnimation.pressProgress
                             InnerShadow(radius = 4.dp * progress, alpha = progress)
                         },
-                        layerBlock = {
-                            val scale = dragAnimation.scaleX
-                            scaleX = scale
-                            scaleY = scale
-                            val velocity = dragAnimation.velocity / 10f
-                            scaleX /= 1f - (velocity * 0.75f).fastCoerceIn(-0.2f, 0.2f)
-                            scaleY *= 1f - (velocity * 0.25f).fastCoerceIn(-0.2f, 0.2f)
-                        },
                         onDrawSurface = {
-                            drawRect(thumbColor.copy(alpha = 1f - dragAnimation.pressProgress))
+                            drawRect(thumbColor)
                         }
                     )
             )
