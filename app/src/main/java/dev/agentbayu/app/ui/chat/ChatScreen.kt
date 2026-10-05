@@ -218,15 +218,15 @@ fun ChatScreen(
                     onClick = drawer::open,
                     modifier = Modifier
                         .align(Alignment.CenterStart)
-                        .size(40.dp),
+                        .size(48.dp),
                     shape = CircleShape,
                     contentPadding = GlassButtonDefaults.IconPadding
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_history),
                         contentDescription = stringResource(R.string.history_open),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
                     )
                 }
                 GlassButton(
@@ -235,7 +235,7 @@ fun ChatScreen(
                     tint = sessionActionTint,
                     modifier = Modifier
                         .align(Alignment.CenterEnd)
-                        .size(40.dp),
+                        .size(48.dp),
                     shape = CircleShape,
                     contentPadding = GlassButtonDefaults.IconPadding
                 ) {
@@ -261,9 +261,9 @@ fun ChatScreen(
                             tint = if (incognito && !has) {
                                 LocalContentColor.current
                             } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
+                                Color.White
                             },
-                            modifier = Modifier.size(20.dp)
+                            modifier = Modifier.size(24.dp)
                         )
                     }
                 }
