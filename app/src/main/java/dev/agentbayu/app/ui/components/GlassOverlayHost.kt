@@ -188,6 +188,7 @@ private fun GlassOverlayPanel(
     }
     val panelBackdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
+    var isPlacedAboveAnchor = false
 
     BackHandler(enabled = visible && focused) { entry.onDismiss() }
 
@@ -242,7 +243,14 @@ private fun GlassOverlayPanel(
                         when {
                             isSheet -> translationY = size.height * (1f - progress)
 
-                            isMenu -> translationY = -MENU_SLIDE_OFFSET.toPx() * (1f - progress)
+                            isMenu -> {
+                                val offset = MENU_SLIDE_OFFSET.toPx()
+                                translationY = if (isPlacedAboveAnchor) {
+                                    offset * (1f - progress)
+                                } else {
+                                    -offset * (1f - progress)
+                                }
+                            }
 
                             else -> {
                                 val scale = OVERLAY_MIN_SCALE +
@@ -286,7 +294,8 @@ private fun GlassOverlayPanel(
                 val x = anchor.left
                     .coerceIn(0, (constraints.maxWidth - placeable.width).coerceAtLeast(0))
                 val below = anchor.bottom + gap
-                val y = if (below + placeable.height <= constraints.maxHeight) {
+                isPlacedAboveAnchor = below + placeable.height > constraints.maxHeight
+                val y = if (!isPlacedAboveAnchor) {
                     below
                 } else {
                     (anchor.top - gap - placeable.height).coerceAtLeast(0)
