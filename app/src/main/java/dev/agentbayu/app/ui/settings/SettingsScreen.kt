@@ -1,6 +1,5 @@
 package dev.agentbayu.app.ui.settings
 
-import dev.agentbayu.app.ui.history.HistoryDrawerButton
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -46,6 +45,7 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     onToolApprovalModeChange: (ToolApprovalMode) -> Unit,
     onScreenContextChange: (Boolean) -> Unit,
+    onBack: () -> Unit = {},
     onOpenProviders: () -> Unit,
     onOpenCustomPrompt: () -> Unit,
     onOpenLogs: () -> Unit,
@@ -70,7 +70,17 @@ fun SettingsScreen(
             modifier = Modifier.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            HistoryDrawerButton()
+            dev.agentbayu.app.ui.components.GlassIconButton(
+                onClick = onBack,
+                size = 48.dp
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_back),
+                    contentDescription = stringResource(R.string.nav_back),
+                    tint = androidx.compose.ui.graphics.Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
             Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = stringResource(R.string.tab_settings),

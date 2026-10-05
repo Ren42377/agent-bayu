@@ -9,6 +9,7 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -23,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -67,6 +69,11 @@ fun NoteEditorScreen(
     var contentValue by remember {
         mutableStateOf(TextFieldValue(draft.content, TextRange(draft.content.length)))
     }
+    val undoStack = remember { mutableStateListOf<String>() }
+    val redoStack = remember { mutableStateListOf<String>() }
+    var lastEditTime by remember { mutableStateOf(0L) }
+    val canUndo = undoStack.isNotEmpty()
+    val canRedo = redoStack.isNotEmpty()
     LaunchedEffect(draft.content) {
         if (draft.content != contentValue.text) {
             contentValue = TextFieldValue(draft.content, TextRange(draft.content.length))
@@ -181,7 +188,7 @@ fun NoteEditorScreen(
                             start = 16.dp,
                             end = 16.dp,
                             top = 8.dp,
-                            bottom = insets.calculateBottomPadding() + 16.dp
+                            bottom = insets.calculateBottomPadding() + 88.dp
                         ),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -225,8 +232,15 @@ fun NoteEditorScreen(
                             TextField(
                                 value = contentValue,
                                 onValueChange = { value ->
+                                    val oldText = contentValue.text
                                     contentValue = value
                                     if (value.text != draft.content) {
+                                        val now = System.currentTimeMillis()
+                                        if (now - lastEditTime > 600L || undoStack.isEmpty()) {
+                                            undoStack.add(oldText)
+                                        }
+                                        lastEditTime = now
+                                        redoStack.clear()
                                         onDraftChange(draft.copy(content = value.text))
                                     }
                                 },
@@ -248,20 +262,61 @@ fun NoteEditorScreen(
                 }
             }
         }
-        GlassFab(
-            onClick = onSave,
+        Row(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(
                     end = 20.dp,
                     bottom = 20.dp + insets.calculateBottomPadding()
-                )
+                ),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_check),
-                contentDescription = stringResource(R.string.tasks_detail_save),
-                modifier = Modifier.size(24.dp)
-            )
+            GlassFab(
+                onClick = {
+                    if (canUndo) {
+                        redoStack.add(contentValue.text)
+                        val popped = undoStack.removeAt(undoStack.lastIndex)
+                        contentValue = TextFieldValue(popped, TextRange(popped.length))
+                        onDraftChange(draft.copy(content = popped))
+                        lastEditTime = 0L
+                    }
+                },
+                enabled = canUndo
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_undo),
+                    contentDescription = "Undo",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            GlassFab(
+                onClick = {
+                    if (canRedo) {
+                        undoStack.add(contentValue.text)
+                        val popped = redoStack.removeAt(redoStack.lastIndex)
+                        contentValue = TextFieldValue(popped, TextRange(popped.length))
+                        onDraftChange(draft.copy(content = popped))
+                        lastEditTime = 0L
+                    }
+                },
+                enabled = canRedo
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_redo),
+                    contentDescription = "Redo",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            GlassFab(
+                onClick = onSave
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_save),
+                    contentDescription = stringResource(R.string.tasks_detail_save),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
         }
     }
 }

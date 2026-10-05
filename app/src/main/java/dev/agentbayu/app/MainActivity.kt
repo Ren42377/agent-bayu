@@ -389,6 +389,7 @@ private fun TabContent(
 
         AgentBayuDestination.SETTINGS -> SettingsRoute(
             onMessage = onMessage,
+            onBack = { selectedTab = 0 },
             onOpenProviders = { controller.openProviders() },
             onOpenCustomPrompt = { controller.openCustomPrompt() },
             onOpenLogs = { controller.openLogs() },

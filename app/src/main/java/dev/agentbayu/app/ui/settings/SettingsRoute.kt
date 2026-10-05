@@ -21,6 +21,7 @@ import dev.agentbayu.app.platform.files.AllFilesAccess
 @Composable
 fun SettingsRoute(
     onMessage: (String) -> Unit,
+    onBack: () -> Unit = {},
     onOpenProviders: () -> Unit,
     onOpenCustomPrompt: () -> Unit,
     onOpenLogs: () -> Unit,
@@ -54,6 +55,7 @@ fun SettingsRoute(
         onThemeModeChange = settings::setThemeMode,
         onToolApprovalModeChange = settings::setToolApprovalMode,
         onScreenContextChange = settings::setUseScreenContext,
+        onBack = onBack,
         onOpenProviders = onOpenProviders,
         onOpenCustomPrompt = onOpenCustomPrompt,
         onOpenLogs = onOpenLogs,
