@@ -259,7 +259,8 @@ private fun AgentBayuApp(pendingTaskId: MutableStateFlow<String?>) {
                                         destination = destinations[page],
                                         controller = pageController,
                                         onMessage = onMessage,
-                                        drawer = historyDrawer
+                                        drawer = historyDrawer,
+                                        onSelectTab = { selectedTab = it }
                                     )
                                 }
                             }
@@ -363,7 +364,8 @@ private fun TabContent(
     destination: AgentBayuDestination,
     controller: AppPageController,
     onMessage: (String) -> Unit,
-    drawer: HistoryDrawerState
+    drawer: HistoryDrawerState,
+    onSelectTab: (Int) -> Unit = {}
 ) {
     when (destination) {
         AgentBayuDestination.CHAT -> ChatRoute(
@@ -389,7 +391,7 @@ private fun TabContent(
 
         AgentBayuDestination.SETTINGS -> SettingsRoute(
             onMessage = onMessage,
-            onBack = { selectedTab = 0 },
+            onBack = { onSelectTab(0) },
             onOpenProviders = { controller.openProviders() },
             onOpenCustomPrompt = { controller.openCustomPrompt() },
             onOpenLogs = { controller.openLogs() },
