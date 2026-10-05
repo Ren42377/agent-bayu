@@ -32,7 +32,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -227,27 +226,21 @@ fun PromptBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP)
         ) {
-            Box {
-                ComposerIconButton(
-                    iconRes = R.drawable.ic_package,
-                    description = "Models",
-                    enabled = controlsEnabled,
-                    onClick = { showModelPicker = !showModelPicker }
-                )
-                
-                val modelScrollState = rememberScrollState()
-                DropdownMenu(
-                    expanded = showModelPicker,
-                    onDismissRequest = { showModelPicker = false },
-                    scrollState = modelScrollState,
-                    shape = RoundedCornerShape(20.dp),
-                    containerColor = LocalAppSurfaces.current.composer,
-                    tonalElevation = 0.dp,
-                    shadowElevation = 16.dp,
-                    modifier = Modifier
-                        .width(210.dp)
-                        .heightIn(max = 220.dp)
-                ) {
+            GlassDropdownMenuHost(
+                expanded = showModelPicker,
+                onExpandedChange = { showModelPicker = it },
+                modifier = Modifier,
+                trigger = { progress ->
+                    ComposerIconButton(
+                        iconRes = R.drawable.ic_package,
+                        description = "Models",
+                        enabled = controlsEnabled,
+                        onClick = { showModelPicker = !showModelPicker }
+                    )
+                }
+            ) {
+                // Ensure it has a fixed width
+                Column(modifier = Modifier.width(210.dp)) {
                     providerOptions.forEachIndexed { providerIndex, option ->
                         if (providerIndex > 0) {
                             Spacer(modifier = Modifier.height(8.dp))
@@ -263,6 +256,7 @@ fun PromptBar(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
                                     .clickable {
                                         onSelectModel(option.connectionId, model)
                                         showModelPicker = false
