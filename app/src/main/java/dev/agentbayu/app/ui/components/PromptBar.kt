@@ -243,15 +243,8 @@ fun PromptBar(
                     shape = RoundedCornerShape(20.dp),
                     containerColor = LocalAppSurfaces.current.composer,
                     tonalElevation = 0.dp,
-                    shadowElevation = 12.dp,
+                    shadowElevation = 16.dp,
                     modifier = Modifier
-                        .shadow(
-                            elevation = 12.dp,
-                            shape = RoundedCornerShape(20.dp),
-                            clip = false,
-                            ambientColor = Color.Black.copy(alpha = 0.4f),
-                            spotColor = Color.Black.copy(alpha = 0.6f)
-                        )
                         .width(210.dp)
                         .heightIn(max = 220.dp)
                 ) {
