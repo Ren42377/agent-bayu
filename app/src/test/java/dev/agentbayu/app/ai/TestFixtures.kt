@@ -113,6 +113,8 @@ fun testConnection(
     effort: ReasoningEffort? = null,
     contextLengthOverride: Int? = null,
     customModels: List<String> = emptyList(),
+    customModelConfigs: List<CustomModelConfig> = emptyList(),
+    deletedModels: List<String> = emptyList(),
     health: ConnectionHealth = ConnectionHealth.READY,
     createdAtMillis: Long = 0L
 ): Connection = Connection(
@@ -126,6 +128,8 @@ fun testConnection(
     effort = effort,
     contextLengthOverride = contextLengthOverride,
     customModels = customModels,
+    customModelConfigs = customModelConfigs,
+    deletedModels = deletedModels,
     health = health,
     createdAtMillis = createdAtMillis
 )

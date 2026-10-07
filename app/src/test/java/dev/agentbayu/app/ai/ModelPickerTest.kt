@@ -316,8 +316,7 @@ class ModelPickerTest {
         val connection = testConnection(
             providerId = "groq",
             model = "llama-3-8b",
-            deletedModels = listOf("llama-3-70b")
-        ).copy(
+            deletedModels = listOf("llama-3-70b"),
             customModelConfigs = listOf(CustomModelConfig(id = "custom-llama"))
         )
 
@@ -337,8 +336,7 @@ class ModelPickerTest {
         )
         val connection = testConnection(
             providerId = "test-provider",
-            model = "base-model"
-        ).copy(
+            model = "base-model",
             customModelConfigs = listOf(
                 CustomModelConfig(id = "base-model", contextLength = 131_072, vision = true)
             )
