@@ -251,7 +251,7 @@ private fun GlassOverlayPanel(
                             )
                         }
                     },
-                    highlight = { if (isMenu) Highlight.None else Highlight.Plain },
+                    highlight = { Highlight.Plain.copy(alpha = if (isMenu) 0f else 1f) },
                     layerBlock = {
                         val progress = animation.value
                         when {
