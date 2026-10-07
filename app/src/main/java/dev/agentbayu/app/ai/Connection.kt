@@ -24,7 +24,16 @@ data class Connection(
     val effort: ReasoningEffort? = null,
     val contextLengthOverride: Int? = null,
     val customModels: List<String> = emptyList(),
+    val customModelConfigs: List<CustomModelConfig> = emptyList(),
+    val deletedModels: List<String> = emptyList(),
     val createdAtMillis: Long = 0L
+)
+
+@Serializable
+data class CustomModelConfig(
+    val id: String,
+    val contextLength: Int? = null,
+    val vision: Boolean = false
 )
 
 @Serializable

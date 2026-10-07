@@ -206,8 +206,14 @@
     <string name="connection_auth_kind">Sign in: %1$s</string>
     <string name="connection_base_url_hint">Base URL</string>
     <string name="connection_custom_model_hint">Model name</string>
-    <string name="connection_model_add">Add custom model</string>
-    <string name="connection_model_add_title">Add custom model</string>
+    <string name="connection_model_add">Add</string>
+    <string name="connection_model_add_title">Add</string>
+    <string name="connection_model_edit">Edit</string>
+    <string name="connection_model_edit_title">Edit</string>
+    <string name="connection_model_delete">Delete</string>
+    <string name="connection_model_delete_title">Delete model</string>
+    <string name="connection_model_delete_body">Remove %1$s from this connection?</string>
+    <string name="connection_model_support_image">Support image</string>
     <string name="connection_context_title">Context window</string>
     <string name="connection_context_default">Model default</string>
     <string name="connection_refresh_models">Refresh models</string>

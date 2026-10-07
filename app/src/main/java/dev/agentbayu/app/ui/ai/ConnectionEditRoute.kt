@@ -3,11 +3,15 @@ package dev.agentbayu.app.ui.ai
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -17,10 +21,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -33,6 +39,7 @@ import dev.agentbayu.app.ai.Connection
 import dev.agentbayu.app.ai.ConnectionHealth
 import dev.agentbayu.app.ai.ConnectionTestResult
 import dev.agentbayu.app.ai.Credential
+import dev.agentbayu.app.ai.CustomModelConfig
 import dev.agentbayu.app.ai.ModelFetchResult
 import dev.agentbayu.app.ai.ProviderEntry
 import dev.agentbayu.app.ai.isModelAccessible
@@ -86,12 +93,22 @@ fun AiConnectionEditRoute(
     }
     var discovered by remember { mutableStateOf(existing?.discoveredModels ?: emptyList()) }
     var customModels by remember { mutableStateOf(existing?.customModels ?: emptyList()) }
-    var contextStop by remember { mutableStateOf(contextWindowStopOf(existing?.contextLengthOverride)) }
+    var customModelConfigs by remember {
+        mutableStateOf(existing?.customModelConfigs ?: emptyList())
+    }
+    var deletedModels by remember {
+        mutableStateOf(existing?.deletedModels ?: emptyList())
+    }
     var testing by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
     var blockedLink by remember { mutableStateOf<String?>(null) }
-    var showAddModelDialog by remember { mutableStateOf(false) }
-    var newModelName by remember { mutableStateOf("") }
+    var showModelDialog by remember { mutableStateOf(false) }
+    var modelDialogIsEdit by remember { mutableStateOf(false) }
+    var dialogModelOriginalId by remember { mutableStateOf("") }
+    var dialogModelName by remember { mutableStateOf("") }
+    var dialogModelSupportImage by remember { mutableStateOf(false) }
+    var dialogModelContextStop by remember { mutableIntStateOf(-1) }
+    var pendingDeleteModel by remember { mutableStateOf<String?>(null) }
 
     val keyHint = remember(id, apiKey) { credentials.hint(id) }
     val loggedIn = remember(id) { credentials.credential(id) is Credential.OAuthTokens }
@@ -116,8 +133,10 @@ fun AiConnectionEditRoute(
         discoveredModels = discovered,
         projectId = existing?.projectId,
         effort = existing?.effort,
-        contextLengthOverride = contextStop.takeIf { it >= 0 }?.let { CONTEXT_WINDOW_STOPS[it] },
+        contextLengthOverride = existing?.contextLengthOverride,
         customModels = customModels,
+        customModelConfigs = customModelConfigs,
+        deletedModels = deletedModels,
         createdAtMillis = existing?.createdAtMillis ?: 0L
     )
 
@@ -177,6 +196,11 @@ fun AiConnectionEditRoute(
 
     val planType = planTypeOf(credentials.credential(id), provider)
 
+    val currentModelConfig = customModelConfigs.firstOrNull { it.id == model.trim() }
+    val currentModelContextLength = currentModelConfig?.contextLength
+        ?: provider?.model(model.trim())?.contextLength
+        ?: existing?.contextLengthOverride
+
     val state = ConnectionEditState(
         providers = providers,
         provider = provider,
@@ -185,7 +209,7 @@ fun AiConnectionEditRoute(
         keyHint = keyHint,
         model = model,
         modelOptions = pickerModelIds(provider, draft(), planType),
-        contextStop = contextStop,
+        currentModelContextLength = currentModelContextLength,
         baseUrl = baseUrl,
         isNew = existing == null,
         loggedIn = loggedIn,
@@ -202,15 +226,42 @@ fun AiConnectionEditRoute(
                 model = defaultModel(selected, planTypeOf(credentials.credential(id), selected))
                 discovered = emptyList()
                 customModels = emptyList()
+                customModelConfigs = emptyList()
+                deletedModels = emptyList()
                 provider = selected
             }
         },
         onLabelChange = { value -> label = value },
         onKeyChange = { value -> apiKey = value },
         onModelChange = { value -> model = value },
-        onRequestAddCustomModel = { showAddModelDialog = true },
-        onContextStopSelected = { index -> contextStop = index },
-        onContextDefault = { contextStop = -1 },
+        onRequestAddCustomModel = {
+            modelDialogIsEdit = false
+            dialogModelOriginalId = ""
+            dialogModelName = ""
+            dialogModelSupportImage = false
+            dialogModelContextStop = -1
+            showModelDialog = true
+        },
+        onEditCurrentModel = {
+            val currentModelId = model.trim()
+            if (currentModelId.isNotEmpty()) {
+                val customConfig = customModelConfigs.firstOrNull { it.id == currentModelId }
+                val modelEntry = provider?.model(currentModelId)
+                val initialVision = customConfig?.vision ?: modelEntry?.vision ?: provider?.vision ?: false
+                val initialContext = customConfig?.contextLength
+                    ?: modelEntry?.contextLength
+                    ?: existing?.contextLengthOverride
+                modelDialogIsEdit = true
+                dialogModelOriginalId = currentModelId
+                dialogModelName = currentModelId
+                dialogModelSupportImage = initialVision
+                dialogModelContextStop = contextWindowStopOf(initialContext)
+                showModelDialog = true
+            }
+        },
+        onRequestDeleteCurrentModel = {
+            pendingDeleteModel = model.trim()
+        },
         onBaseUrlChange = { value -> baseUrl = value },
         onRefreshModels = { refreshModels() },
         onTest = {
@@ -274,21 +325,24 @@ fun AiConnectionEditRoute(
     ConnectionEditScreen(state = state, actions = actions, modifier = modifier)
 
     GlassOverlay(
-        visible = showAddModelDialog,
+        visible = showModelDialog,
         onDismiss = {
-            showAddModelDialog = false
-            newModelName = ""
+            showModelDialog = false
+            dialogModelName = ""
         }
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                text = stringResource(R.string.connection_model_add_title),
+                text = stringResource(
+                    if (modelDialogIsEdit) R.string.connection_model_edit_title
+                    else R.string.connection_model_add_title
+                ),
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface
             )
             OutlinedTextField(
-                value = newModelName,
-                onValueChange = { value -> newModelName = value },
+                value = dialogModelName,
+                onValueChange = { value -> dialogModelName = value },
                 label = { Text(text = stringResource(R.string.connection_custom_model_hint)) },
                 singleLine = true,
                 shape = MaterialTheme.shapes.medium,
@@ -298,11 +352,62 @@ fun AiConnectionEditRoute(
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Checkbox(
+                    checked = dialogModelSupportImage,
+                    onCheckedChange = { dialogModelSupportImage = it },
+                    colors = CheckboxDefaults.colors(
+                        checkedColor = MaterialTheme.colorScheme.primary,
+                        uncheckedColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                )
+                Text(
+                    text = stringResource(R.string.connection_model_support_image),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable { dialogModelSupportImage = !dialogModelSupportImage }
+                        .padding(vertical = 4.dp)
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = stringResource(R.string.connection_context_title).uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                    modifier = Modifier.weight(1f)
+                )
+                if (dialogModelContextStop >= 0) {
+                    GlassButton(
+                        onClick = { dialogModelContextStop = -1 },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.connection_context_default),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            ContextWindowSlider(
+                stopCount = CONTEXT_WINDOW_STOPS.size,
+                selectedIndex = dialogModelContextStop,
+                labelOf = { index -> contextWindowLabel(CONTEXT_WINDOW_STOPS[index]) },
+                onSelect = { index -> dialogModelContextStop = index }
+            )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 GlassButton(
                     onClick = {
-                        showAddModelDialog = false
-                        newModelName = ""
+                        showModelDialog = false
+                        dialogModelName = ""
                     },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(vertical = 12.dp)
@@ -315,21 +420,54 @@ fun AiConnectionEditRoute(
                 }
                 GlassButton(
                     onClick = {
-                        val name = newModelName.trim()
+                        val name = dialogModelName.trim()
                         if (name.isNotEmpty()) {
-                            if (name !in customModels) customModels = customModels + name
+                            val configuredContext = if (dialogModelContextStop >= 0) {
+                                CONTEXT_WINDOW_STOPS.getOrNull(dialogModelContextStop)
+                            } else {
+                                null
+                            }
+                            val newConfig = CustomModelConfig(
+                                id = name,
+                                contextLength = configuredContext,
+                                vision = dialogModelSupportImage
+                            )
+                            if (modelDialogIsEdit) {
+                                val oldId = dialogModelOriginalId
+                                customModelConfigs = customModelConfigs.filter { it.id != oldId && it.id != name } + listOf(newConfig)
+                                if (oldId in customModels) {
+                                    customModels = customModels.map { if (it == oldId) name else it }
+                                }
+                                if (oldId !in customModels && name != oldId) {
+                                    customModels = (customModels + name).distinct()
+                                }
+                                if (oldId in deletedModels && name == oldId) {
+                                    deletedModels = deletedModels.filter { it != oldId }
+                                }
+                            } else {
+                                customModelConfigs = customModelConfigs.filter { it.id != name } + listOf(newConfig)
+                                if (name !in customModels) {
+                                    customModels = customModels + name
+                                }
+                                if (name in deletedModels) {
+                                    deletedModels = deletedModels.filter { it != name }
+                                }
+                            }
                             model = name
-                            showAddModelDialog = false
-                            newModelName = ""
+                            showModelDialog = false
+                            dialogModelName = ""
                         }
                     },
                     modifier = Modifier.weight(1f),
                     tint = MaterialTheme.colorScheme.primary,
-                    enabled = newModelName.isNotBlank(),
+                    enabled = dialogModelName.isNotBlank(),
                     contentPadding = PaddingValues(vertical = 12.dp)
                 ) {
                     Text(
-                        text = stringResource(R.string.connection_model_add),
+                        text = stringResource(
+                            if (modelDialogIsEdit) R.string.connection_save
+                            else R.string.connection_model_add
+                        ),
                         style = MaterialTheme.typography.labelLarge,
                         color = LocalContentColor.current
                     )
@@ -337,6 +475,41 @@ fun AiConnectionEditRoute(
             }
         }
     }
+
+    val pendingDelete = pendingDeleteModel
+    GlassDialog(
+        visible = pendingDelete != null,
+        title = stringResource(R.string.connection_model_delete_title),
+        body = stringResource(
+            R.string.connection_model_delete_body,
+            pendingDelete.orEmpty()
+        ),
+        confirmLabel = stringResource(R.string.connection_model_delete),
+        onConfirm = {
+            val target = pendingDelete.orEmpty()
+            if (target.isNotEmpty()) {
+                val updatedConfigs = customModelConfigs.filter { it.id != target }
+                val updatedCustomModels = customModels.filter { it != target }
+                val updatedDeleted = if (target in deletedModels) deletedModels else deletedModels + target
+                customModelConfigs = updatedConfigs
+                customModels = updatedCustomModels
+                deletedModels = updatedDeleted
+                val remainingOptions = pickerModelIds(
+                    provider = provider,
+                    connection = draft().copy(
+                        customModelConfigs = updatedConfigs,
+                        customModels = updatedCustomModels,
+                        deletedModels = updatedDeleted
+                    ),
+                    planType = planType
+                )
+                model = remainingOptions.firstOrNull().orEmpty()
+            }
+            pendingDeleteModel = null
+        },
+        dismissLabel = stringResource(R.string.dialog_cancel),
+        onDismiss = { pendingDeleteModel = null }
+    )
 
     val pendingLink = blockedLink
     GlassDialog(

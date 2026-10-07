@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -60,7 +61,7 @@ data class ConnectionEditState(
     val keyHint: String?,
     val model: String,
     val modelOptions: List<String>,
-    val contextStop: Int,
+    val currentModelContextLength: Int? = null,
     val baseUrl: String,
     val isNew: Boolean,
     val loggedIn: Boolean = false,
@@ -77,8 +78,8 @@ data class ConnectionEditActions(
     val onKeyChange: (String) -> Unit,
     val onModelChange: (String) -> Unit,
     val onRequestAddCustomModel: () -> Unit,
-    val onContextStopSelected: (Int) -> Unit,
-    val onContextDefault: () -> Unit,
+    val onEditCurrentModel: () -> Unit,
+    val onRequestDeleteCurrentModel: () -> Unit,
     val onBaseUrlChange: (String) -> Unit,
     val onRefreshModels: () -> Unit,
     val onTest: () -> Unit,
@@ -352,17 +353,53 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 )
             }
         }
-        state.modelEntry?.let { entry ->
-            val contextText = if (state.contextStop >= 0) {
-                CONTEXT_WINDOW_STOPS[state.contextStop]
-            } else {
-                entry.contextLength
+        if (state.model.isNotBlank()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                val contextLength = state.currentModelContextLength ?: state.modelEntry?.contextLength
+                if (contextLength != null) {
+                    Text(
+                        text = stringResource(R.string.connection_model_context, contextWindowLabel(contextLength)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    GlassButton(
+                        onClick = actions.onEditCurrentModel,
+                        enabled = state.model.isNotBlank(),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.connection_model_edit),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    GlassButton(
+                        onClick = actions.onRequestDeleteCurrentModel,
+                        enabled = state.model.isNotBlank(),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_delete),
+                            contentDescription = stringResource(R.string.connection_model_delete),
+                            tint = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
             }
-            Text(
-                text = stringResource(R.string.connection_model_context, contextWindowLabel(contextText)),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+        }
+        state.modelEntry?.let { entry ->
             val price = if (entry.free) {
                 stringResource(R.string.connection_model_free)
             } else {
@@ -382,35 +419,6 @@ private fun ModelSection(state: ConnectionEditState, actions: ConnectionEditActi
                 )
             }
         }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.connection_context_title).uppercase(),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                modifier = Modifier.weight(1f)
-            )
-            if (state.contextStop >= 0) {
-                GlassButton(
-                    onClick = actions.onContextDefault,
-                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.connection_context_default),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-        ContextWindowSlider(
-            stopCount = CONTEXT_WINDOW_STOPS.size,
-            selectedIndex = state.contextStop,
-            labelOf = { index -> contextWindowLabel(CONTEXT_WINDOW_STOPS[index]) },
-            onSelect = actions.onContextStopSelected
-        )
         if (provider.modelsPath != null) {
             GlassButton(
                 onClick = actions.onRefreshModels,

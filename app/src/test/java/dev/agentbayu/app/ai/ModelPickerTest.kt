@@ -303,6 +303,55 @@ class ModelPickerTest {
         assertNull(accountEmailOf(Credential.OAuthTokens(accessToken = "a")))
         assertNull(accountEmailOf(Credential.ApiKey("k")))
     }
+
+    @Test
+    fun `pickerModelIds includes customModelConfigs ids and excludes deletedModels`() {
+        val provider = testProvider(
+            id = "groq",
+            models = listOf(
+                ModelEntry(id = "llama-3-8b"),
+                ModelEntry(id = "llama-3-70b")
+            )
+        )
+        val connection = testConnection(
+            providerId = "groq",
+            model = "llama-3-8b",
+            deletedModels = listOf("llama-3-70b")
+        ).copy(
+            customModelConfigs = listOf(CustomModelConfig(id = "custom-llama"))
+        )
+
+        assertEquals(
+            listOf("llama-3-8b", "custom-llama"),
+            pickerModelIds(provider, connection)
+        )
+    }
+
+    @Test
+    fun `custom model config overrides vision and context length on candidate`() {
+        val provider = testProvider(
+            id = "test-provider",
+            models = listOf(
+                ModelEntry(id = "base-model", contextLength = 32_768, vision = false)
+            )
+        )
+        val connection = testConnection(
+            providerId = "test-provider",
+            model = "base-model"
+        ).copy(
+            customModelConfigs = listOf(
+                CustomModelConfig(id = "base-model", contextLength = 131_072, vision = true)
+            )
+        )
+        val candidate = Candidate(
+            connection = connection,
+            provider = provider,
+            model = provider.modelOrFallback("base-model")
+        )
+
+        assertTrue(candidate.supportsVision)
+        assertEquals(131_072, candidate.effectiveModel.contextLength)
+    }
 }
 
 private fun jwtWithPlan(plan: String): String {

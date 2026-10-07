@@ -15,10 +15,15 @@ data class Candidate(
         get() = model.wireFormat ?: provider.wireFormat
 
     val effectiveModel: ModelEntry
-        get() = connection.contextLengthOverride
-            ?.takeIf { it > 0 && it != model.contextLength }
-            ?.let { model.copy(contextLength = it) }
-            ?: model
+        get() {
+            val custom = connection.customModelConfigs.firstOrNull { it.id == model.id }
+            val overrideContext = custom?.contextLength ?: connection.contextLengthOverride
+            val base = if (custom != null) model.copy(vision = custom.vision) else model
+            return overrideContext
+                ?.takeIf { it > 0 && it != base.contextLength }
+                ?.let { base.copy(contextLength = it) }
+                ?: base
+        }
 
     val baseUrl: String
         get() = connection.baseUrlOverride?.takeIf { it.isNotBlank() } ?: provider.baseUrl
@@ -30,7 +35,11 @@ data class Candidate(
         get() = LOOPBACK_HOSTS.any { baseUrl.contains(it, ignoreCase = true) }
 
     val supportsVision: Boolean
-        get() = model.vision || provider.vision
+        get() {
+            val custom = connection.customModelConfigs.firstOrNull { it.id == model.id }
+            if (custom != null) return custom.vision
+            return model.vision || provider.vision
+        }
 
     val supportsTools: Boolean
         get() = (model.tools || provider.tools) &&

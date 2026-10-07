@@ -50,12 +50,13 @@ fun pickerModelIds(
 ): List<String> {
     if (provider == null) return emptyList()
     val current = connection.model.trim()
+    val customIds = (connection.customModels + connection.customModelConfigs.map { it.id }).distinct()
     val base = if (provider.modelsPath != null && connection.discoveredModels.isNotEmpty()) {
         connection.discoveredModels
             .map { normalizeDiscoveredModelId(provider, it) }
             .filter { it.isNotEmpty() }
             .filter { id -> id == current || isVisibleModel(provider, id) }
-            .plus(connection.customModels)
+            .plus(customIds)
             .plus(listOfNotNull(current.takeIf { it.isNotBlank() }))
     } else {
         val discovered = connection.discoveredModels
@@ -64,13 +65,14 @@ fun pickerModelIds(
             .filter { id -> isVisibleModel(provider, id) }
         provider
             .pickerModelIds(discovered, current)
-            .plus(connection.customModels)
+            .plus(customIds)
             .plus(listOfNotNull(current.takeIf { it.isNotBlank() }))
     }
     return base
         .asSequence()
         .map { it.trim() }
         .filter { it.isNotEmpty() }
+        .filter { it !in connection.deletedModels }
         .distinct()
         .filter { id -> isModelAccessible(provider.model(id) ?: ModelEntry(id = id), planType) }
         .toList()
