@@ -34,6 +34,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.Layout
@@ -152,16 +153,21 @@ private fun GlassOverlayPanel(
     onExit: () -> Unit
 ) {
     val body = entry.content ?: return
+    val isSheet = entry.presentation == GlassOverlayPresentation.SHEET
+    val isWideDialog = entry.presentation == GlassOverlayPresentation.WIDE_DIALOG
+    val isMenu = entry.presentation == GlassOverlayPresentation.MENU
     val animation = remember { Animatable(0f) }
     LaunchedEffect(visible) {
-        animation.animateTo(if (visible) 1f else 0f, AgentBayuMotion.panelSpring)
+        val springSpec = when {
+            isMenu && visible -> AgentBayuMotion.menuBouncySpring
+            isMenu -> AgentBayuMotion.menuExitSpring
+            else -> AgentBayuMotion.panelSpring
+        }
+        animation.animateTo(if (visible) 1f else 0f, springSpec)
         if (!visible) {
             onExit()
         }
     }
-    val isSheet = entry.presentation == GlassOverlayPresentation.SHEET
-    val isWideDialog = entry.presentation == GlassOverlayPresentation.WIDE_DIALOG
-    val isMenu = entry.presentation == GlassOverlayPresentation.MENU
     val anchor = entry.anchor
     val panelShape = when {
         isSheet -> PanelShape
@@ -188,7 +194,7 @@ private fun GlassOverlayPanel(
     }
     val panelBackdrop = rememberLayerBackdrop()
     val density = LocalDensity.current
-    var isPlacedAboveAnchor = false
+    val menuPlacement = remember { MenuPlacement() }
 
     BackHandler(enabled = visible && focused) { entry.onDismiss() }
 
@@ -239,20 +245,34 @@ private fun GlassOverlayPanel(
                     highlight = { Highlight.Plain },
                     layerBlock = {
                         val progress = animation.value
-                        alpha = progress.coerceIn(0f, 1f)
                         when {
-                            isSheet -> translationY = size.height * (1f - progress)
+                            isSheet -> {
+                                alpha = progress.coerceIn(0f, 1f)
+                                translationY = size.height * (1f - progress)
+                            }
 
                             isMenu -> {
-                                val offset = MENU_SLIDE_OFFSET.toPx()
-                                translationY = if (isPlacedAboveAnchor) {
-                                    offset * (1f - progress)
+                                alpha = (progress * 2.5f).coerceIn(0f, 1f)
+                                val pivotY = if (menuPlacement.isPlacedAboveAnchor) 1.0f else 0.0f
+                                transformOrigin = TransformOrigin(menuPlacement.menuPivotX, pivotY)
+
+                                val stretchProgress = progress.coerceAtLeast(0f)
+                                val initialScaleY = 0.35f
+                                val initialScaleX = 0.72f
+
+                                scaleY = initialScaleY + (1f - initialScaleY) * stretchProgress
+                                scaleX = initialScaleX + (1f - initialScaleX) * stretchProgress
+
+                                val slideOffset = MENU_SLIDE_OFFSET.toPx() * 1.2f
+                                translationY = if (menuPlacement.isPlacedAboveAnchor) {
+                                    slideOffset * (1f - stretchProgress)
                                 } else {
-                                    -offset * (1f - progress)
+                                    -slideOffset * (1f - stretchProgress)
                                 }
                             }
 
                             else -> {
+                                alpha = progress.coerceIn(0f, 1f)
                                 val scale = OVERLAY_MIN_SCALE +
                                     (1f - OVERLAY_MIN_SCALE) * progress
                                 scaleX = scale
@@ -294,11 +314,17 @@ private fun GlassOverlayPanel(
                 val x = anchor.left
                     .coerceIn(0, (constraints.maxWidth - placeable.width).coerceAtLeast(0))
                 val below = anchor.bottom + gap
-                isPlacedAboveAnchor = below + placeable.height > constraints.maxHeight
-                val y = if (!isPlacedAboveAnchor) {
+                menuPlacement.isPlacedAboveAnchor = below + placeable.height > constraints.maxHeight
+                val y = if (!menuPlacement.isPlacedAboveAnchor) {
                     below
                 } else {
                     (anchor.top - gap - placeable.height).coerceAtLeast(0)
+                }
+                menuPlacement.menuPivotX = if (placeable.width > 0) {
+                    val anchorCenterX = anchor.left + anchor.width / 2f
+                    ((anchorCenterX - x) / placeable.width.toFloat()).coerceIn(0.08f, 0.92f)
+                } else {
+                    0.5f
                 }
                 layout(constraints.maxWidth, constraints.maxHeight) { placeable.place(x, y) }
             }
@@ -328,3 +354,8 @@ private val OVERLAY_REFRACTION_AMOUNT = 36.dp
 private val OVERLAY_VIBRANCY_MAX_HEIGHT = 420.dp
 private const val OVERLAY_MIN_SCALE = 0.9f
 private const val SHEET_HEIGHT_RATIO = 0.94f
+
+private class MenuPlacement {
+    var isPlacedAboveAnchor: Boolean = false
+    var menuPivotX: Float = 0.5f
+}

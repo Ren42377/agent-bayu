@@ -47,7 +47,12 @@ fun GlassDropdownMenuHost(
     val progress = remember { Animatable(0f) }
     val progressProvider: () -> Float = remember(progress) { { progress.value } }
     LaunchedEffect(expanded) {
-        progress.animateTo(if (expanded) 1f else 0f, AgentBayuMotion.panelSpring)
+        val springSpec = if (expanded) {
+            AgentBayuMotion.menuBouncySpring
+        } else {
+            AgentBayuMotion.menuExitSpring
+        }
+        progress.animateTo(if (expanded) 1f else 0f, springSpec)
     }
     Box(
         modifier = modifier.onGloballyPositioned { coordinates ->
