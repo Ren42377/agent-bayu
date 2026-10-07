@@ -28,12 +28,15 @@ import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.domain.tools.ToolApprovalMode
 import dev.agentbayu.app.platform.ThemeMode
+import dev.agentbayu.app.ui.components.GlassIconButton
 import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.GlassToggle
 import dev.agentbayu.app.ui.components.pressScaleFeedback
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
 import dev.agentbayu.app.ui.theme.LocalThemeScrub
 import dev.agentbayu.app.ui.theme.glassSurface
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun SettingsScreen(
@@ -70,14 +73,14 @@ fun SettingsScreen(
             modifier = Modifier.padding(vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            dev.agentbayu.app.ui.components.GlassIconButton(
+            GlassIconButton(
                 onClick = onBack,
                 size = 48.dp
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_back),
                     contentDescription = stringResource(R.string.nav_back),
-                    tint = androidx.compose.ui.graphics.Color.White,
+                    tint = if (LocalDarkTheme.current) Color.White else Color.Black,
                     modifier = Modifier.size(24.dp)
                 )
             }

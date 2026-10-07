@@ -1,6 +1,7 @@
 package dev.agentbayu.app.ui.notes
 
-import dev.agentbayu.app.ui.history.HistoryDrawerButton
+import androidx.compose.ui.graphics.Color
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.animation.AnimatedContent
@@ -74,6 +75,7 @@ fun NotesScreen(
     onSelectGroup: (String) -> Unit,
     onNewGroup: () -> Unit,
     onGroupMenu: () -> Unit,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val insets = LocalScreenInsets.current
@@ -96,7 +98,17 @@ fun NotesScreen(
                     .padding(start = 16.dp, end = 12.dp, top = 12.dp, bottom = 6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                HistoryDrawerButton()
+                GlassIconButton(
+                    onClick = onBack,
+                    size = 48.dp
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_back),
+                        contentDescription = stringResource(R.string.nav_back),
+                        tint = if (LocalDarkTheme.current) Color.White else Color.Black,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
                 Spacer(modifier = Modifier.width(12.dp))
                 Text(
                     text = stringResource(R.string.notes_title),

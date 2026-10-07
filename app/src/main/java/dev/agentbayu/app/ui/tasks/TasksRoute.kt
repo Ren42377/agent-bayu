@@ -34,6 +34,7 @@ import dev.agentbayu.app.ui.components.GlassDialog
 fun TasksRoute(
     onMessage: (String) -> Unit,
     onOpenTask: (String?, String, String?) -> Unit,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -148,6 +149,7 @@ fun TasksRoute(
         onToggleCompleted = { task -> store.setCompleted(task.id, !task.completed) },
         onToggleStarred = { task -> store.setStarred(task.id, !task.starred) },
         onRowMenu = { task -> rowMenuTask = task },
+        onBack = onBack,
         modifier = modifier
     )
 

@@ -20,6 +20,7 @@ import dev.agentbayu.app.ui.components.GlassDialog
 fun NotesRoute(
     onMessage: (String) -> Unit,
     onOpenNote: (String?) -> Unit,
+    onBack: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -85,6 +86,7 @@ fun NotesRoute(
         },
         onNewGroup = { newGroupOpen = true },
         onGroupMenu = { groupMenuOpen = true },
+        onBack = onBack,
         modifier = modifier
     )
 

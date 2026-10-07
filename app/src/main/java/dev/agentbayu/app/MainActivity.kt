@@ -377,6 +377,7 @@ private fun TabContent(
 
         AgentBayuDestination.TASKS -> TasksRoute(
             onMessage = onMessage,
+            onBack = { onSelectTab(0) },
             onOpenTask = { taskId, listId, parentId ->
                 controller.openTaskDetail(taskId, listId, parentId)
             },
@@ -385,6 +386,7 @@ private fun TabContent(
 
         AgentBayuDestination.NOTES -> NotesRoute(
             onMessage = onMessage,
+            onBack = { onSelectTab(0) },
             onOpenNote = { noteId -> controller.openNoteEditor(noteId) },
             modifier = Modifier.fillMaxSize()
         )

@@ -85,6 +85,7 @@ import dev.agentbayu.app.ui.theme.chromeGlassStyle
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.graphics.Brush
 import dev.agentbayu.app.ui.theme.LocalAppSurfaces
+import dev.agentbayu.app.ui.theme.LocalDarkTheme
 
 @Composable
 fun ChatScreen(
@@ -225,7 +226,7 @@ fun ChatScreen(
                     Icon(
                         painter = painterResource(R.drawable.ic_history),
                         contentDescription = stringResource(R.string.history_open),
-                        tint = Color.White,
+                        tint = if (LocalDarkTheme.current) Color.White else Color.Black,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -260,8 +261,10 @@ fun ChatScreen(
                             ),
                             tint = if (incognito && !has) {
                                 LocalContentColor.current
-                            } else {
+                            } else if (LocalDarkTheme.current) {
                                 Color.White
+                            } else {
+                                Color.Black
                             },
                             modifier = Modifier.size(24.dp)
                         )
