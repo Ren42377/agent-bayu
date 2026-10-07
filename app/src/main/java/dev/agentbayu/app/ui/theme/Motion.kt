@@ -18,9 +18,9 @@ object AgentBayuMotion {
         stiffness = Spring.StiffnessMediumLow
     )
 
-    val menuBouncySpring: AnimationSpec<Float> = spring(
-        dampingRatio = 0.62f,
-        stiffness = 450f,
+    val menuElegantSpring: AnimationSpec<Float> = spring(
+        dampingRatio = 0.80f,
+        stiffness = 380f,
         visibilityThreshold = 0.001f
     )
 

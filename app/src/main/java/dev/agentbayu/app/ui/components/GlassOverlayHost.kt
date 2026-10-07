@@ -33,7 +33,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.isSpecified
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -159,7 +161,7 @@ private fun GlassOverlayPanel(
     val animation = remember { Animatable(0f) }
     LaunchedEffect(visible) {
         val springSpec = when {
-            isMenu && visible -> AgentBayuMotion.menuBouncySpring
+            isMenu && visible -> AgentBayuMotion.menuElegantSpring
             isMenu -> AgentBayuMotion.menuExitSpring
             else -> AgentBayuMotion.panelSpring
         }
@@ -208,6 +210,13 @@ private fun GlassOverlayPanel(
                             .fillMaxHeight(SHEET_HEIGHT_RATIO)
 
                         isMenu && anchor != null -> Modifier
+                            .shadow(
+                                elevation = 8.dp,
+                                shape = panelShape,
+                                clip = false,
+                                ambientColor = Color.Black.copy(alpha = 0.14f),
+                                spotColor = Color.Black.copy(alpha = 0.22f)
+                            )
                             .width(
                                 with(density) {
                                     anchor.width.toDp().coerceIn(MENU_MIN_WIDTH, MENU_MAX_WIDTH)
@@ -231,10 +240,10 @@ private fun GlassOverlayPanel(
                     shape = { panelShape },
                     effects = {
                         colorControls(brightness = panelBrightness, saturation = 1.5f)
-                        if (size.isSpecified && size.height <= OVERLAY_VIBRANCY_MAX_HEIGHT.toPx()) {
+                        if (!isMenu && size.isSpecified && size.height <= OVERLAY_VIBRANCY_MAX_HEIGHT.toPx()) {
                             vibrancy()
                         }
-                        if (size.isSpecified) {
+                        if (!isMenu && size.isSpecified) {
                             lens(
                                 OVERLAY_REFRACTION_HEIGHT.toPx(),
                                 OVERLAY_REFRACTION_AMOUNT.toPx(),
@@ -242,7 +251,7 @@ private fun GlassOverlayPanel(
                             )
                         }
                     },
-                    highlight = { Highlight.Plain },
+                    highlight = { if (isMenu) Highlight.None else Highlight.Plain },
                     layerBlock = {
                         val progress = animation.value
                         when {
@@ -252,22 +261,20 @@ private fun GlassOverlayPanel(
                             }
 
                             isMenu -> {
-                                alpha = (progress * 2.5f).coerceIn(0f, 1f)
+                                alpha = progress.coerceIn(0f, 1f)
                                 val pivotY = if (menuPlacement.isPlacedAboveAnchor) 1.0f else 0.0f
                                 transformOrigin = TransformOrigin(menuPlacement.menuPivotX, pivotY)
 
-                                val stretchProgress = progress.coerceAtLeast(0f)
-                                val initialScaleY = 0.35f
-                                val initialScaleX = 0.72f
+                                val scaleProgress = progress.coerceAtLeast(0f)
+                                val scale = 0.86f + 0.14f * scaleProgress
+                                scaleX = scale
+                                scaleY = scale
 
-                                scaleY = initialScaleY + (1f - initialScaleY) * stretchProgress
-                                scaleX = initialScaleX + (1f - initialScaleX) * stretchProgress
-
-                                val slideOffset = MENU_SLIDE_OFFSET.toPx() * 1.2f
+                                val slideOffset = MENU_SLIDE_OFFSET.toPx()
                                 translationY = if (menuPlacement.isPlacedAboveAnchor) {
-                                    slideOffset * (1f - stretchProgress)
+                                    slideOffset * (1f - scaleProgress)
                                 } else {
-                                    -slideOffset * (1f - stretchProgress)
+                                    -slideOffset * (1f - scaleProgress)
                                 }
                             }
 
@@ -344,7 +351,7 @@ private fun GlassOverlayPanel(
 private val OVERLAY_SHAPE = RoundedCornerShape(36.dp)
 private val MENU_SHAPE = RoundedCornerShape(22.dp)
 private val MENU_GAP = 6.dp
-private val MENU_SLIDE_OFFSET = 20.dp
+private val MENU_SLIDE_OFFSET = 10.dp
 private val MENU_MIN_WIDTH = 160.dp
 private val MENU_MAX_WIDTH = 420.dp
 private val MENU_MAX_HEIGHT = 320.dp

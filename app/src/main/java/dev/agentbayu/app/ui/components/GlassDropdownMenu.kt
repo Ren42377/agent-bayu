@@ -48,7 +48,7 @@ fun GlassDropdownMenuHost(
     val progressProvider: () -> Float = remember(progress) { { progress.value } }
     LaunchedEffect(expanded) {
         val springSpec = if (expanded) {
-            AgentBayuMotion.menuBouncySpring
+            AgentBayuMotion.menuElegantSpring
         } else {
             AgentBayuMotion.menuExitSpring
         }

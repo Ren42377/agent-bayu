@@ -49,8 +49,8 @@ internal val GlassHighlightDark = Color(0x59FFFFFF)
 internal val GlassOverlayFillLight = Color(0xB8FFFFFF)
 internal val GlassOverlayFillDark = Color(0xE0303030)
 
-internal val GlassOverlayMenuFillLight = Color(0xF7FFFFFF)
-internal val GlassOverlayMenuFillDark = Color(0xF2303030)
+internal val GlassOverlayMenuFillLight = Color(0xFFFFFFFF)
+internal val GlassOverlayMenuFillDark = Color(0xFF262626)
 
 internal val GlassOverlayDimLight = Color(0x3B29293A)
 internal val GlassOverlayDimDark = Color(0x8F000000)
