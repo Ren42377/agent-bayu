@@ -203,6 +203,41 @@ private fun GlassOverlayPanel(
     val panel: @Composable () -> Unit = {
         Box(
             modifier = Modifier
+                .graphicsLayer {
+                    val progress = animation.value
+                    when {
+                        isSheet -> {
+                            alpha = progress.coerceIn(0f, 1f)
+                            translationY = size.height * (1f - progress)
+                        }
+
+                        isMenu -> {
+                            alpha = progress.coerceIn(0f, 1f)
+                            val pivotY = if (menuPlacement.isPlacedAboveAnchor) 1.0f else 0.0f
+                            transformOrigin = TransformOrigin(menuPlacement.menuPivotX, pivotY)
+
+                            val scaleProgress = progress.coerceAtLeast(0f)
+                            val scale = 0.86f + 0.14f * scaleProgress
+                            scaleX = scale
+                            scaleY = scale
+
+                            val slideOffset = MENU_SLIDE_OFFSET.toPx()
+                            translationY = if (menuPlacement.isPlacedAboveAnchor) {
+                                slideOffset * (1f - scaleProgress)
+                            } else {
+                                -slideOffset * (1f - scaleProgress)
+                            }
+                        }
+
+                        else -> {
+                            alpha = progress.coerceIn(0f, 1f)
+                            val scale = OVERLAY_MIN_SCALE +
+                                (1f - OVERLAY_MIN_SCALE) * progress
+                            scaleX = scale
+                            scaleY = scale
+                        }
+                    }
+                }
                 .then(
                     when {
                         isSheet -> Modifier
@@ -213,7 +248,7 @@ private fun GlassOverlayPanel(
                             .shadow(
                                 elevation = 8.dp,
                                 shape = panelShape,
-                                clip = false,
+                                clip = true,
                                 ambientColor = Color.Black.copy(alpha = 0.14f),
                                 spotColor = Color.Black.copy(alpha = 0.22f)
                             )
@@ -252,41 +287,6 @@ private fun GlassOverlayPanel(
                         }
                     },
                     highlight = { Highlight.Plain.copy(alpha = if (isMenu) 0f else 1f) },
-                    layerBlock = {
-                        val progress = animation.value
-                        when {
-                            isSheet -> {
-                                alpha = progress.coerceIn(0f, 1f)
-                                translationY = size.height * (1f - progress)
-                            }
-
-                            isMenu -> {
-                                alpha = progress.coerceIn(0f, 1f)
-                                val pivotY = if (menuPlacement.isPlacedAboveAnchor) 1.0f else 0.0f
-                                transformOrigin = TransformOrigin(menuPlacement.menuPivotX, pivotY)
-
-                                val scaleProgress = progress.coerceAtLeast(0f)
-                                val scale = 0.86f + 0.14f * scaleProgress
-                                scaleX = scale
-                                scaleY = scale
-
-                                val slideOffset = MENU_SLIDE_OFFSET.toPx()
-                                translationY = if (menuPlacement.isPlacedAboveAnchor) {
-                                    slideOffset * (1f - scaleProgress)
-                                } else {
-                                    -slideOffset * (1f - scaleProgress)
-                                }
-                            }
-
-                            else -> {
-                                alpha = progress.coerceIn(0f, 1f)
-                                val scale = OVERLAY_MIN_SCALE +
-                                    (1f - OVERLAY_MIN_SCALE) * progress
-                                scaleX = scale
-                                scaleY = scale
-                            }
-                        }
-                    },
                     exportedBackdrop = panelBackdrop,
                     onDrawSurface = { drawRect(color = fillColor) }
                 )

@@ -66,7 +66,7 @@ fun Modifier.liftShadow(shape: Shape): Modifier {
         this.shadow(
             elevation = lift,
             shape = shape,
-            clip = false,
+            clip = true,
             ambientColor = Color.Black.copy(alpha = 0.16f),
             spotColor = Color.Black.copy(alpha = 0.2f)
         )

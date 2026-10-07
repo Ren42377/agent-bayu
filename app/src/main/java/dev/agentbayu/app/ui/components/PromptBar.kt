@@ -129,10 +129,10 @@ fun PromptBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .animateContentSize()
             .liftShadow(ComposerShape)
             .clip(ComposerShape)
             .background(LocalAppSurfaces.current.composer)
-            .animateContentSize()
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             AnimatedVisibility(
