@@ -44,10 +44,7 @@ fun NoteEditorRoute(
     val notes by store.notes.collectAsState()
     val deletedMessage = stringResource(R.string.notes_deleted)
     val imageFailedMessage = stringResource(R.string.notes_image_failed)
-    val autoSavePending = stringResource(R.string.notes_autosave_pending)
-    val autoSaveSaving = stringResource(R.string.notes_autosave_saving)
-    val autoSaveSaved = stringResource(R.string.notes_autosave_saved)
-    val autoSaveFailed = stringResource(R.string.notes_autosave_failed)
+    val autoSaveFailureMessage = stringResource(R.string.notes_autosave_failed)
     val scope = rememberCoroutineScope()
     val imageStore = remember(context) { NoteImageStore(context) }
 
@@ -61,8 +58,8 @@ fun NoteEditorRoute(
     var lastSavedSnapshot by remember(noteId) {
         mutableStateOf(existing?.let(::editorSnapshotOf))
     }
-    var autoSaveStatus by remember(noteId) {
-        mutableStateOf(if (existing == null) "" else autoSaveSaved)
+    var hasAutoSaveFailure by remember(noteId) {
+        mutableStateOf(false)
     }
     var deleteOpen by remember { mutableStateOf(false) }
     var imageSheetOpen by remember { mutableStateOf(false) }
@@ -106,22 +103,24 @@ fun NoteEditorRoute(
     fun flushCurrentSnapshot(): Boolean {
         if (noteDeleted) return true
         val snapshot = NoteEditorSnapshot(draft, undoHistory, redoHistory)
-        if (snapshot == lastSavedSnapshot) return true
-        if (resolvedNoteId == null && snapshot.draft.title.isBlank() && snapshot.draft.content.isBlank()) {
-            autoSaveStatus = ""
+        if (snapshot == lastSavedSnapshot) {
+            hasAutoSaveFailure = false
             return true
         }
-        autoSaveStatus = autoSaveSaving
+        if (resolvedNoteId == null && snapshot.draft.title.isBlank() && snapshot.draft.content.isBlank()) {
+            hasAutoSaveFailure = false
+            return true
+        }
         return try {
             if (!persistSnapshot(snapshot)) {
-                autoSaveStatus = autoSaveFailed
+                hasAutoSaveFailure = true
                 false
             } else {
-                autoSaveStatus = autoSaveSaved
+                hasAutoSaveFailure = false
                 true
             }
         } catch (_: Exception) {
-            autoSaveStatus = autoSaveFailed
+            hasAutoSaveFailure = true
             false
         }
     }
@@ -130,14 +129,13 @@ fun NoteEditorRoute(
         if (noteDeleted) return@LaunchedEffect
         val snapshot = NoteEditorSnapshot(draft, undoHistory, redoHistory)
         if (snapshot == lastSavedSnapshot) {
-            autoSaveStatus = if (resolvedNoteId == null) "" else autoSaveSaved
+            hasAutoSaveFailure = false
             return@LaunchedEffect
         }
         if (resolvedNoteId == null && draft.title.isBlank() && draft.content.isBlank()) {
-            autoSaveStatus = ""
+            hasAutoSaveFailure = false
             return@LaunchedEffect
         }
-        autoSaveStatus = autoSavePending
         delay(AUTO_SAVE_INTERVAL_MILLIS)
         flushCurrentSnapshot()
     }
@@ -148,7 +146,7 @@ fun NoteEditorRoute(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) {
                 latestFlush()
-            } else if (event == Lifecycle.Event.ON_RESUME && autoSaveStatus == autoSaveFailed) {
+            } else if (event == Lifecycle.Event.ON_RESUME && hasAutoSaveFailure) {
                 latestFlush()
             }
         }
@@ -162,7 +160,7 @@ fun NoteEditorRoute(
         if (flushCurrentSnapshot()) {
             onBack()
         } else {
-            onMessage(autoSaveFailed)
+            onMessage(autoSaveFailureMessage)
         }
     }
 
@@ -190,7 +188,6 @@ fun NoteEditorRoute(
         draft = draft,
         undoHistory = undoHistory,
         redoHistory = redoHistory,
-        saveStatus = autoSaveStatus,
         onDraftChange = { draft = it },
         onHistoryChange = { undo, redo ->
             undoHistory = undo
@@ -201,7 +198,7 @@ fun NoteEditorRoute(
             if (flushCurrentSnapshot()) {
                 onBack()
             } else {
-                onMessage(autoSaveFailed)
+                onMessage(autoSaveFailureMessage)
             }
         },
         onAddImage = { imageSheetOpen = true },

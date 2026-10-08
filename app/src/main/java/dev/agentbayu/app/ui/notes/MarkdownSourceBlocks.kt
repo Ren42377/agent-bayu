@@ -1,10 +1,12 @@
 package dev.agentbayu.app.ui.notes
 
+import androidx.compose.runtime.Immutable
 import org.intellij.markdown.ast.ASTNode
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.parser.MarkdownParser
 import dev.agentbayu.app.ui.components.fencedRanges
 
+@Immutable
 internal data class MarkdownSourceBlock(
     val start: Int,
     val end: Int,

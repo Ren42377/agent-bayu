@@ -2,7 +2,6 @@ package dev.agentbayu.app.ui.notes
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,12 +31,14 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -53,6 +54,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -65,6 +67,7 @@ import dev.agentbayu.app.ui.components.insertImageBlock
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.LocalAppSurfaces
 import dev.agentbayu.app.ui.theme.LocalScreenInsets
+import kotlinx.coroutines.delay
 
 @Composable
 fun NoteEditorScreen(
@@ -72,7 +75,6 @@ fun NoteEditorScreen(
     draft: NoteDraft,
     undoHistory: List<String>,
     redoHistory: List<String>,
-    saveStatus: String,
     onDraftChange: (NoteDraft) -> Unit,
     onHistoryChange: (List<String>, List<String>) -> Unit,
     onDelete: () -> Unit,
@@ -91,11 +93,17 @@ fun NoteEditorScreen(
         mutableStateOf(TextFieldValue(draft.content, TextRange(draft.content.length)))
     }
     var activeBlock by remember { mutableStateOf<LiveBlockEdit?>(null) }
+    var nextLiveEditSessionId by remember { mutableStateOf(0L) }
     var lastEditTime by remember { mutableStateOf(0L) }
     val history = NoteEditHistory(undoHistory, redoHistory)
     val canUndo = undoHistory.isNotEmpty()
     val canRedo = redoHistory.isNotEmpty()
     val scrollState = rememberScrollState()
+
+    fun newLiveEditSessionId(): Long {
+        nextLiveEditSessionId += 1
+        return nextLiveEditSessionId
+    }
 
     fun updateContent(content: String, selection: TextRange? = null) {
         if (content == currentContent) return
@@ -321,13 +329,6 @@ fun NoteEditorScreen(
                         shape = MaterialTheme.shapes.large,
                         colors = editorFieldColors()
                     )
-                    if (saveStatus.isNotEmpty()) {
-                        Text(
-                            text = saveStatus,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    }
                     AnimatedContent(
                         targetState = mode,
                         transitionSpec = {
@@ -346,12 +347,6 @@ fun NoteEditorScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .heightIn(min = 320.dp),
-                                placeholder = {
-                                    Text(
-                                        text = stringResource(R.string.notes_editor_content_hint),
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                },
                                 textStyle = MaterialTheme.typography.bodyMedium,
                                 shape = MaterialTheme.shapes.large,
                                 colors = editorFieldColors()
@@ -369,7 +364,8 @@ fun NoteEditorScreen(
                                         value = TextFieldValue(
                                             block.source,
                                             TextRange(block.source.length)
-                                        )
+                                        ),
+                                        sessionId = newLiveEditSessionId()
                                     )
                                 },
                                 onAppendBlock = {
@@ -379,6 +375,7 @@ fun NoteEditorScreen(
                                         start = source.length,
                                         end = source.length,
                                         value = TextFieldValue(""),
+                                        sessionId = newLiveEditSessionId(),
                                         prefix = appendSeparator(source)
                                     )
                                 },
@@ -469,84 +466,77 @@ private fun LiveMarkdownEditor(
     onBlockValueChange: (LiveBlockEdit, TextFieldValue) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isEditing = activeBlock != null
-    val start = activeBlock?.start?.coerceIn(0, content.length) ?: 0
-    val end = activeBlock?.end?.coerceIn(start, content.length) ?: 0
-    val before = if (isEditing) content.substring(0, start) else ""
-    val after = if (isEditing) content.substring(end) else ""
-    val inactiveBlocks = remember(content, isEditing) {
-        if (isEditing) emptyList() else markdownSourceBlocks(content)
+    val latestActiveBlock = rememberUpdatedState(activeBlock)
+    val latestOnSelectBlock = rememberUpdatedState(onSelectBlock)
+    val latestOnBlockValueChange = rememberUpdatedState(onBlockValueChange)
+    val selectBlock = remember {
+        { entry: LiveMarkdownEntry ->
+            latestOnSelectBlock.value(entry.toSourceBlock(latestActiveBlock.value))
+        }
     }
-    val beforeBlocks = remember(isEditing, before) {
-        if (isEditing) markdownSourceBlocks(before) else emptyList()
+    val updateBlock = remember {
+        { edit: LiveBlockEdit, value: TextFieldValue ->
+            latestOnBlockValueChange.value(edit, value)
+        }
     }
-    val afterBlocks = remember(isEditing, after) {
-        if (isEditing) markdownSourceBlocks(after) else emptyList()
+    val inactiveBlocks = if (activeBlock == null) {
+        remember(content) { markdownSourceBlocks(content) }
+    } else {
+        emptyList()
+    }
+    val liveSession = remember(activeBlock?.sessionId) {
+        activeBlock?.let { createLiveMarkdownSession(content, it) }
+    }
+    val activeEntries = remember(activeBlock?.sessionId) {
+        activeBlock?.let { liveSession?.entries(it) }.orEmpty()
     }
     val entries = if (activeBlock == null) {
         inactiveBlocks.mapIndexed { index, block ->
-            LiveMarkdownEntry(index, block, isEditing = false)
+            LiveMarkdownEntry(
+                identity = index,
+                source = block.source,
+                selectionStart = block.start,
+                selectionEnd = block.end,
+                isEditing = false
+            )
         }
     } else {
-        buildList {
-            beforeBlocks.forEachIndexed { index, block ->
-                add(LiveMarkdownEntry(index, block, isEditing = false))
-            }
-            val activeSource = content.substring(start, end)
-            add(
-                LiveMarkdownEntry(
-                    identity = beforeBlocks.size,
-                    block = MarkdownSourceBlock(start, end, activeSource),
-                    isEditing = true
-                )
-            )
-            afterBlocks.forEachIndexed { index, block ->
-                add(
-                    LiveMarkdownEntry(
-                        identity = beforeBlocks.size + index + 1,
-                        block = block.copy(start = block.start + end, end = block.end + end),
-                        isEditing = false
-                    )
+        activeEntries
+    }
+
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        entries.forEach { entry ->
+            key(entry.identity) {
+                LiveMarkdownBlock(
+                    entry = entry,
+                    activeBlock = if (entry.isEditing) activeBlock else null,
+                    onSelectBlock = selectBlock,
+                    onBlockValueChange = updateBlock,
+                    modifier = Modifier.fillMaxWidth()
                 )
             }
         }
-    }
-
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .animateContentSize()
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.notes_editor_live_hint),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium
-            )
-            entries.forEach { entry ->
-                key(entry.identity) {
-                    LiveMarkdownBlock(
-                        entry = entry,
-                        activeBlock = if (entry.isEditing) activeBlock else null,
-                        onSelectBlock = onSelectBlock,
-                        onBlockValueChange = onBlockValueChange,
-                        modifier = Modifier.fillMaxWidth()
+        if (activeBlock == null) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 2.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                GlassIconButton(
+                    onClick = onAppendBlock,
+                    size = 38.dp
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_add),
+                        contentDescription = stringResource(R.string.notes_editor_add_block),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(18.dp)
                     )
                 }
-            }
-            if (activeBlock == null) {
-                Text(
-                    text = stringResource(R.string.notes_editor_add_block),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable(onClick = onAppendBlock)
-                        .padding(vertical = 12.dp)
-                )
             }
         }
     }
@@ -556,19 +546,30 @@ private fun LiveMarkdownEditor(
 private fun LiveMarkdownBlock(
     entry: LiveMarkdownEntry,
     activeBlock: LiveBlockEdit?,
-    onSelectBlock: (MarkdownSourceBlock) -> Unit,
+    onSelectBlock: (LiveMarkdownEntry) -> Unit,
     onBlockValueChange: (LiveBlockEdit, TextFieldValue) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val focusRequester = remember { FocusRequester() }
     val bringIntoViewRequester = remember { BringIntoViewRequester() }
     val isEditing = entry.isEditing && activeBlock != null
+    var previewContent by remember(activeBlock?.sessionId) {
+        mutableStateOf(activeBlock?.value?.text.orEmpty())
+    }
 
-    LaunchedEffect(isEditing, activeBlock?.start) {
+    LaunchedEffect(isEditing, activeBlock?.sessionId) {
         if (isEditing) {
             withFrameNanos { }
             focusRequester.requestFocus()
             bringIntoViewRequester.bringIntoView()
+        }
+    }
+
+    LaunchedEffect(activeBlock?.sessionId, activeBlock?.value?.text) {
+        val latestContent = activeBlock?.value?.text.orEmpty()
+        if (latestContent != previewContent) {
+            delay(LIVE_PREVIEW_DEBOUNCE_MILLIS)
+            previewContent = latestContent
         }
     }
 
@@ -585,7 +586,7 @@ private fun LiveMarkdownBlock(
         },
         contentAlignment = Alignment.TopStart,
         label = "liveMarkdownBlock",
-        modifier = modifier.animateContentSize()
+        modifier = modifier
     ) { editing ->
         if (editing && activeBlock != null) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -598,7 +599,7 @@ private fun LiveMarkdownBlock(
                         .focusRequester(focusRequester),
                     textStyle = MaterialTheme.typography.bodyMedium.copy(
                         color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = FontFamily.Monospace
+                        fontFamily = LiveEditorFontFamily
                     ),
                     cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     decorationBox = { innerTextField ->
@@ -608,20 +609,11 @@ private fun LiveMarkdownBlock(
                                 .heightIn(min = 56.dp)
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         ) {
-                            if (activeBlock.value.text.isEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.notes_editor_content_hint),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodyMedium.copy(
-                                        fontFamily = FontFamily.Monospace
-                                    )
-                                )
-                            }
                             innerTextField()
                         }
                     }
                 )
-                if (activeBlock.value.text.isNotBlank()) {
+                if (previewContent.isNotBlank()) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -633,7 +625,7 @@ private fun LiveMarkdownBlock(
                             .padding(8.dp)
                     ) {
                         MarkdownMessage(
-                            content = activeBlock.value.text,
+                            content = previewContent,
                             autoEmbedImages = true,
                             modifier = Modifier.fillMaxWidth()
                         )
@@ -642,11 +634,11 @@ private fun LiveMarkdownBlock(
             }
         } else {
             MarkdownMessage(
-                content = entry.block.source,
+                content = entry.source,
                 autoEmbedImages = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onSelectBlock(entry.block) }
+                    .clickable { onSelectBlock(entry) }
             )
         }
     }
@@ -673,21 +665,93 @@ private fun appendSeparator(source: String): String = when {
     else -> "\n\n"
 }
 
+@Immutable
 private data class LiveBlockEdit(
     val start: Int,
     val end: Int,
     val value: TextFieldValue,
+    val sessionId: Long,
     val prefix: String = ""
 )
 
+@Immutable
 private data class LiveMarkdownEntry(
     val identity: Int,
-    val block: MarkdownSourceBlock,
-    val isEditing: Boolean
-)
+    val source: String,
+    val selectionStart: Int,
+    val selectionEnd: Int,
+    val isEditing: Boolean,
+    val selectionIsRelativeToActiveEnd: Boolean = false
+) {
+    fun toSourceBlock(activeBlock: LiveBlockEdit?): MarkdownSourceBlock {
+        val offset = if (selectionIsRelativeToActiveEnd) activeBlock?.end ?: 0 else 0
+        return MarkdownSourceBlock(
+            start = selectionStart + offset,
+            end = selectionEnd + offset,
+            source = source
+        )
+    }
+}
+
+@Immutable
+private data class LiveMarkdownSession(
+    val beforeBlocks: List<MarkdownSourceBlock>,
+    val afterBlocks: List<MarkdownSourceBlock>
+) {
+    fun entries(activeBlock: LiveBlockEdit): List<LiveMarkdownEntry> = buildList {
+        beforeBlocks.forEachIndexed { index, block ->
+            add(
+                LiveMarkdownEntry(
+                    identity = index,
+                    source = block.source,
+                    selectionStart = block.start,
+                    selectionEnd = block.end,
+                    isEditing = false
+                )
+            )
+        }
+        add(
+            LiveMarkdownEntry(
+                identity = beforeBlocks.size,
+                source = activeBlock.value.text,
+                selectionStart = activeBlock.start,
+                selectionEnd = activeBlock.end,
+                isEditing = true
+            )
+        )
+        afterBlocks.forEachIndexed { index, block ->
+            add(
+                LiveMarkdownEntry(
+                    identity = beforeBlocks.size + index + 1,
+                    source = block.source,
+                    selectionStart = block.start,
+                    selectionEnd = block.end,
+                    isEditing = false,
+                    selectionIsRelativeToActiveEnd = true
+                )
+            )
+        }
+    }
+}
+
+private fun createLiveMarkdownSession(
+    content: String,
+    activeBlock: LiveBlockEdit
+): LiveMarkdownSession {
+    val start = activeBlock.start.coerceIn(0, content.length)
+    val end = activeBlock.end.coerceIn(start, content.length)
+    return LiveMarkdownSession(
+        beforeBlocks = markdownSourceBlocks(content.substring(0, start)),
+        afterBlocks = markdownSourceBlocks(content.substring(end))
+    )
+}
 
 private enum class NoteEditorMode {
     EDIT,
     LIVE,
     PREVIEW
 }
+
+private val LiveEditorFontFamily = FontFamily(Font(R.font.jetbrains_mono_regular))
+
+private const val LIVE_PREVIEW_DEBOUNCE_MILLIS = 180L
