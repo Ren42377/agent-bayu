@@ -106,7 +106,14 @@ class NoteStore(
     }
 
     @Synchronized
-    fun createNote(title: String, content: String = "", groupId: String? = null): String {
+    fun createNote(
+        title: String,
+        content: String = "",
+        groupId: String? = null,
+        pinned: Boolean = false,
+        undoHistory: List<String> = emptyList(),
+        redoHistory: List<String> = emptyList()
+    ): String {
         val trimmed = title.trim()
         if (trimmed.isEmpty() && content.isBlank()) return ""
         val now = clock.nowMillis()
@@ -117,8 +124,12 @@ class NoteStore(
             groupId = resolvedGroupId,
             title = trimmed,
             content = content,
+            pinned = pinned,
+            pinnedAtMillis = if (pinned) now else null,
             createdAtMillis = now,
-            updatedAtMillis = now
+            updatedAtMillis = now,
+            undoHistory = undoHistory.takeLast(MAX_NOTE_HISTORY_ENTRIES),
+            redoHistory = redoHistory.takeLast(MAX_NOTE_HISTORY_ENTRIES)
         )
         deletedNoteIds -= id
         persist()
@@ -128,17 +139,21 @@ class NoteStore(
     @Synchronized
     fun upsertNote(note: NoteItem) {
         if (!VALID_NOTE_ID.matches(note.id)) return
+        val boundedNote = note.copy(
+            undoHistory = note.undoHistory.takeLast(MAX_NOTE_HISTORY_ENTRIES),
+            redoHistory = note.redoHistory.takeLast(MAX_NOTE_HISTORY_ENTRIES)
+        )
         val now = clock.nowMillis()
         val current = notesState.value
-        val index = current.indexOfFirst { it.id == note.id }
+        val index = current.indexOfFirst { it.id == boundedNote.id }
         notesState.value = if (index >= 0) {
             current.toMutableList().apply {
-                set(index, note.copy(updatedAtMillis = now))
+                set(index, boundedNote.copy(updatedAtMillis = now))
             }
         } else {
-            current + note.copy(createdAtMillis = now, updatedAtMillis = now)
+            current + boundedNote.copy(createdAtMillis = now, updatedAtMillis = now)
         }
-        deletedNoteIds -= note.id
+        deletedNoteIds -= boundedNote.id
         persist()
     }
 

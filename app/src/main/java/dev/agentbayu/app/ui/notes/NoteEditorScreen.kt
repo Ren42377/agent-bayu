@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -41,13 +40,13 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ui.ai.AiScreenHeader
 import dev.agentbayu.app.ui.components.GlassFab
 import dev.agentbayu.app.ui.components.GlassIconButton
-import dev.agentbayu.app.ui.components.GlassSegmentedSelector
 import dev.agentbayu.app.ui.components.MarkdownMessage
 import dev.agentbayu.app.ui.components.insertImageBlock
 import dev.agentbayu.app.ui.theme.LocalAppSurfaces
@@ -57,8 +56,11 @@ import dev.agentbayu.app.ui.theme.LocalScreenInsets
 fun NoteEditorScreen(
     isNew: Boolean,
     draft: NoteDraft,
+    undoHistory: List<String>,
+    redoHistory: List<String>,
+    saveStatus: String,
     onDraftChange: (NoteDraft) -> Unit,
-    onSave: () -> Unit,
+    onHistoryChange: (List<String>, List<String>) -> Unit,
     onDelete: () -> Unit,
     onBack: () -> Unit,
     onAddImage: () -> Unit,
@@ -76,21 +78,18 @@ fun NoteEditorScreen(
         mutableStateOf(TextFieldValue(draft.content, TextRange(draft.content.length)))
     }
     var activeBlock by remember { mutableStateOf<LiveBlockEdit?>(null) }
-    val undoStack = remember { mutableStateListOf<String>() }
-    val redoStack = remember { mutableStateListOf<String>() }
     var lastEditTime by remember { mutableStateOf(0L) }
-    val canUndo = undoStack.isNotEmpty()
-    val canRedo = redoStack.isNotEmpty()
+    val history = NoteEditHistory(undoHistory, redoHistory)
+    val canUndo = undoHistory.isNotEmpty()
+    val canRedo = redoHistory.isNotEmpty()
     val scrollState = rememberScrollState()
 
     fun updateContent(content: String, selection: TextRange? = null) {
         if (content == currentContent) return
         val now = System.currentTimeMillis()
-        if (now - lastEditTime > EDIT_GROUP_WINDOW_MILLIS || undoStack.isEmpty()) {
-            undoStack.add(currentContent)
-        }
+        val nextHistory = recordNoteEdit(currentContent, history, now, lastEditTime)
+        onHistoryChange(nextHistory.undo, nextHistory.redo)
         lastEditTime = now
-        redoStack.clear()
         currentContent = content
         val safeSelection = selection?.let {
             TextRange(
@@ -227,6 +226,39 @@ fun NoteEditorScreen(
                         modifier = Modifier.size(18.dp)
                     )
                 }
+                GlassIconButton(
+                    onClick = {
+                        activeBlock = null
+                        focusManager.clearFocus()
+                        modeIndex = (modeIndex + 1) % NoteEditorMode.values().size
+                    },
+                    size = 38.dp
+                ) {
+                    AnimatedContent(
+                        targetState = mode,
+                        transitionSpec = { fadeIn() togetherWith fadeOut() },
+                        label = "editorModeIcon"
+                    ) { currentMode ->
+                        Icon(
+                            painter = painterResource(
+                                when (currentMode) {
+                                    NoteEditorMode.EDIT -> R.drawable.ic_code
+                                    NoteEditorMode.LIVE -> R.drawable.ic_visibility
+                                    NoteEditorMode.PREVIEW -> R.drawable.ic_edit
+                                }
+                            ),
+                            contentDescription = stringResource(
+                                when (currentMode) {
+                                    NoteEditorMode.EDIT -> R.string.notes_editor_switch_live
+                                    NoteEditorMode.LIVE -> R.string.notes_editor_switch_preview
+                                    NoteEditorMode.PREVIEW -> R.string.notes_editor_switch_edit
+                                }
+                            ),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
                 if (!isNew) {
                     GlassIconButton(
                         onClick = onDelete,
@@ -273,21 +305,13 @@ fun NoteEditorScreen(
                         shape = MaterialTheme.shapes.large,
                         colors = editorFieldColors()
                     )
-                    GlassSegmentedSelector(
-                        labels = listOf(
-                            stringResource(R.string.notes_editor_write),
-                            stringResource(R.string.notes_editor_live),
-                            stringResource(R.string.notes_editor_preview)
-                        ),
-                        selectedIndex = mode.ordinal,
-                        onSelect = { selected ->
-                            if (selected != mode.ordinal) {
-                                activeBlock = null
-                                focusManager.clearFocus()
-                                modeIndex = selected
-                            }
-                        }
-                    )
+                    if (saveStatus.isNotEmpty()) {
+                        Text(
+                            text = saveStatus,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
                     AnimatedContent(
                         targetState = mode,
                         transitionSpec = {
@@ -373,12 +397,15 @@ fun NoteEditorScreen(
                 onClick = {
                     if (canUndo) {
                         focusManager.clearFocus()
-                        redoStack.add(currentContent)
-                        val restored = undoStack.removeAt(undoStack.lastIndex)
+                        val transition = undoNoteEdit(currentContent, history) ?: return@GlassFab
+                        onHistoryChange(transition.history.undo, transition.history.redo)
                         activeBlock = null
-                        currentContent = restored
-                        contentValue = TextFieldValue(restored, TextRange(restored.length))
-                        onDraftChange(draft.copy(content = restored))
+                        currentContent = transition.content
+                        contentValue = TextFieldValue(
+                            transition.content,
+                            TextRange(transition.content.length)
+                        )
+                        onDraftChange(draft.copy(content = transition.content))
                         lastEditTime = 0L
                     }
                 },
@@ -394,12 +421,15 @@ fun NoteEditorScreen(
                 onClick = {
                     if (canRedo) {
                         focusManager.clearFocus()
-                        undoStack.add(currentContent)
-                        val restored = redoStack.removeAt(redoStack.lastIndex)
+                        val transition = redoNoteEdit(currentContent, history) ?: return@GlassFab
+                        onHistoryChange(transition.history.undo, transition.history.redo)
                         activeBlock = null
-                        currentContent = restored
-                        contentValue = TextFieldValue(restored, TextRange(restored.length))
-                        onDraftChange(draft.copy(content = restored))
+                        currentContent = transition.content
+                        contentValue = TextFieldValue(
+                            transition.content,
+                            TextRange(transition.content.length)
+                        )
+                        onDraftChange(draft.copy(content = transition.content))
                         lastEditTime = 0L
                     }
                 },
@@ -408,19 +438,6 @@ fun NoteEditorScreen(
                 Icon(
                     painter = painterResource(R.drawable.ic_redo),
                     contentDescription = stringResource(R.string.notes_editor_redo),
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-            GlassFab(
-                onClick = {
-                    activeBlock = null
-                    focusManager.clearFocus()
-                    onSave()
-                }
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_save),
-                    contentDescription = stringResource(R.string.tasks_detail_save),
                     modifier = Modifier.size(24.dp)
                 )
             }
@@ -487,9 +504,18 @@ private fun LiveMarkdownEditor(
                         style = MaterialTheme.typography.bodyMedium
                     )
                 },
-                textStyle = MaterialTheme.typography.bodyMedium,
-                shape = MaterialTheme.shapes.large,
-                colors = editorFieldColors()
+                textStyle = MaterialTheme.typography.bodyMedium.copy(
+                    fontFamily = FontFamily.Monospace
+                ),
+                shape = MaterialTheme.shapes.small,
+                colors = liveEditorFieldColors()
+            )
+            MarkdownMessage(
+                content = activeBlock.value.text,
+                autoEmbedImages = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp)
             )
             afterBlocks.forEach { block ->
                 val absoluteBlock = block.copy(
@@ -534,6 +560,18 @@ private fun editorFieldColors(): TextFieldColors {
     )
 }
 
+@Composable
+private fun liveEditorFieldColors(): TextFieldColors = TextFieldDefaults.colors(
+    focusedContainerColor = Color.Transparent,
+    unfocusedContainerColor = Color.Transparent,
+    disabledContainerColor = Color.Transparent,
+    errorContainerColor = Color.Transparent,
+    focusedIndicatorColor = Color.Transparent,
+    unfocusedIndicatorColor = Color.Transparent,
+    disabledIndicatorColor = Color.Transparent,
+    errorIndicatorColor = Color.Transparent
+)
+
 private fun appendSeparator(source: String): String = when {
     source.isEmpty() || source.endsWith("\n\n") -> ""
     source.endsWith('\n') -> "\n"
@@ -552,5 +590,3 @@ private enum class NoteEditorMode {
     LIVE,
     PREVIEW
 }
-
-private const val EDIT_GROUP_WINDOW_MILLIS = 600L

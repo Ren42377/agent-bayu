@@ -19,8 +19,12 @@ data class NoteItem(
     val pinned: Boolean = false,
     val pinnedAtMillis: Long? = null,
     val createdAtMillis: Long = 0L,
-    val updatedAtMillis: Long = 0L
+    val updatedAtMillis: Long = 0L,
+    val undoHistory: List<String> = emptyList(),
+    val redoHistory: List<String> = emptyList()
 )
+
+const val MAX_NOTE_HISTORY_ENTRIES = 10
 
 @Serializable
 data class NoteMetadata(
