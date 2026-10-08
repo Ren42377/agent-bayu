@@ -28,7 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
@@ -40,12 +42,25 @@ fun GlassDropdownMenuHost(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    menuWidth: Dp? = null,
+    scrollable: Boolean = true,
     trigger: @Composable (progress: () -> Float) -> Unit,
     menuContent: @Composable ColumnScope.() -> Unit
 ) {
-    var anchor by remember { mutableStateOf<IntRect?>(null) }
+    var rawAnchor by remember { mutableStateOf<IntRect?>(null) }
     val progress = remember { Animatable(0f) }
     val progressProvider: () -> Float = remember(progress) { { progress.value } }
+    val density = LocalDensity.current
+    val anchor = remember(rawAnchor, menuWidth, density) {
+        val raw = rawAnchor ?: return@remember null
+        if (menuWidth != null) {
+            val desiredWidthPx = with(density) { menuWidth.roundToPx() }
+            val left = raw.right - desiredWidthPx
+            IntRect(left, raw.top, raw.right, raw.bottom)
+        } else {
+            raw
+        }
+    }
     LaunchedEffect(expanded) {
         val springSpec = if (expanded) {
             AgentBayuMotion.menuElegantSpring
@@ -56,7 +71,7 @@ fun GlassDropdownMenuHost(
     }
     Box(
         modifier = modifier.onGloballyPositioned { coordinates ->
-            anchor = IntRect(coordinates.positionInWindow().round(), coordinates.size)
+            rawAnchor = IntRect(coordinates.positionInWindow().round(), coordinates.size)
         }
     ) {
         trigger(progressProvider)
@@ -69,7 +84,7 @@ fun GlassDropdownMenuHost(
     ) {
         Column(
             modifier = Modifier
-                .verticalScroll(rememberScrollState())
+                .then(if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier)
                 .padding(6.dp),
             content = menuContent
         )

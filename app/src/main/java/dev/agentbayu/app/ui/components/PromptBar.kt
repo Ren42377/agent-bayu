@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,7 +55,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
@@ -63,10 +66,13 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.round
 import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.domain.MessageAttachment
+import dev.agentbayu.app.ui.ai.EffortSelector
 import dev.agentbayu.app.ui.ai.ProviderOption
 import dev.agentbayu.app.ui.ai.effortColor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
@@ -98,9 +104,17 @@ fun PromptBar(
     val canSend = controlsEnabled && (value.isNotBlank() || attachments.isNotEmpty())
     val trailingActive = isResponding || canSend
     var fieldWidth by remember { mutableIntStateOf(0) }
-    var showModelMenu by remember { mutableStateOf(false) }
-    var isModelListExpanded by remember { mutableStateOf(false) }
-    
+    var showQuickSettings by remember { mutableStateOf(false) }
+    var showModelPicker by remember { mutableStateOf(false) }
+    var pillAnchor by remember { mutableStateOf<IntRect?>(null) }
+
+    val menuAnchor = remember(pillAnchor, density) {
+        val raw = pillAnchor ?: return@remember null
+        val desiredWidthPx = with(density) { 320.dp.roundToPx() }
+        val left = raw.right - desiredWidthPx
+        IntRect(left, raw.top, raw.right, raw.bottom)
+    }
+
     val sendScale by animateFloatAsState(
         targetValue = if (trailingActive) 1f else 0.85f,
         animationSpec = AgentBayuMotion.snappySpring,
@@ -113,7 +127,8 @@ fun PromptBar(
         if (canSend) {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onSend()
-            showModelMenu = false
+            showQuickSettings = false
+            showModelPicker = false
         }
     }
 
@@ -218,158 +233,24 @@ fun PromptBar(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP)
         ) {
-            GlassDropdownMenuHost(
-                expanded = showModelMenu,
-                onExpandedChange = { expanded ->
-                    showModelMenu = expanded
-                    if (!expanded) {
-                        isModelListExpanded = false
-                    }
-                },
-                modifier = Modifier,
-                trigger = { progress ->
-                    ModelSelectorPill(
-                        modelName = activeOption?.model ?: stringResource(R.string.picker_model_title),
-                        expanded = showModelMenu,
-                        enabled = controlsEnabled,
-                        onClick = { showModelMenu = !showModelMenu }
-                    )
+            Box(
+                modifier = Modifier.onGloballyPositioned { coordinates ->
+                    pillAnchor = IntRect(coordinates.positionInWindow().round(), coordinates.size)
                 }
             ) {
-                Column(
-                    modifier = Modifier
-                        .width(260.dp)
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
-                ) {
-                    val modelChevronRotation by animateFloatAsState(
-                        targetValue = if (isModelListExpanded) 90f else 0f,
-                        animationSpec = AgentBayuMotion.snappySpring,
-                        label = "modelChevron"
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .clickable { isModelListExpanded = !isModelListExpanded }
-                            .padding(horizontal = 4.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Text(
-                            text = stringResource(R.string.picker_model_title),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Text(
-                                text = activeOption?.model ?: "",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.widthIn(max = 140.dp)
-                            )
-                            Icon(
-                                painter = painterResource(R.drawable.ic_chevron),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier
-                                    .size(14.dp)
-                                    .graphicsLayer { rotationZ = modelChevronRotation }
-                            )
+                ModelSelectorPill(
+                    modelName = activeOption?.model ?: stringResource(R.string.picker_model_title),
+                    expanded = showQuickSettings || showModelPicker,
+                    enabled = controlsEnabled,
+                    onClick = {
+                        if (showQuickSettings || showModelPicker) {
+                            showQuickSettings = false
+                            showModelPicker = false
+                        } else {
+                            showQuickSettings = true
                         }
                     }
-
-                    AnimatedVisibility(
-                        visible = isModelListExpanded,
-                        enter = expandVertically() + fadeIn(AgentBayuMotion.quickFade),
-                        exit = shrinkVertically() + fadeOut(AgentBayuMotion.quickFade)
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                        ) {
-                            providerOptions.forEach { option ->
-                                option.models.forEach { model ->
-                                    val isSelected = option.isActive && option.model == model
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .clickable {
-                                                onSelectModel(option.connectionId, model)
-                                                isModelListExpanded = false
-                                            }
-                                            .padding(horizontal = 8.dp, vertical = 7.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.SpaceBetween
-                                    ) {
-                                        Text(
-                                            text = model,
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                            modifier = Modifier.weight(1f, fill = false)
-                                        )
-                                        if (isSelected) {
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Icon(
-                                                painter = painterResource(R.drawable.ic_check),
-                                                contentDescription = null,
-                                                tint = MaterialTheme.colorScheme.primary,
-                                                modifier = Modifier.size(16.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    if (activeOption != null && activeOption.efforts.isNotEmpty()) {
-                        HorizontalDivider(
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-                            modifier = Modifier.padding(vertical = 8.dp)
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = stringResource(R.string.picker_effort_title),
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            activeOption.effort?.let { effort ->
-                                Text(
-                                    text = effort.label,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = effortColor(effort)
-                                )
-                            }
-                        }
-
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        CompactEffortSlider(
-                            options = activeOption.efforts,
-                            selected = activeOption.effort,
-                            onSelect = { effort ->
-                                onSelectEffort(activeOption.connectionId, effort)
-                            },
-                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                        )
-                    }
-                }
+                )
             }
 
             SendButton(
@@ -378,6 +259,191 @@ fun PromptBar(
                 onClick = if (isResponding) stop else submit,
                 modifier = Modifier.scale(sendScale)
             )
+        }
+    }
+
+    GlassOverlay(
+        visible = showQuickSettings && menuAnchor != null,
+        presentation = GlassOverlayPresentation.MENU,
+        anchor = menuAnchor,
+        onDismiss = { showQuickSettings = false }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable {
+                        showQuickSettings = false
+                        showModelPicker = true
+                    }
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = stringResource(R.string.picker_model_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = activeOption?.model ?: "",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 180.dp)
+                    )
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+
+            if (activeOption != null && activeOption.efforts.isNotEmpty()) {
+                HorizontalDivider(
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = stringResource(R.string.picker_effort_title),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    activeOption.effort?.let { effort ->
+                        Text(
+                            text = effort.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = effortColor(effort)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
+
+                EffortSelector(
+                    options = activeOption.efforts,
+                    selected = activeOption.effort,
+                    onSelect = { effort ->
+                        onSelectEffort(activeOption.connectionId, effort)
+                    },
+                    modifier = Modifier.padding(horizontal = 2.dp, vertical = 2.dp)
+                )
+            }
+        }
+    }
+
+    GlassOverlay(
+        visible = showModelPicker && menuAnchor != null,
+        presentation = GlassOverlayPresentation.MENU,
+        anchor = menuAnchor,
+        onDismiss = { showModelPicker = false }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 10.dp, vertical = 10.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .clickable {
+                            showModelPicker = false
+                            showQuickSettings = true
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_chevron),
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .graphicsLayer { rotationZ = 180f }
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.picker_model_title),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 240.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                providerOptions.forEach { option ->
+                    option.models.forEach { model ->
+                        val isSelected = option.isActive && option.model == model
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    onSelectModel(option.connectionId, model)
+                                    showModelPicker = false
+                                    showQuickSettings = true
+                                }
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = model,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
+                            )
+                            if (isSelected) {
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_check),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }
