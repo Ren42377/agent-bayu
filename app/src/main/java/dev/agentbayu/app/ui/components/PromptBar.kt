@@ -285,8 +285,8 @@ fun PromptBar(
 
                     AnimatedVisibility(
                         visible = isModelListExpanded,
-                        enter = expandVertically(AgentBayuMotion.snappySpring) + fadeIn(AgentBayuMotion.quickFade),
-                        exit = shrinkVertically(AgentBayuMotion.snappySpring) + fadeOut(AgentBayuMotion.quickFade)
+                        enter = expandVertically() + fadeIn(AgentBayuMotion.quickFade),
+                        exit = shrinkVertically() + fadeOut(AgentBayuMotion.quickFade)
                     ) {
                         Column(
                             modifier = Modifier
