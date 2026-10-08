@@ -243,7 +243,7 @@ fun PromptBar(
                 ) {
                     val modelChevronRotation by animateFloatAsState(
                         targetValue = if (isModelListExpanded) 90f else 0f,
-                        animationSpec = AgentBayuMotion.quickSpring,
+                        animationSpec = AgentBayuMotion.snappySpring,
                         label = "modelChevron"
                     )
                     Row(
@@ -285,8 +285,8 @@ fun PromptBar(
 
                     AnimatedVisibility(
                         visible = isModelListExpanded,
-                        enter = expandVertically(AgentBayuMotion.quickSpring) + fadeIn(AgentBayuMotion.quickFade),
-                        exit = shrinkVertically(AgentBayuMotion.quickSpring) + fadeOut(AgentBayuMotion.quickFade)
+                        enter = expandVertically(AgentBayuMotion.snappySpring) + fadeIn(AgentBayuMotion.quickFade),
+                        exit = shrinkVertically(AgentBayuMotion.snappySpring) + fadeOut(AgentBayuMotion.quickFade)
                     ) {
                         Column(
                             modifier = Modifier
@@ -392,7 +392,7 @@ private fun ModelSelectorPill(
 ) {
     val chevronRotation by animateFloatAsState(
         targetValue = if (expanded) -90f else 90f,
-        animationSpec = AgentBayuMotion.quickSpring,
+        animationSpec = AgentBayuMotion.snappySpring,
         label = "pillChevron"
     )
     Row(
