@@ -32,6 +32,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -51,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
@@ -66,7 +68,6 @@ import dev.agentbayu.app.R
 import dev.agentbayu.app.ai.ReasoningEffort
 import dev.agentbayu.app.domain.MessageAttachment
 import dev.agentbayu.app.ui.ai.ProviderOption
-import dev.agentbayu.app.ui.ai.EffortSelector
 import dev.agentbayu.app.ui.ai.effortColor
 import dev.agentbayu.app.ui.theme.AgentBayuMotion
 import dev.agentbayu.app.ui.theme.LocalAppSurfaces
@@ -97,8 +98,8 @@ fun PromptBar(
     val canSend = controlsEnabled && (value.isNotBlank() || attachments.isNotEmpty())
     val trailingActive = isResponding || canSend
     var fieldWidth by remember { mutableIntStateOf(0) }
-    var showEffortSlider by remember { mutableStateOf(false) }
-    var showModelPicker by remember { mutableStateOf(false) }
+    var showModelMenu by remember { mutableStateOf(false) }
+    var isModelListExpanded by remember { mutableStateOf(false) }
     
     val sendScale by animateFloatAsState(
         targetValue = if (trailingActive) 1f else 0.85f,
@@ -112,7 +113,7 @@ fun PromptBar(
         if (canSend) {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
             onSend()
-            showEffortSlider = false
+            showModelMenu = false
         }
     }
 
@@ -161,48 +162,39 @@ fun PromptBar(
                     ),
                 contentAlignment = Alignment.CenterStart
             ) {
-                if (showEffortSlider && activeOption != null && activeOption.efforts.isNotEmpty()) {
-                    EffortControlRow(
-                        option = activeOption,
-                        onSelectEffort = { effort ->
-                            onSelectEffort(activeOption.connectionId, effort)
-                        }
-                    )
-                } else {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.chat_input_hint),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = scheme.onSurfaceVariant.copy(alpha = 0.7f)
-                        )
-                    }
-                    BasicTextField(
-                        value = value,
-                        onValueChange = onValueChange,
-                        enabled = controlsEnabled,
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(
-                            color = scheme.onSurface
-                        ),
-                        cursorBrush = SolidColor(scheme.primary),
-                        keyboardOptions = KeyboardOptions(
-                            capitalization = KeyboardCapitalization.Sentences,
-                            imeAction = ImeAction.Default
-                        ),
-                        maxLines = MAX_INPUT_LINES,
-                        onTextLayout = { layout ->
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onSizeChanged { size -> fieldWidth = size.width }
-                            .then(
-                                if (focusRequester != null) {
-                                    Modifier.focusRequester(focusRequester)
-                                } else {
-                                    Modifier
-                                }
-                            )
+                if (value.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.chat_input_hint),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = scheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    enabled = controlsEnabled,
+                    textStyle = MaterialTheme.typography.bodyLarge.copy(
+                        color = scheme.onSurface
+                    ),
+                    cursorBrush = SolidColor(scheme.primary),
+                    keyboardOptions = KeyboardOptions(
+                        capitalization = KeyboardCapitalization.Sentences,
+                        imeAction = ImeAction.Default
+                    ),
+                    maxLines = MAX_INPUT_LINES,
+                    onTextLayout = { layout ->
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onSizeChanged { size -> fieldWidth = size.width }
+                        .then(
+                            if (focusRequester != null) {
+                                Modifier.focusRequester(focusRequester)
+                            } else {
+                                Modifier
+                            }
+                        )
+                )
             }
             Spacer(modifier = Modifier.height(CONTROLS_ROW_HEIGHT))
         }
@@ -227,89 +219,156 @@ fun PromptBar(
             horizontalArrangement = Arrangement.spacedBy(CONTROL_GAP)
         ) {
             GlassDropdownMenuHost(
-                expanded = showModelPicker,
-                onExpandedChange = { showModelPicker = it },
+                expanded = showModelMenu,
+                onExpandedChange = { expanded ->
+                    showModelMenu = expanded
+                    if (!expanded) {
+                        isModelListExpanded = false
+                    }
+                },
                 modifier = Modifier,
                 trigger = { progress ->
-                    ComposerIconButton(
-                        iconRes = R.drawable.ic_package,
-                        description = "Models",
+                    ModelSelectorPill(
+                        modelName = activeOption?.model ?: stringResource(R.string.picker_model_title),
+                        expanded = showModelMenu,
                         enabled = controlsEnabled,
-                        onClick = { showModelPicker = !showModelPicker }
+                        onClick = { showModelMenu = !showModelMenu }
                     )
                 }
             ) {
-                // Ensure it has a fixed width
-                Column(modifier = Modifier.width(210.dp)) {
-                    providerOptions.forEachIndexed { providerIndex, option ->
-                        if (providerIndex > 0) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
+                Column(
+                    modifier = Modifier
+                        .width(260.dp)
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    val modelChevronRotation by animateFloatAsState(
+                        targetValue = if (isModelListExpanded) 90f else 0f,
+                        animationSpec = AgentBayuMotion.quickSpring,
+                        label = "modelChevron"
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { isModelListExpanded = !isModelListExpanded }
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
                         Text(
-                            text = option.providerLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp)
+                            text = stringResource(R.string.picker_model_title),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        option.models.forEach { model ->
-                            val isSelected = option.isActive && option.model == model
-                            Row(
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = activeOption?.model ?: "",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.widthIn(max = 140.dp)
+                            )
+                            Icon(
+                                painter = painterResource(R.drawable.ic_chevron),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable {
-                                        onSelectModel(option.connectionId, model)
-                                        showModelPicker = false
+                                    .size(14.dp)
+                                    .graphicsLayer { rotationZ = modelChevronRotation }
+                            )
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isModelListExpanded,
+                        enter = expandVertically(AgentBayuMotion.quickSpring) + fadeIn(AgentBayuMotion.quickFade),
+                        exit = shrinkVertically(AgentBayuMotion.quickSpring) + fadeOut(AgentBayuMotion.quickFade)
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            providerOptions.forEach { option ->
+                                option.models.forEach { model ->
+                                    val isSelected = option.isActive && option.model == model
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .clickable {
+                                                onSelectModel(option.connectionId, model)
+                                                isModelListExpanded = false
+                                            }
+                                            .padding(horizontal = 8.dp, vertical = 7.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.SpaceBetween
+                                    ) {
+                                        Text(
+                                            text = model,
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
+                                        )
+                                        if (isSelected) {
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Icon(
+                                                painter = painterResource(R.drawable.ic_check),
+                                                contentDescription = null,
+                                                tint = MaterialTheme.colorScheme.primary,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
                                     }
-                                    .padding(horizontal = 14.dp, vertical = 6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(
-                                    text = model,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.weight(1f, fill = false)
-                                )
-                                if (isSelected) {
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Icon(
-                                        painter = painterResource(R.drawable.ic_check),
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurface,
-                                        modifier = Modifier.size(16.dp)
-                                    )
                                 }
                             }
                         }
                     }
-                }
-            }
 
-            AnimatedVisibility(visible = activeOption?.efforts?.isNotEmpty() == true) {
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable(enabled = controlsEnabled) { 
-                            showEffortSlider = !showEffortSlider 
+                    if (activeOption != null && activeOption.efforts.isNotEmpty()) {
+                        HorizontalDivider(
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            modifier = Modifier.padding(vertical = 8.dp)
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 4.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = stringResource(R.string.picker_effort_title),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            activeOption.effort?.let { effort ->
+                                Text(
+                                    text = effort.label,
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = effortColor(effort)
+                                )
+                            }
                         }
-                        .padding(horizontal = 8.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = activeOption?.effort?.label ?: "",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.size(4.dp))
-                    Icon(
-                        painter = painterResource(R.drawable.ic_chevron),
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        CompactEffortSlider(
+                            options = activeOption.efforts,
+                            selected = activeOption.effort,
+                            onSelect = { effort ->
+                                onSelectEffort(activeOption.connectionId, effort)
+                            },
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                        )
+                    }
                 }
             }
 
@@ -324,43 +383,42 @@ fun PromptBar(
 }
 
 @Composable
-private fun EffortControlRow(option: ProviderOption, onSelectEffort: (ReasoningEffort) -> Unit) {
-    var previewEffort by remember(option.effort) { mutableStateOf(option.effort) }
-    val currentEffort = previewEffort ?: option.effort
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(bottom = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+private fun ModelSelectorPill(
+    modelName: String,
+    expanded: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val chevronRotation by animateFloatAsState(
+        targetValue = if (expanded) -90f else 90f,
+        animationSpec = AgentBayuMotion.quickSpring,
+        label = "pillChevron"
+    )
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = stringResource(R.string.picker_effort_title),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f)
-            )
-            currentEffort?.let { effort ->
-                Text(
-                    text = effort.label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = effortColor(effort)
-                )
-            }
-        }
-        EffortSelector(
-            options = option.efforts,
-            selected = option.effort,
-            onSelect = { effort ->
-                previewEffort = effort
-                onSelectEffort(effort)
-            },
-            onPreview = { effort ->
-                previewEffort = effort
-            }
+        Text(
+            text = modelName,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 120.dp)
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_chevron),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .size(12.dp)
+                .graphicsLayer { rotationZ = chevronRotation }
         )
     }
 }
