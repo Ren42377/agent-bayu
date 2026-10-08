@@ -405,9 +405,9 @@
     <string name="notes_editor_title">Edit note</string>
     <string name="notes_editor_title_hint">Title</string>
     <string name="notes_editor_content_hint">Write markdown here. Put an image URL or file path on its own line to show it.</string>
-    <string name="notes_editor_switch_live">Switch to Live mode</string>
-    <string name="notes_editor_switch_preview">Switch to Preview mode</string>
-    <string name="notes_editor_switch_edit">Switch to Edit mode</string>
+    <string name="notes_editor_mode_edit">Edit mode</string>
+    <string name="notes_editor_mode_live">Live mode</string>
+    <string name="notes_editor_mode_preview">Preview mode</string>
     <string name="notes_editor_live_hint">Tap a rendered block to edit its Markdown.</string>
     <string name="notes_editor_add_block">Tap to add a block</string>
     <string name="notes_editor_undo">Undo</string>
